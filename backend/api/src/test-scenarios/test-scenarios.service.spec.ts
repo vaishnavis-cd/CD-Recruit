@@ -184,7 +184,8 @@ async function runTestScenariosSubsystemTests() {
   console.log("================================================================================");
 }
 
-runTestScenariosSubsystemTests().catch((err) => {
-  console.error("❌ Test Scenarios subsystem tests failed:", err);
-  process.exit(1);
+describe('TestScenariosService Subsystem', () => {
+  it('runs all test scenarios characterization tests', async () => {
+    await runTestScenariosSubsystemTests();
+  });
 });

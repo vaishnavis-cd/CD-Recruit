@@ -134,7 +134,8 @@ async function runSessionScoringTests() {
   console.log("✅ All SessionScoringService characterization unit tests passed successfully!");
 }
 
-runSessionScoringTests().catch((err) => {
-  console.error("❌ SessionScoringService unit tests failed:", err);
-  process.exit(1);
+describe('SessionScoringService Subsystem', () => {
+  it('runs all session scoring characterization tests', async () => {
+    await runSessionScoringTests();
+  });
 });

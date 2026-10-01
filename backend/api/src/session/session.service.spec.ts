@@ -104,6 +104,7 @@ async function runSessionCharacterizationTests() {
   };
   const mockFaceVerifyOnnx: any = {};
   const mockIdOcr: any = {};
+  const mockTenantAccess: any = { assertCanConsume: async () => {} };
 
   const service = new SessionService(
     mockPrisma,
@@ -118,6 +119,7 @@ async function runSessionCharacterizationTests() {
     mockSandboxOrchestrator,
     mockFaceVerifyOnnx,
     mockIdOcr,
+    mockTenantAccess,
   );
 
   // Test 1: startSession creates session
@@ -164,7 +166,8 @@ async function runSessionCharacterizationTests() {
   console.log("✅ All SessionService characterization & question sanitization tests passed successfully!");
 }
 
-runSessionCharacterizationTests().catch((err) => {
-  console.error("❌ SessionService characterization tests failed:", err);
-  process.exit(1);
+describe('SessionService Subsystem', () => {
+  it('runs all session service characterization tests', async () => {
+    await runSessionCharacterizationTests();
+  });
 });

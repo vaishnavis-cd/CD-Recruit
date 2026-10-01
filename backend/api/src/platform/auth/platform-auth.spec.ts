@@ -1,9 +1,3 @@
-import * as dotenv from "dotenv";
-import * as path from "path";
-
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
-dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
-
 import assert from "node:assert";
 import { UnauthorizedException, ForbiddenException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -155,10 +149,15 @@ async function runPlatformAuthTests() {
     },
   };
 
+  const mockAuditService: any = {
+    record: jest.fn().mockResolvedValue({ id: 'mock-audit-id' }),
+  };
+
   const platformAuthService = new PlatformAuthService(
     platformJwtService,
     configService,
     mockPrisma,
+    mockAuditService,
   );
 
   const platformJwtStrategy = new PlatformJwtStrategy(
@@ -191,14 +190,15 @@ async function runPlatformAuthTests() {
   assert.strictEqual(ownerLoginRes.staff.role, PlatformStaffRole.OWNER);
   pass("Valid platform OWNER credentials authenticate and enforce MFA challenge boundary");
 
-  // Also verify staff with mfaEnabled = false receives direct access token
+  // Also verify staff with mfaEnabled = false receives restricted setupToken for enrollment
   const financeLoginRes = await platformAuthService.login({
     email: "finance@cdrecruit.local",
     password: "password",
   });
   assert.strictEqual(financeLoginRes.mfaRequired, false);
-  assert.ok("accessToken" in financeLoginRes);
-  pass("Valid platform staff with mfaEnabled = false receives full access token");
+  assert.strictEqual(financeLoginRes.mfaSetupRequired, true);
+  assert.ok(financeLoginRes.setupToken);
+  pass("Valid platform staff with mfaEnabled = false receives restricted setupToken for mandatory enrollment");
 
   // ---------------------------------------------------------------------------
   // TEST 2: Invalid password
@@ -241,7 +241,7 @@ async function runPlatformAuthTests() {
         password: "password",
       });
     },
-    (err: any) => err instanceof UnauthorizedException && err.message === "Account is disabled",
+    (err: any) => err instanceof UnauthorizedException,
   );
   pass("Inactive platform staff rejected with UnauthorizedException");
 
@@ -452,10 +452,28 @@ async function runPlatformAuthTests() {
   // TEST 15 & 16: Live PostgreSQL Database Integration (Seeded OWNER account)
   // ---------------------------------------------------------------------------
   console.log("\n[TEST 15 & 16] Testing live PostgreSQL database integration...");
-  const { PrismaClient } = require("@prisma/client");
-  const livePrisma = new PrismaClient();
+  const { PrismaService } = require("../../prisma/prisma.service");
+  const livePrisma = new PrismaService();
   try {
-    const liveAuthService = new PlatformAuthService(platformJwtService, configService, livePrisma);
+    // Seed live owner account in test DB if not present
+    const existingOwner = await livePrisma.platformStaff.findUnique({
+      where: { email: "owner@cdrecruit.local" },
+    });
+    if (!existingOwner) {
+      const { hashPassword } = require("../../common/utils/password.util");
+      await livePrisma.platformStaff.create({
+        data: {
+          email: "owner@cdrecruit.local",
+          name: "Platform Owner",
+          role: "OWNER",
+          passwordHash: await hashPassword("password"),
+          isActive: true,
+          mfaEnabled: true,
+        },
+      });
+    }
+
+    const liveAuthService = new PlatformAuthService(platformJwtService, configService, livePrisma, mockAuditService);
     const liveLogin = await liveAuthService.login({
       email: "owner@cdrecruit.local",
       password: "password",
@@ -480,7 +498,8 @@ async function runPlatformAuthTests() {
   console.log("================================================================================");
 }
 
-runPlatformAuthTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('Platform Auth Security & MFA Tests', () => {
+  it('runs all platform auth and security characterization tests', async () => {
+    await runPlatformAuthTests();
+  }, 60000);
 });

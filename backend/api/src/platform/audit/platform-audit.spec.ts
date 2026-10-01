@@ -1,14 +1,9 @@
-import * as dotenv from "dotenv";
-import * as path from "path";
-
-dotenv.config({ path: path.resolve(process.cwd(), ".env") });
-dotenv.config({ path: path.resolve(process.cwd(), "../../.env") });
-
 import assert from "node:assert";
 import { ForbiddenException, BadRequestException } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
 import { PlatformStaffRole, StaffRole } from "@cd-recruit/shared-types";
 import { PlatformAuditService } from "./platform-audit.service";
+import { PlatformAuditExplorerService } from "./platform-audit-explorer.service";
 import { PlatformAuditController } from "./platform-audit.controller";
 import {
   PlatformAuditAction,
@@ -31,16 +26,28 @@ async function runPlatformAuditTests() {
     console.log(`✅ PASS [${testTotal}]: ${msg}`);
   }
 
-  const livePrisma = new PrismaClient();
+  const livePrisma = new PrismaService();
   const platformAuditService = new PlatformAuditService(livePrisma as any);
-  const platformAuditController = new PlatformAuditController(platformAuditService);
+  const platformAuditExplorerService = new PlatformAuditExplorerService(livePrisma as any, platformAuditService);
+  const platformAuditController = new PlatformAuditController(platformAuditService, platformAuditExplorerService);
 
   try {
-    // Lookup the seeded OWNER account from Step 1.4
-    const seededOwner = await livePrisma.platformStaff.findUnique({
+    // Lookup or seed the OWNER account in test database
+    let seededOwner = await livePrisma.platformStaff.findUnique({
       where: { email: "owner@cdrecruit.local" },
     });
-    assert.ok(seededOwner, "Seeded platform OWNER account must exist in database");
+    if (!seededOwner) {
+      seededOwner = await livePrisma.platformStaff.create({
+        data: {
+          email: "owner@cdrecruit.local",
+          name: "Platform Owner",
+          role: "OWNER",
+          isActive: true,
+          mfaEnabled: true,
+        },
+      });
+    }
+    assert.ok(seededOwner, "Platform OWNER account must exist in database");
 
     const authenticatedOwner: AuthenticatedPlatformActor = {
       id: seededOwner.id,
@@ -412,7 +419,8 @@ async function runPlatformAuditTests() {
   }
 }
 
-runPlatformAuditTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('Platform Audit Boundary Tests', () => {
+  it('runs all platform audit boundary tests', async () => {
+    await runPlatformAuditTests();
+  }, 60000);
 });

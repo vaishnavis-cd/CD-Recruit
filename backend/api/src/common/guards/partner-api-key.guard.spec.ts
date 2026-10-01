@@ -84,7 +84,8 @@ async function runPartnerApiKeyGuardTests() {
   console.log("✅ All PartnerApiKeyGuard characterization tests passed successfully!");
 }
 
-runPartnerApiKeyGuardTests().catch((err) => {
-  console.error("❌ PartnerApiKeyGuard tests failed:", err);
-  process.exit(1);
+describe('PartnerApiKeyGuard', () => {
+  it('runs all partner api key guard characterization tests', async () => {
+    await runPartnerApiKeyGuardTests();
+  });
 });

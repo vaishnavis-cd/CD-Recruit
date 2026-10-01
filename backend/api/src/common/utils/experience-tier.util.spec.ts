@@ -79,8 +79,9 @@ async function runExperienceTierTests() {
   console.log("\n All 8 test suites for experience tier normalization passed successfully!");
 }
 
-runExperienceTierTests().catch((err) => {
-  console.error("Test failed:", err);
-  process.exit(1);
+describe('ExperienceTierUtil', () => {
+  it('runs all experience tier normalization tests', async () => {
+    await runExperienceTierTests();
+  });
 });
 

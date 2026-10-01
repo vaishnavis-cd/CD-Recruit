@@ -93,7 +93,8 @@ async function runRolePermissionsTests() {
   console.log("✅ All Role Permissions Dynamic Engine tests passed successfully!");
 }
 
-runRolePermissionsTests().catch((err) => {
-  console.error("❌ Role Permissions tests failed:", err);
-  process.exit(1);
+describe('RolePermissions Dynamic Engine', () => {
+  it('runs all role permissions dynamic engine tests', async () => {
+    await runRolePermissionsTests();
+  });
 });

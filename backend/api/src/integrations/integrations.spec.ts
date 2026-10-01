@@ -196,7 +196,8 @@ Female
   console.log("================================================================================");
 }
 
-runIntegrationsTests().catch((err) => {
-  console.error("❌ Characterization tests failed:", err);
-  process.exit(1);
+describe('Integrations Subsystem', () => {
+  it('runs all integration characterization tests', async () => {
+    await runIntegrationsTests();
+  });
 });

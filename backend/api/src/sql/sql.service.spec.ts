@@ -379,7 +379,8 @@ async function runSqlSubsystemTests() {
   console.log("================================================================================");
 }
 
-runSqlSubsystemTests().catch((err) => {
-  console.error("❌ SQL subsystem tests failed:", err);
-  process.exit(1);
+describe('SqlService Subsystem', () => {
+  it('runs all SQL subsystem characterization tests', async () => {
+    await runSqlSubsystemTests();
+  });
 });

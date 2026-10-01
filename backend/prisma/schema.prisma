@@ -366,9 +366,11 @@ model Drive {
   questions      DriveQuestion[]
   overrideActions OverrideAction[]
 
+  @@index([organizationId])
   @@map("drive")
   @@schema("public")
 }
+
 
 model DriveQuestion {
   id                      String     @id @default(uuid())
@@ -443,10 +445,14 @@ model Organization {
   tenantProfile         TenantProfile?
   overrideActions       OverrideAction[]
   impersonationSessions ImpersonationSession[]
+  billingAccount BillingAccount @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  @@index([name])
+  @@index([createdAt])
  
   @@map("organization")
   @@schema("public")
 }
+
 
 model Candidate {
   id                         String    @id @default(uuid())
@@ -924,16 +930,22 @@ enum IncidentStatus {
 // =============================================
 
 model PlatformStaff {
-  id                  String   @id @default(uuid())
-  email               String   @unique @db.VarChar(255)
-  name                String   @db.VarChar(255)
-  role                String   @default("SUPPORT") @db.VarChar(32)
-  passwordHash        String?  @map("password_hash")
-  refreshTokenHash    String?  @map("refresh_token_hash")
-  totpSecretEncrypted String?  @map("totp_secret_encrypted")
-  mfaEnabled          Boolean  @default(true) @map("mfa_enabled")
-  isActive            Boolean  @default(true) @map("is_active")
-  createdAt           DateTime @default(now()) @map("created_at")
+  id                  String    @id @default(uuid())
+  email               String    @unique @db.VarChar(255)
+  name                String    @db.VarChar(255)
+  role                String    @default("SUPPORT") @db.VarChar(32)
+  status              String    @default("ACTIVE") @db.VarChar(16)
+  passwordHash        String?   @map("password_hash")
+  refreshTokenHash    String?   @map("refresh_token_hash")
+  totpSecretEncrypted String?   @map("totp_secret_encrypted")
+  mfaEnabled          Boolean   @default(true) @map("mfa_enabled")
+  isActive            Boolean   @default(true) @map("is_active")
+  mustChangePassword  Boolean   @default(false) @map("must_change_password")
+  tokenVersion        Int       @default(0) @map("token_version")
+  createdById         String?   @map("created_by_id")
+  lastLoginAt         DateTime? @map("last_login_at")
+  deactivatedAt       DateTime? @map("deactivated_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
 
   overridesRequested OverrideAction[]       @relation("RequestedOverrides")
   overridesApproved  OverrideAction[]       @relation("ApprovedOverrides")
@@ -1216,15 +1228,23 @@ model TenantProfile {
   isManuallySuspended Boolean @default(false) @map("is_manually_suspended")
   isManuallyChurned   Boolean @default(false) @map("is_manually_churned")
   suspensionReason    String? @map("suspension_reason")
+  suspendedAt         DateTime? @map("suspended_at")
+  suspendedById       String?   @map("suspended_by_id")
+  walkthroughChecklist Json?    @default("{}") @map("walkthrough_checklist")
+
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
 
+  @@index([lifecycleStage])
+  @@index([licenseTier])
+  @@index([createdAt])
   @@map("tenant_profile")
   @@schema("platform")
 }
+
 
 model OverrideAction {
   id             String  @id @default(uuid())
@@ -1301,12 +1321,15 @@ model SystemAuditEvent {
   impersonationContext Json?    @map("impersonation_context")
   requestId            String?  @map("request_id")
   executionResult      String   @map("execution_result") @db.VarChar(16)
+  targetTenantId       String?  @map("target_tenant_id") @db.VarChar(128)
 
   @@index([subjectType, subjectId])
   @@index([timestamp])
+  @@index([targetTenantId])
   @@map("platform_audit_event")
   @@schema("platform")
 }
+
 
 model OnboardingDraft {
   id               String   @id @default(uuid())
@@ -1315,8 +1338,12 @@ model OnboardingDraft {
   draftData        Json     @default("{}") @map("draft_data")
   createdByStaffId String   @map("created_by_staff_id")
   expiresAt        DateTime @map("expires_at")
+  status           String   @default("DRAFT") @db.VarChar(32)
+  committedOrganizationId String? @map("committed_organization_id")
+  lastCommitError  String?  @map("last_commit_error")
 
   createdAt DateTime @default(now()) @map("created_at")
+
   updatedAt DateTime @updatedAt @map("updated_at")
 
   createdBy PlatformStaff @relation(fields: [createdByStaffId], references: [id])

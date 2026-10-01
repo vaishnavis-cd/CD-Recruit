@@ -315,7 +315,8 @@ Sneha Rao,sneha@example.com,12+ years`;
   console.log("================================================================================");
 }
 
-runCharacterizationTests().catch((err) => {
-  console.error("❌ Characterization tests failed:", err);
-  process.exit(1);
+describe('DriveService Subsystem', () => {
+  it('runs all drive service characterization tests', async () => {
+    await runCharacterizationTests();
+  });
 });

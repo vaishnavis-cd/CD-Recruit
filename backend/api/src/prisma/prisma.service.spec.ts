@@ -78,7 +78,8 @@ async function runPrismaTests() {
   console.log("================================================================================");
 }
 
-runPrismaTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('PrismaService Subsystem', () => {
+  it('runs all prisma connection retry tests', async () => {
+    await runPrismaTests();
+  });
 });

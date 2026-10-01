@@ -83,7 +83,8 @@ async function runIdempotencyInterceptorTests() {
   console.log("✅ All IdempotencyInterceptor characterization tests passed successfully!");
 }
 
-runIdempotencyInterceptorTests().catch((err) => {
-  console.error("❌ IdempotencyInterceptor tests failed:", err);
-  process.exit(1);
+describe('IdempotencyInterceptor', () => {
+  it('runs all idempotency characterization tests', async () => {
+    await runIdempotencyInterceptorTests();
+  });
 });
