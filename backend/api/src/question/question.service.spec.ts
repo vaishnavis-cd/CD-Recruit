@@ -237,7 +237,8 @@ async function runQuestionTests() {
   console.log("================================================================================");
 }
 
-runQuestionTests().catch((err) => {
-  console.error("❌ Question tests failed:", err);
-  process.exit(1);
+describe('Question Subsystem', () => {
+  it('runs all question subsystem characterization tests', async () => {
+    await runQuestionTests();
+  });
 });

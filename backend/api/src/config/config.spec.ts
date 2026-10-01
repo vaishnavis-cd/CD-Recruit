@@ -98,7 +98,8 @@ async function runConfigTests() {
   console.log("================================================================================");
 }
 
-runConfigTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('Config Validation Subsystem', () => {
+  it('runs all config validation tests', async () => {
+    await runConfigTests();
+  });
 });

@@ -3,8 +3,8 @@ import { PartnerAdminService } from "./partner-admin.service";
 async function runPartnerAdminServiceTests() {
   console.log("Running characterization tests for PartnerAdminService...");
 
-  const createdPartners: any[] = [];
-  const auditLogs: any[] = [];
+  const createdPartners: any = [];
+  const auditLogs: any = [];
 
   const mockPrisma: any = {
     partner: {
@@ -93,7 +93,8 @@ async function runPartnerAdminServiceTests() {
   console.log("✅ All PartnerAdminService characterization tests passed successfully!");
 }
 
-runPartnerAdminServiceTests().catch((err) => {
-  console.error("❌ PartnerAdminService tests failed:", err);
-  process.exit(1);
+describe('PartnerAdminService Subsystem', () => {
+  it('runs all partner admin service characterization tests', async () => {
+    await runPartnerAdminServiceTests();
+  });
 });

@@ -22,6 +22,28 @@ export class PlatformMfaVerifyDto {
   code: string;
 }
 
+export class PlatformMfaConfirmDto {
+  @IsString()
+  @IsNotEmpty({ message: "Temporary secret is required" })
+  tempSecret: string;
+
+  @IsString()
+  @IsNotEmpty({ message: "6-digit verification code is required" })
+  code: string;
+}
+
+export class PlatformMfaDisableDto {
+  @IsString()
+  @IsNotEmpty({ message: "Password is required to disable 2FA" })
+  password: string;
+}
+
+export interface PlatformMfaSetupResponse {
+  secret: string;
+  otpAuthUri: string;
+  qrCodeDataUrl: string;
+}
+
 export class PlatformRefreshTokenDto {
   @IsString()
   @IsNotEmpty({ message: "Refresh token is required" })
@@ -50,29 +72,48 @@ export interface PlatformStaffDto {
   createdAt?: string;
 }
 
+export interface PlatformLoginMfaSetupRequiredResponse {
+  mfaSetupRequired: true;
+  mfaRequired: false;
+  setupToken: string;
+  staff: PlatformStaffDto;
+}
+
 export interface PlatformLoginMfaRequiredResponse {
+  mfaSetupRequired?: false;
   mfaRequired: true;
   mfaChallengeToken: string;
   staff: PlatformStaffDto;
 }
 
-export interface PlatformLoginSuccessResponse {
+export class PlatformChangePasswordDto {
+  @IsString()
+  @IsNotEmpty({ message: 'Current password is required' })
+  currentPassword: string;
+
+  @IsString()
+  @IsNotEmpty({ message: 'New password is required' })
+  newPassword: string;
+}
+
+export interface PlatformLoginPasswordChangeRequiredResponse {
+  mustChangePassword: true;
   mfaRequired: false;
-  accessToken: string;
-  refreshToken?: string;
-  tokenType: "Bearer";
-  expiresIn: number;
+  mfaSetupRequired: false;
+  passwordChangeToken: string;
   staff: PlatformStaffDto;
 }
 
 export type PlatformLoginResponse =
-  | PlatformLoginMfaRequiredResponse
-  | PlatformLoginSuccessResponse;
+  | PlatformLoginPasswordChangeRequiredResponse
+  | PlatformLoginMfaSetupRequiredResponse
+  | PlatformLoginMfaRequiredResponse;
 
 export interface PlatformTokenResponse {
   accessToken: string;
   refreshToken?: string;
-  tokenType: "Bearer";
+  tokenType: 'Bearer';
   expiresIn: number;
   staff: PlatformStaffDto;
 }
+

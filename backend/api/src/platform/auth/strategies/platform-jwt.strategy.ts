@@ -59,8 +59,12 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, "platform-jw
       throw new UnauthorizedException("INVALID_TOKEN_PAYLOAD");
     }
 
-    // Strict token type boundary: only fully authenticated platform tokens permitted
-    if (payload.type !== "platform_staff") {
+    // Strict token type boundary: access, MFA setup, or password change
+    if (
+      payload.type !== "platform_staff" &&
+      payload.type !== "platform_mfa_setup" &&
+      payload.type !== "platform_password_change"
+    ) {
       throw new UnauthorizedException("INVALID_TOKEN_TYPE");
     }
 
@@ -69,12 +73,7 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, "platform-jw
       throw new UnauthorizedException("INVALID_ISSUER");
     }
 
-    // Verify platform role is one of the 3 approved platform roles
-    if (!payload.platformRole || !Object.values(PlatformStaffRole).includes(payload.platformRole)) {
-      throw new UnauthorizedException("INVALID_PLATFORM_ROLE");
-    }
-
-    // Lookup strictly in platform.platform_staff (NEVER in public.staff)
+    // Lookup strictly in platform.platform_staff on EVERY request
     const staff = await this.prisma.platformStaff.findUnique({
       where: { id: payload.sub },
     });
@@ -83,8 +82,16 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, "platform-jw
       throw new UnauthorizedException("PLATFORM_STAFF_NOT_FOUND");
     }
 
-    if (!staff.isActive) {
+    if (staff.status === "INACTIVE" || !staff.isActive) {
       throw new UnauthorizedException("PLATFORM_STAFF_INACTIVE");
+    }
+
+    // Token version check: invalidate revoked sessions immediately
+    if (
+      (payload as any).tokenVersion !== undefined &&
+      (payload as any).tokenVersion !== staff.tokenVersion
+    ) {
+      throw new UnauthorizedException("TOKEN_VERSION_MISMATCH");
     }
 
     return {
@@ -93,7 +100,13 @@ export class PlatformJwtStrategy extends PassportStrategy(Strategy, "platform-jw
       name: staff.name,
       role: staff.role as PlatformStaffRole,
       platformRole: staff.role as PlatformStaffRole,
+      status: staff.status,
+      tokenVersion: staff.tokenVersion,
       isPlatformStaff: true,
+      mfaSetupRequired: payload.type === "platform_mfa_setup",
+      mustChangePassword:
+        payload.type === "platform_password_change" || staff.mustChangePassword,
+      tokenType: payload.type,
     };
   }
 }

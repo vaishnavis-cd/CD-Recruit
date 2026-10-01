@@ -282,7 +282,8 @@ async function runCommonTests() {
   console.log("================================================================================");
 }
 
-runCommonTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('Common Utilities Subsystem', () => {
+  it('runs all common utilities characterization tests', async () => {
+    await runCommonTests();
+  });
 });

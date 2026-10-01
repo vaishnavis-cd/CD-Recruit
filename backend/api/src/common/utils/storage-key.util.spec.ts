@@ -45,4 +45,8 @@ function runTests() {
   console.log('ALL STORAGE KEY UTIL ORGANIZED FILENAME TESTS PASSED! 🎉');
 }
 
-runTests();
+describe('StorageKeyUtil', () => {
+  it('runs all storage key util tests', () => {
+    runTests();
+  });
+});

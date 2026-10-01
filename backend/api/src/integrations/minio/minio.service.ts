@@ -135,10 +135,19 @@ export class MinioService implements OnModuleInit {
   async getSignedUrl(
     bucketName: string,
     objectKey: string,
-    _ttlSeconds?: number,
+    ttlSeconds?: number,
   ): Promise<string | null> {
     if (!objectKey) return null;
     const cleanKey = objectKey.replace(/^\//, "");
+    if (this.minioClient) {
+      const configuredTtl = this.configService.get<number>("evidenceClipUrlTtlSeconds");
+      const effectiveTtl = (ttlSeconds && ttlSeconds > 0) ? ttlSeconds : (configuredTtl && configuredTtl > 0 ? configuredTtl : 3600);
+      try {
+        return await this.minioClient.presignedGetObject(bucketName, cleanKey, effectiveTtl);
+      } catch (err: any) {
+        this.logger.warn(`Presigned URL generation failed, falling back to streaming proxy: ${err.message}`);
+      }
+    }
     const publicUrlBase = process.env.PUBLIC_MEDIA_URL_BASE || "/api/v1/proctoring/stream";
     return `${publicUrlBase}/${bucketName}/${cleanKey}`;
   }
