@@ -275,7 +275,8 @@ async function runProctoringTests() {
   console.log("================================================================================");
 }
 
-runProctoringTests().catch((err) => {
-  console.error("❌ Proctoring tests failed:", err);
-  process.exit(1);
+describe('ProctoringService Subsystem', () => {
+  it('runs all proctoring characterization tests', async () => {
+    await runProctoringTests();
+  });
 });

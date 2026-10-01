@@ -263,7 +263,8 @@ async function runSimulationSubsystemTests() {
   console.log("================================================================================");
 }
 
-runSimulationSubsystemTests().catch((err) => {
-  console.error("❌ Simulation subsystem tests failed:", err);
-  process.exit(1);
+describe('SimulationService Subsystem', () => {
+  it('runs all simulation subsystem characterization tests', async () => {
+    await runSimulationSubsystemTests();
+  });
 });

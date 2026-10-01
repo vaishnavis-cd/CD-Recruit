@@ -15,6 +15,7 @@ import { SessionStatusPort } from "@app/common/ports/session-status.port";
 import { InviteTokenRateLimitGuard } from "@app/common/guards/invite-token-rate-limit.guard";
 import { FaceVerifyOnnxModule } from "@app/integrations/face-verify-onnx/face-verify-onnx.module";
 import { OcrModule } from "@app/integrations/ocr/ocr.module";
+import { TenantAccessModule } from "../platform/tenants/tenant-access.module";
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { OcrModule } from "@app/integrations/ocr/ocr.module";
     AuthModule,
     CandidateModule,
     forwardRef(() => QueueModule),
+    TenantAccessModule,
     SimulationModule,
     SettingsModule,
     FaceVerifyOnnxModule,

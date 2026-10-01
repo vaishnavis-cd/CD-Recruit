@@ -32,6 +32,7 @@ import { SessionLifecycleService } from "./session-lifecycle.service";
 import { SessionStateMachine } from "./session-state-machine";
 import { SessionScoringService } from "./session-scoring.service";
 import { SessionStatusPort } from "@app/common/ports/session-status.port";
+import { TenantAccessService } from "../platform/tenants/tenant-access.service";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
@@ -533,6 +534,7 @@ export class SessionService implements SessionStatusPort {
     private readonly sandboxOrchestrator: SandboxOrchestratorService,
     private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
     private readonly idOcrService: IdOcrService,
+    private readonly tenantAccessService: TenantAccessService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -629,6 +631,11 @@ export class SessionService implements SessionStatusPort {
         where: { id: payload.inviteId },
         include: { drive: true },
       });
+
+      // Assert tenant is ACTIVE (suspension blocks new credit-consuming attempts)
+      const targetOrgId = invite?.drive?.organizationId || candidateRecord.organizationId;
+      await this.tenantAccessService.assertCanConsume(targetOrgId);
+
       if (invite) {
         const now = new Date();
         if (invite.expiresAt && now > invite.expiresAt) {

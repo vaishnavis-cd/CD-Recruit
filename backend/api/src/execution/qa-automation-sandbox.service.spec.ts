@@ -99,7 +99,8 @@ const page = await browser.newPage();
   console.log("================================================================================");
 }
 
-runQaAutomationSandboxTests().catch((err) => {
-  console.error("❌ Characterization tests failed:", err);
-  process.exit(1);
+describe('QA Automation Sandbox Subsystem', () => {
+  it('runs all QA automation sandbox characterization tests', async () => {
+    await runQaAutomationSandboxTests();
+  });
 });

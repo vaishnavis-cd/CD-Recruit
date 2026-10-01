@@ -321,7 +321,8 @@ async function runPartnerCandidatesServiceTests() {
   console.log("✅ All PartnerCandidatesService characterization tests passed successfully!");
 }
 
-runPartnerCandidatesServiceTests().catch((err) => {
-  console.error("❌ PartnerCandidatesService tests failed:", err);
-  process.exit(1);
+describe('PartnerCandidatesService Subsystem', () => {
+  it('runs all partner candidates service characterization tests', async () => {
+    await runPartnerCandidatesServiceTests();
+  });
 });

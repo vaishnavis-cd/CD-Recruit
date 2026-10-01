@@ -178,7 +178,8 @@ async function runHighThroughputBenchmark() {
   console.log("\n✅ 1,000 candidate high-throughput benchmark passed comfortably under the 2-5s limit!\n");
 }
 
-runHighThroughputBenchmark().catch((err) => {
-  console.error("❌ High-throughput benchmark failed:", err);
-  process.exit(1);
+describe('PartnerCandidates Benchmark', () => {
+  it('runs high throughput 1,000 candidate batch benchmark', async () => {
+    await runHighThroughputBenchmark();
+  });
 });

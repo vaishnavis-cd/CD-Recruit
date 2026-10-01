@@ -207,7 +207,8 @@ async function runMcqTests() {
   console.log("================================================================================");
 }
 
-runMcqTests().catch((err) => {
-  console.error("❌ MCQ tests failed:", err);
-  process.exit(1);
+describe('McqService Subsystem', () => {
+  it('runs all MCQ subsystem characterization tests', async () => {
+    await runMcqTests();
+  });
 });

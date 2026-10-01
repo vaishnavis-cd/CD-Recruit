@@ -1,58 +1,71 @@
-import { PrismaClient, PlatformStaffRole, PlatformStaffStatus } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { PlatformStaffRole } from '@cd-recruit/shared-types';
 import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto
-    .pbkdf2Sync(password, salt, 100000, 64, 'sha512')
-    .toString('hex');
-  return `${salt}:${hash}`;
+async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.randomBytes(16);
+  const keylen = 64;
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(password, salt, keylen, (err, derivedKey) => {
+      if (err) return reject(err);
+      resolve(`scrypt$${salt.toString('hex')}$${derivedKey.toString('hex')}`);
+    });
+  });
 }
 
 async function main() {
-  console.log('🌱 Seeding Platform Staff accounts...');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to seed platform staff: execution is strictly prohibited in production (NODE_ENV=production).');
+  }
+
+  console.log('🌱 Seeding Platform Staff accounts for local development...');
+
+  const ownerPassword = process.env.SEED_PLATFORM_OWNER_PASSWORD || 'ProctoraOwner#2026';
+  const financePassword = process.env.SEED_PLATFORM_FINANCE_PASSWORD || 'ProctoraFinance#2026';
+  const supportPassword = process.env.SEED_PLATFORM_SUPPORT_PASSWORD || 'ProctoraSupport#2026';
 
   const staffUsers = [
     {
       email: 'owner@proctora.local',
-      fullName: 'Ragul Arumugam (Platform Owner)',
+      name: 'Ragul Arumugam (Platform Owner)',
       role: PlatformStaffRole.OWNER,
-      status: PlatformStaffStatus.ACTIVE,
-      password: 'ProctoraOwner#2026',
+      isActive: true,
+      password: ownerPassword,
     },
     {
       email: 'finance@proctora.local',
-      fullName: 'Platform Finance Lead',
+      name: 'Platform Finance Lead',
       role: PlatformStaffRole.FINANCE,
-      status: PlatformStaffStatus.ACTIVE,
-      password: 'ProctoraFinance#2026',
+      isActive: true,
+      password: financePassword,
     },
     {
       email: 'support@proctora.local',
-      fullName: 'Platform Support Specialist',
+      name: 'Platform Support Specialist',
       role: PlatformStaffRole.SUPPORT,
-      status: PlatformStaffStatus.ACTIVE,
-      password: 'ProctoraSupport#2026',
+      isActive: true,
+      password: supportPassword,
     },
   ];
 
   for (const user of staffUsers) {
-    const passwordHash = hashPassword(user.password);
+    const passwordHash = await hashPassword(user.password);
     const staff = await prisma.platformStaff.upsert({
       where: { email: user.email },
       update: {
-        fullName: user.fullName,
+        name: user.name,
         role: user.role,
-        status: user.status,
+        isActive: user.isActive,
         passwordHash,
       },
       create: {
         email: user.email,
-        fullName: user.fullName,
+        name: user.name,
         role: user.role,
-        status: user.status,
+        isActive: user.isActive,
+        mfaEnabled: false,
         passwordHash,
       },
     });
@@ -65,7 +78,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Error seeding platform staff:', e);
+    console.error('❌ Error seeding platform staff:', e.message || e);
     process.exit(1);
   })
   .finally(async () => {

@@ -5,6 +5,7 @@
   "workspaces": [
     "frontend/candidate-web",
     "frontend/admin-web",
+    "frontend/super-admin-web",
     "backend/api",
     "packages/shared-types",
     "packages/design-tokens"
@@ -23,6 +24,7 @@
     "setup:all": "npm run build:shared && npm run db:migrate && npm run db:seed",
     "dev:candidate": "npm run build:shared && npm --workspace=frontend/candidate-web run dev",
     "dev:admin": "npm run build:shared && npm --workspace=frontend/admin-web run dev",
+    "dev:super-admin": "npm run build:shared && npm --workspace=frontend/super-admin-web run dev",
     "dev:api": "npm run build:shared && npm --workspace=backend/api run start:dev",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",

@@ -87,7 +87,8 @@ async function runHealthTests() {
   console.log("================================================================================");
 }
 
-runHealthTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('HealthController Subsystem', () => {
+  it('runs all health subsystem tests', async () => {
+    await runHealthTests();
+  });
 });

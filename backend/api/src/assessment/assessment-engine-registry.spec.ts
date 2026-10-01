@@ -145,7 +145,8 @@ async function runAssessmentEngineRegistryTests() {
   console.log("================================================================================");
 }
 
-runAssessmentEngineRegistryTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('AssessmentEngineRegistry Subsystem', () => {
+  it('runs all assessment engine registry characterization tests', async () => {
+    await runAssessmentEngineRegistryTests();
+  });
 });

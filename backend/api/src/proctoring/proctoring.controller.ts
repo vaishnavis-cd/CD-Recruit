@@ -145,10 +145,10 @@ export class ProctoringController {
   }
 
   /**
-   * GET /api/v1/proctoring/stream/:bucket/*
+   * GET /api/v1/proctoring/stream/:bucket/{*path}
    * Video clip streaming proxy handling subpath object keys
    */
-  @Get("stream/:bucket/*")
+  @Get("stream/:bucket/{*path}")
   @HttpCode(HttpStatus.OK)
   async streamClip(
     @Param("bucket") bucket: string,

@@ -314,7 +314,8 @@ async function runCodingServiceTests() {
   console.log("================================================================================");
 }
 
-runCodingServiceTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('CodingService Subsystem', () => {
+  it('runs all coding service characterization tests', async () => {
+    await runCodingServiceTests();
+  });
 });

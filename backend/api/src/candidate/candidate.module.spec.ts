@@ -10,11 +10,16 @@ describe("CandidateModule Wiring Regression Test", () => {
 
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
-      imports: [CandidateModule],
-    })
-      .overrideProvider(PrismaService)
-      .useValue({})
-      .compile();
+      controllers: [CandidateController],
+      providers: [
+        CandidateService,
+        CandidateRepository,
+        {
+          provide: PrismaService,
+          useValue: {},
+        },
+      ],
+    }).compile();
   });
 
   it("should have CandidateController registered in controllers", () => {
