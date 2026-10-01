@@ -145,6 +145,7 @@ export enum StaffRole {
   HR_ASSOCIATE = "HR_ASSOCIATE",
   REVIEWER = "REVIEWER",
   RECRUITER = "RECRUITER", // Legacy alias
+  BILLING_ADMIN = "BILLING_ADMIN",
 }
 
 /**
@@ -156,6 +157,56 @@ export enum PlatformStaffRole {
   SUPPORT = "SUPPORT",
   FINANCE = "FINANCE",
   OWNER = "OWNER",
+}
+
+/**
+ * Maker-checker manual billing request kinds.
+ * Governed by Artifact 02 §5, Artifact 03 §2.1.4, and PRICING_AND_CREDIT_POOL_SPECIFICATION.md.
+ */
+export enum ManualRequestKind {
+  GRANT = "GRANT",
+  ADJUST = "ADJUST",
+  REFUND = "REFUND",
+  EXPIRY_EXTEND = "EXPIRY_EXTEND",
+  OVERDRAFT_LIMIT = "OVERDRAFT_LIMIT",
+  ACCOUNT_STATUS = "ACCOUNT_STATUS",
+  BILLING_COUNTRY = "BILLING_COUNTRY",
+}
+
+/**
+ * Maker-checker manual billing request lifecycle states.
+ * Governed by Artifact 02 §5.3, Artifact 06 §1.3, and schema.prisma.
+ */
+export enum ManualRequestStatus {
+  PENDING = "PENDING",
+  REQUESTED = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+  EXECUTED = "EXECUTED",
+  CANCELLED = "CANCELLED",
+}
+
+/**
+ * Commercial payment providers.
+ * Governed by schema.prisma line 831.
+ */
+export enum PaymentProvider {
+  MANUAL_INVOICE = "MANUAL_INVOICE",
+  RAZORPAY = "RAZORPAY",
+  STRIPE = "STRIPE",
+}
+
+/**
+ * Payment transaction lifecycle states.
+ * Governed by Artifact 06 §1.4 and schema.prisma line 834.
+ */
+export enum PaymentStatus {
+  CREATED = "CREATED",
+  CAPTURED = "CAPTURED",
+  FAILED = "FAILED",
+  REFUNDED = "REFUNDED",
+  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
+  DISPUTED = "DISPUTED",
 }
 
 export enum Permission {
@@ -421,3 +472,126 @@ function resolveTierFromNumericYears(years: number) {
 }
 
 export const SUPPORTED_CODING_LANGUAGES = ["python", "javascript", "java", "cpp"] as const;
+
+// ---------------------------------------------------------------------------
+// Billing & Credit Pool Enums (PRICING_AND_CREDIT_POOL_SPECIFICATION)
+// ---------------------------------------------------------------------------
+
+export enum LedgerEntryType {
+  GRANT = "GRANT",
+  CONSUME = "CONSUME",
+  OVERDRAFT = "OVERDRAFT",
+  OVERDRAFT_SETTLE = "OVERDRAFT_SETTLE",
+  WAIVE = "WAIVE",
+  REVERSAL = "REVERSAL",
+  REFUND = "REFUND",
+  EXPIRE = "EXPIRE",
+  ADJUST = "ADJUST",
+}
+
+export enum GrantSource {
+  PURCHASE = "PURCHASE",
+  CONTRACT = "CONTRACT",
+  TRIAL = "TRIAL",
+  PROMO = "PROMO",
+  GOODWILL = "GOODWILL",
+  MIGRATION = "MIGRATION",
+  ROLLOVER = "ROLLOVER",
+}
+
+export enum LedgerReason {
+  ATTEMPT_START = "ATTEMPT_START",
+  OVERDRAFT_USED = "OVERDRAFT_USED",
+  HARDWARE_CAMERA_FAILURE = "HARDWARE_CAMERA_FAILURE",
+  HARDWARE_OTHER = "HARDWARE_OTHER",
+  PLATFORM_FAULT = "PLATFORM_FAULT",
+  INCIDENT_WINDOW = "INCIDENT_WINDOW",
+  DISPUTE_RESOLVED = "DISPUTE_RESOLVED",
+  PAYMENT_CAPTURED = "PAYMENT_CAPTURED",
+  PAYMENT_REFUNDED = "PAYMENT_REFUNDED",
+  CHARGEBACK = "CHARGEBACK",
+  POOL_EXPIRED = "POOL_EXPIRED",
+  ROLLOVER = "ROLLOVER",
+  TRIAL = "TRIAL",
+  PROMO = "PROMO",
+  GOODWILL = "GOODWILL",
+  MIGRATION_SEED = "MIGRATION_SEED",
+  MANUAL_CORRECTION = "MANUAL_CORRECTION",
+}
+
+export enum PoolType {
+  DRIVE_PASS = "DRIVE_PASS",
+  TALENT_RESERVE = "TALENT_RESERVE",
+  ENTERPRISE = "ENTERPRISE",
+}
+
+export enum PoolStatus {
+  QUEUED = "QUEUED",
+  ACTIVE = "ACTIVE",
+  SUSPENDED = "SUSPENDED",
+  EXHAUSTED = "EXHAUSTED",
+  EXPIRED = "EXPIRED",
+  CANCELLED = "CANCELLED",
+}
+
+export enum SessionKind {
+  LIVE = "LIVE",
+  PREVIEW = "PREVIEW",
+  SANDBOX = "SANDBOX",
+}
+
+export enum BillingAccountStatus {
+  ACTIVE = "ACTIVE",
+  RESTRICTED = "RESTRICTED",
+  SUSPENDED = "SUSPENDED",
+}
+
+export enum DrivePoolFallthrough {
+  ALLOW = "ALLOW",
+  HOLD = "HOLD",
+}
+
+export enum PaymentProvider {
+  RAZORPAY = "RAZORPAY",
+  STRIPE = "STRIPE",
+  MANUAL_INVOICE = "MANUAL_INVOICE",
+}
+
+export enum PaymentStatus {
+  CREATED = "CREATED",
+  CAPTURED = "CAPTURED",
+  FAILED = "FAILED",
+  REFUNDED = "REFUNDED",
+  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
+  DISPUTED = "DISPUTED",
+}
+
+export enum ManualRequestKind {
+  GRANT = "GRANT",
+  ADJUST = "ADJUST",
+  REFUND = "REFUND",
+  EXPIRY_EXTEND = "EXPIRY_EXTEND",
+  OVERDRAFT_LIMIT = "OVERDRAFT_LIMIT",
+  ACCOUNT_STATUS = "ACCOUNT_STATUS",
+  BILLING_COUNTRY = "BILLING_COUNTRY",
+}
+
+export enum ManualRequestStatus {
+  PENDING = "PENDING",
+  APPROVED = "APPROVED",
+  REJECTED = "REJECTED",
+  EXECUTED = "EXECUTED",
+  CANCELLED = "CANCELLED",
+}
+
+export enum SessionEndReason {
+  SUBMITTED = "SUBMITTED",
+  TIME_EXPIRED = "TIME_EXPIRED",
+  ABANDONED = "ABANDONED",
+  CANDIDATE_LEFT = "CANDIDATE_LEFT",
+  PLATFORM_FAULT = "PLATFORM_FAULT",
+}
+
+export enum HoldReason {
+  CAPACITY = "CAPACITY",
+}

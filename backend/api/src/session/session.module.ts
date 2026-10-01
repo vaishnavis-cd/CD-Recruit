@@ -16,6 +16,7 @@ import { InviteTokenRateLimitGuard } from "@app/common/guards/invite-token-rate-
 import { FaceVerifyOnnxModule } from "@app/integrations/face-verify-onnx/face-verify-onnx.module";
 import { OcrModule } from "@app/integrations/ocr/ocr.module";
 import { TenantAccessModule } from "../platform/tenants/tenant-access.module";
+import { BillingModule } from "../billing/billing.module";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { TenantAccessModule } from "../platform/tenants/tenant-access.module";
     SettingsModule,
     FaceVerifyOnnxModule,
     OcrModule,
+    forwardRef(() => BillingModule),
   ],
   controllers: [SessionController],
   providers: [

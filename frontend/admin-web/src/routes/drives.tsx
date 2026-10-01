@@ -28,6 +28,7 @@ import {
   Award,
   FolderPlus,
   Folder,
+  Coins,
 } from "lucide-react";
 import { AppShell } from "../components/app-shell";
 import { useStore, API_BASE, getAuthHeaders } from "../lib/store";
@@ -36,6 +37,7 @@ import { computeDriveStatus } from "@cd-recruit/shared-types";
 import { formatDriveName } from "../lib/utils";
 import { parseQuestionsFromCSV, downloadUnifiedSampleCSV } from "../lib/csvParser";
 import { ALL_MODULE_KEYS, MODULE_LABEL_MAP } from "../lib/roleModules";
+import { DriveCapacityPanel } from "../components/common/DriveCapacityPanel";
 
 export const DEFAULT_TIME_MATRIX: Record<string, Record<string, number>> = {
   MCQ: { EASY: 1, MEDIUM: 2, HARD: 3 },
@@ -118,6 +120,7 @@ function DrivesPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [confirmDeleteDrive, setConfirmDeleteDrive] = useState<any | null>(null);
   const [confirmCloseDrive, setConfirmCloseDrive] = useState<any | null>(null);
+  const [selectedCapacityDrive, setSelectedCapacityDrive] = useState<any | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [newDriveIds, setNewDriveIds] = useState<Set<string>>(new Set());
   const knownDriveIdsRef = useRef<Set<string>>(new Set());
@@ -1038,7 +1041,7 @@ function DrivesPage() {
                   </div>
 
                   {/* Actions Row */}
-                  <div className="w-full h-10 flex items-center gap-3">
+                  <div className="w-full h-10 flex items-center gap-2">
                     <Link
                       to="/drives/$id"
                       params={{ id: d.id }}
@@ -1047,6 +1050,13 @@ function DrivesPage() {
                     >
                       View Drive
                     </Link>
+                    <button
+                      onClick={() => setSelectedCapacityDrive(d)}
+                      className="w-10 h-10 rounded-full border border-brand-subtle bg-white flex items-center justify-center cursor-pointer transition-all hover:border-brand hover:bg-blue-50/50 group shrink-0"
+                      title="Inspect Credit Capacity & Held Sessions"
+                    >
+                      <Coins size={16} className="text-ink-muted group-hover:text-brand transition-colors" />
+                    </button>
                     <button
                       onClick={() => setConfirmDeleteDrive(d)}
                       className="w-10 h-10 rounded-full border border-brand-subtle bg-white flex items-center justify-center cursor-pointer transition-all hover:border-rose-200 hover:bg-rose-50 group shrink-0"
@@ -1500,6 +1510,43 @@ function DrivesPage() {
                 className="px-4 py-2 text-white bg-danger hover:bg-danger-hover font-semibold cursor-pointer shadow-xs transition-colors rounded-full text-xs"
               >
                 Delete Drive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Credit Capacity & Held Sessions Inspector Modal */}
+      {selectedCapacityDrive && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-2xl p-6 max-w-3xl w-full shadow-2xl border border-[#E2E8F0] space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
+              <div className="flex items-center gap-2">
+                <Coins size={18} className="text-[#2563EB]" />
+                <h3 className="text-base font-bold text-[#0F172A]">
+                  Credit Capacity: {selectedCapacityDrive.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedCapacityDrive(null)}
+                className="text-[#94A3B8] hover:text-[#0F172A] cursor-pointer p-1 rounded-lg hover:bg-[#F1F5F9]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <DriveCapacityPanel
+              driveId={selectedCapacityDrive.id}
+              driveName={selectedCapacityDrive.name}
+              onRefresh={() => fetchDrives?.(undefined, true)}
+            />
+
+            <div className="flex justify-end pt-3 border-t border-[#F1F5F9]">
+              <button
+                onClick={() => setSelectedCapacityDrive(null)}
+                className="px-5 py-2 text-xs font-semibold text-white bg-[#2563EB] hover:bg-[#1D4ED8] rounded-full cursor-pointer shadow-xs"
+              >
+                Close
               </button>
             </div>
           </div>

@@ -29,8 +29,16 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated()) {
-      navigate({ to: "/dashboard", replace: true });
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("admin_token") : null;
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload?.exp && payload.exp * 1000 > Date.now()) {
+          navigate({ to: "/dashboard", replace: true });
+        }
+      } catch {
+        // Invalid token format, stay on login page
+      }
     }
   }, [navigate]);
 

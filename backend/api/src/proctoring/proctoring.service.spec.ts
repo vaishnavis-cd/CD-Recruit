@@ -44,10 +44,27 @@ async function runProctoringTests() {
     },
   };
 
+  const mockNotStartedSession = {
+    id: "sess-proctor-not-started",
+    status: "NOT_STARTED",
+    candidateId: "cand-1",
+    candidate: mockSession.candidate,
+    drive: mockSession.drive,
+  };
+
   const mockPrisma: any = {
     session: {
-      findUnique: async ({ where }: any) => (where.id === "sess-proctor-1" ? mockSession : null),
+      findUnique: async ({ where }: any) => {
+        if (where.id === "sess-proctor-1") return mockSession;
+        if (where.id === "sess-proctor-not-started") return mockNotStartedSession;
+        return null;
+      },
       findFirst: async () => mockSession,
+      update: async ({ where, data }: any) => {
+        const s = where.id === "sess-proctor-1" ? mockSession : mockNotStartedSession;
+        Object.assign(s, data);
+        return s;
+      },
       upsert: async ({ create }: any) => ({ ...create, candidate: mockSession.candidate }),
     },
     invite: {
@@ -188,6 +205,28 @@ async function runProctoringTests() {
     assert.strictEqual(uploadRes.uploadStatus, ProctoringUploadStatus.UPLOADED);
     assert(uploadRes.clipUrl?.includes("http://minio:9000"), "Must return signed MinIO URL");
     pass("uploadEvidenceAndCreateEvent uploads clip to storage and upserts ProctoringEvent atomically");
+
+    // 2.2 Reject upload on NOT_STARTED session
+    let threwNotStartedUpload = false;
+    try {
+      await service.uploadEvidenceAndCreateEvent(
+        "sess-proctor-not-started",
+        { originalname: "phone_evidence.webm", buffer: dummyBuffer },
+        {
+          sessionId: "sess-proctor-not-started",
+          eventType: ProctoringEventType.PHONE_DETECTED,
+          severity: "HIGH",
+          timestamp: "2026-08-31T11:00:00.000Z",
+        },
+      );
+    } catch (err: any) {
+      if (err.message && err.message.includes("Upload rejected: session is in NOT_STARTED state")) {
+        threwNotStartedUpload = true;
+      }
+    }
+    assert.strictEqual(threwNotStartedUpload, true);
+    assert.strictEqual(mockNotStartedSession.status, "NOT_STARTED");
+    pass("uploadEvidenceAndCreateEvent rejects NOT_STARTED session and does not advance status");
   }
 
   // ---------------------------------------------------------------------------

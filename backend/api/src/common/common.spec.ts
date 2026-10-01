@@ -45,7 +45,7 @@ async function runCommonTests() {
       session: {
         findUnique: async (args: any) => sessionsDb.get(args.where.id) || null,
         upsert: async (args: any) => {
-          const created = { id: args.where.id, status: "IN_PROGRESS" };
+          const created = { id: args.where.id, status: args.create?.status || "NOT_STARTED" };
           sessionsDb.set(args.where.id, created);
           return created;
         },
@@ -123,6 +123,7 @@ async function runCommonTests() {
     // 1.6 Demo session auto-provisioning
     const canDemo = await guard.canActivate(makeCtx({ sessionId: "demo-session" }) as any);
     assert(canDemo === true, "demo-session must be auto-provisioned safely");
+    assert(sessionsDb.get("demo-session")?.status === "NOT_STARTED", "demo-session must be created in NOT_STARTED status");
   }
 
   // ---------------------------------------------------------------------------

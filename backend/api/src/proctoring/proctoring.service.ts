@@ -103,7 +103,7 @@ export class ProctoringService {
               roleTemplateId: roleTemplate.id,
               driveId: drive?.id ?? null,
               cvMode: "FACE_ONLY" as any,
-              status: SessionStatus.IN_PROGRESS,
+              status: SessionStatus.NOT_STARTED,
             },
             include: {
               candidate: true,

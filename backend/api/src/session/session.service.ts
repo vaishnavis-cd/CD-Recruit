@@ -7,10 +7,15 @@ import {
   NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
+  Optional,
+  Inject,
+  forwardRef,
 } from "@nestjs/common";
 import { GoneException } from "@app/common/exceptions/app.exceptions";
 import { ConfigService } from "@nestjs/config";
 import { CvMode, Session, SessionStatus, InviteStatus, ConsentType } from "@prisma/client";
+import { ShadowBillingService } from "../billing/shadow-billing.service";
+import { CreditEnforcementService } from "../billing/credit-enforcement.service";
 
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
@@ -535,6 +540,12 @@ export class SessionService implements SessionStatusPort {
     private readonly faceVerifyOnnxService: FaceVerifyOnnxService,
     private readonly idOcrService: IdOcrService,
     private readonly tenantAccessService: TenantAccessService,
+    @Optional()
+    @Inject(forwardRef(() => ShadowBillingService))
+    private readonly shadowBillingService?: ShadowBillingService,
+    @Optional()
+    @Inject(forwardRef(() => CreditEnforcementService))
+    private readonly creditEnforcementService?: CreditEnforcementService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -824,6 +835,22 @@ export class SessionService implements SessionStatusPort {
       }
     }
 
+    // ── Phase 3: Live Credit Enforcement & Capacity Management ─────────────
+    const billingMode = this.config.get<string>("billingMode", { infer: true }) ?? process.env.BILLING_MODE ?? "off";
+    if (billingMode === "enforce" && this.creditEnforcementService) {
+      const enforcementResult = await this.creditEnforcementService.evaluateAndAcquireCredit(sessionId);
+      if (enforcementResult.outcome === "HELD") {
+        throw new UnprocessableEntityException({
+          state: "HOLD",
+          code: "SESSION_HELD_CAPACITY",
+          message:
+            enforcementResult.message ||
+            "There is a brief delay starting your assessment session. Your recruiter has been notified. Your timer has not started and you will not lose any time.",
+          heldAt: enforcementResult.heldAt,
+        });
+      }
+    }
+
     const updated = await this.prisma.session.update({
       where: { id: sessionId },
       data: {
@@ -872,6 +899,18 @@ export class SessionService implements SessionStatusPort {
       await this.sandboxOrchestrator.ensureWorkspace(sessionId);
     } catch (err: any) {
       this.logger.warn(`Workspace provisioning warning for session ${sessionId}: ${err.message}`);
+    }
+
+    // ── Phase 2: Shadow Billing Simulation ──────────────────────────────────
+    if (billingMode === "shadow" && this.shadowBillingService) {
+      try {
+        await this.shadowBillingService.processShadowSession(sessionId);
+      } catch (shadowErr: any) {
+        // Mandatory Safety: Shadow failures must NEVER abort or affect the real assessment session start
+        this.logger.warn(
+          `[ShadowBilling] Non-fatal shadow billing error for session ${sessionId}: ${shadowErr.message}`,
+        );
+      }
     }
 
     return await this.buildStartResponse(
