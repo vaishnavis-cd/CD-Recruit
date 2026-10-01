@@ -73,7 +73,7 @@ export class SessionOwnerGuard implements CanActivate {
               roleTemplate: { connect: { id: roleTemplate.id } },
               drive: drive?.id ? { connect: { id: drive.id } } : undefined,
               cvMode: "FACE_ONLY" as any,
-              status: "IN_PROGRESS" as any,
+              status: "NOT_STARTED" as any,
             },
             include: { drive: true },
           })) as any;

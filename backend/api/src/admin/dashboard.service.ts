@@ -179,7 +179,7 @@ export class DashboardService {
     // Completion rate by role template
     const roleStats: Record<string, { total: number; completed: number }> = {};
     sessions.forEach((s) => {
-      const name = s.roleTemplate.roleName;
+      const name = s.roleTemplate?.roleName || "General Assessment";
       if (!roleStats[name]) {
         roleStats[name] = { total: 0, completed: 0 };
       }
@@ -335,7 +335,7 @@ export class DashboardService {
       countRejected = 0;
 
     scores.forEach((sc) => {
-      const decision = sc.session.reviewerDecision?.decision;
+      const decision = sc.session?.reviewerDecision?.decision;
       if (decision === ReviewDecision.ADVANCE) {
         sayDoSumAdvanced += sc.sayDoConsistencyScore * 100;
         countAdvanced += 1;
@@ -520,15 +520,15 @@ export class DashboardService {
 
     // Review Turnaround Time
     const turnaroundTimes = scores
-      .filter((sc) => sc.humanReviewed && sc.session.submittedAt)
+      .filter((sc) => sc.humanReviewed && sc.session?.submittedAt)
       .map((sc) => {
         const decisionMatch = decisions.find(
           (d) => d.sessionId === sc.sessionId,
         );
-        if (decisionMatch) {
+        if (decisionMatch && sc.session?.submittedAt) {
           return (
             (decisionMatch.decidedAt.getTime() -
-              sc.session.submittedAt!.getTime()) /
+              sc.session.submittedAt.getTime()) /
             (1000 * 60 * 60)
           );
         }
@@ -652,9 +652,9 @@ export class DashboardService {
     return {
       pendingReviews: pendingReviews.map((r) => ({
         sessionId: r.id,
-        candidateName: r.candidate.name,
-        candidateEmail: r.candidate.email,
-        roleTemplateName: r.roleTemplate.roleName,
+        candidateName: r.candidate?.name || "Candidate",
+        candidateEmail: r.candidate?.email || "—",
+        roleTemplateName: r.roleTemplate?.roleName || "General Assessment",
         submittedAt: r.submittedAt ? r.submittedAt.toISOString() : null,
         aiConfidence: r.score?.aiConfidence ?? null,
       })),
@@ -662,13 +662,13 @@ export class DashboardService {
         inviteId: i.id,
         candidateName: i.candidateName,
         candidateEmail: i.candidateEmail,
-        roleTemplateName: i.roleTemplate.roleName,
-        expiresAt: i.expiresAt.toISOString(),
+        roleTemplateName: i.roleTemplate?.roleName || "General Assessment",
+        expiresAt: i.expiresAt ? i.expiresAt.toISOString() : new Date().toISOString(),
       })),
       closingDrives: closingDrives.map((d) => ({
         driveId: d.id,
         driveName: d.name,
-        roleTemplateName: d.roleTemplate.roleName,
+        roleTemplateName: d.roleTemplate?.roleName || "General Assessment",
         scheduleEnd: d.scheduleEnd ? d.scheduleEnd.toISOString() : null,
       })),
     };

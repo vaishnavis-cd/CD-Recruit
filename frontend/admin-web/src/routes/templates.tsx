@@ -108,7 +108,7 @@ const MODULE_COLORS: Record<string, { bg: string; text: string; border: string }
   NOSQL: { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
 };
 
-export function RoleTemplatesPage() {
+function RoleTemplatesPage() {
   const [templates, setTemplates] = useState<any[]>([]);
   const [questionsBank, setQuestionsBank] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

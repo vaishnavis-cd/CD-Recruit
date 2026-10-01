@@ -29,6 +29,16 @@ async function runSqlSubsystemTests() {
       status: SessionStatus.IN_PROGRESS,
       startedAt: new Date(),
     },
+    {
+      id: "sess-sql-not-started",
+      status: SessionStatus.NOT_STARTED,
+      startedAt: null,
+    },
+    {
+      id: "sess-sql-auto-submitted",
+      status: SessionStatus.AUTO_SUBMITTED,
+      startedAt: new Date(),
+    },
   ];
   const questionsDb: any[] = [
     {
@@ -251,6 +261,40 @@ async function runSqlSubsystemTests() {
     assert.strictEqual(runRes.resultRows, 1);
     assert(sqlExecutionsDb.some((e) => e.submissionType === SubmissionType.RUN && e.passed === true));
     pass("run() executes candidate query, compares output, and creates SQLExecution log");
+
+    // 4.2 Reject NOT_STARTED session on run()
+    let threwNotStartedRun = false;
+    try {
+      await service.run({
+        sessionId: "sess-sql-not-started",
+        questionId: "q-sql-1",
+        query: "SELECT 1;",
+      });
+    } catch (err: any) {
+      if (err instanceof BadRequestException && err.message.includes("Session is not in progress")) {
+        threwNotStartedRun = true;
+      }
+    }
+    assert.strictEqual(threwNotStartedRun, true);
+    assert.strictEqual(sessionsDb.find((s) => s.id === "sess-sql-not-started")?.status, SessionStatus.NOT_STARTED);
+    pass("run() rejects NOT_STARTED session and preserves status");
+
+    // 4.3 Reject and prevent resurrection of AUTO_SUBMITTED session on run()
+    let threwAutoSubmittedRun = false;
+    try {
+      await service.run({
+        sessionId: "sess-sql-auto-submitted",
+        questionId: "q-sql-1",
+        query: "SELECT 1;",
+      });
+    } catch (err: any) {
+      if (err instanceof BadRequestException && err.message.includes("Session is not in progress")) {
+        threwAutoSubmittedRun = true;
+      }
+    }
+    assert.strictEqual(threwAutoSubmittedRun, true);
+    assert.strictEqual(sessionsDb.find((s) => s.id === "sess-sql-auto-submitted")?.status, SessionStatus.AUTO_SUBMITTED);
+    pass("run() rejects AUTO_SUBMITTED session and prevents resurrection to IN_PROGRESS");
   }
 
   // ---------------------------------------------------------------------------
@@ -283,6 +327,23 @@ async function runSqlSubsystemTests() {
     assert.strictEqual(finalResp?.isDraft, false);
     assert(sqlExecutionsDb.some((e) => e.submissionType === SubmissionType.SUBMIT && e.passed === true));
     pass("submit() finalizes answer in ModuleResponse and records completed SQLExecution");
+
+    // 5.3 Reject NOT_STARTED session on submit()
+    let threwNotStartedSubmit = false;
+    try {
+      await service.submit({
+        sessionId: "sess-sql-not-started",
+        questionId: "q-sql-1",
+        query: "SELECT 1;",
+      });
+    } catch (err: any) {
+      if (err instanceof BadRequestException && err.message.includes("Session is not in progress")) {
+        threwNotStartedSubmit = true;
+      }
+    }
+    assert.strictEqual(threwNotStartedSubmit, true);
+    assert.strictEqual(sessionsDb.find((s) => s.id === "sess-sql-not-started")?.status, SessionStatus.NOT_STARTED);
+    pass("submit() rejects NOT_STARTED session and preserves status");
   }
 
   // ---------------------------------------------------------------------------

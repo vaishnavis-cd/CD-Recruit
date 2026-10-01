@@ -202,6 +202,28 @@ async function runMcqTests() {
     pass("evaluateSubmission assigns score 0.0 on mismatching answer");
   }
 
+  // ---------------------------------------------------------------------------
+  // TEST 5: Fallback Session Creation uses NOT_STARTED
+  // ---------------------------------------------------------------------------
+  {
+    console.log("\n[TEST 5] Testing development fallback session creation uses NOT_STARTED...");
+    const origEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "test";
+    try {
+      await mcqService.submit({
+        sessionId: "demo-test-session-fallback",
+        questionId: "q-mcq-1",
+        selectedOptions: ["O(1)"],
+      });
+      const fallbackSession = sessionsDb.get("demo-test-session-fallback");
+      assert(fallbackSession, "Fallback session should be created in demo/test env");
+      assert.strictEqual(fallbackSession.status, SessionStatus.NOT_STARTED, "Fallback session status must be NOT_STARTED");
+      pass("Fallback session creation initializes session with NOT_STARTED status");
+    } finally {
+      process.env.NODE_ENV = origEnv;
+    }
+  }
+
   console.log("\n================================================================================");
   console.log(`Summary: ${testPassed}/${testTotal} tests passed successfully!`);
   console.log("================================================================================");

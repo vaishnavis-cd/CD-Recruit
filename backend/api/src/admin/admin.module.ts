@@ -7,9 +7,18 @@ import { AuthModule } from "../auth/auth.module";
 import { SessionModule } from "../session/session.module";
 import { FaceVerifyOnnxModule } from "../integrations/face-verify-onnx/face-verify-onnx.module";
 import { OcrModule } from "../integrations/ocr/ocr.module";
+import { BillingModule } from "../billing/billing.module";
+import { PrismaModule } from "../prisma/prisma.module";
 
 @Module({
-  imports: [AuthModule, SessionModule, FaceVerifyOnnxModule, OcrModule],
+  imports: [
+    AuthModule,
+    SessionModule,
+    FaceVerifyOnnxModule,
+    OcrModule,
+    BillingModule,
+    PrismaModule,
+  ],
   controllers: [AdminController],
   providers: [AdminService, InviteService, DashboardService],
   exports: [AdminService, InviteService, DashboardService],

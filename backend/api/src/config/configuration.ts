@@ -75,6 +75,16 @@ export const configuration = () => ({
     10,
   ),
 
+  // ── Billing Engine ────────────────────────────────────────────────────────
+  billingMode: (() => {
+    const mode = (process.env.BILLING_MODE ?? "off").toLowerCase();
+    if (!["off", "shadow", "enforce"].includes(mode)) {
+      throw new Error(
+        `Invalid BILLING_MODE "${process.env.BILLING_MODE}". Must be one of: "off", "shadow", "enforce".`,
+      );
+    }
+    return mode as "off" | "shadow" | "enforce";
+  })(),
   // ── Payment Webhooks ──────────────────────────────────────────────────────
   razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? "",
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
