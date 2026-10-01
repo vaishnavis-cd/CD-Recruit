@@ -63,6 +63,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException("INVALID_TOKEN_PAYLOAD");
     }
 
+    // Explicitly reject platform tokens on recruiter/tenant routes
+    if ((payload as any).type === "platform_staff" || (payload as any).iss === "proctora-platform") {
+      throw new UnauthorizedException("PLATFORM_TOKEN_NOT_ALLOWED_ON_TENANT_ROUTE");
+    }
+
     // Step 1: Lookup Staff in PostgreSQL by ID
     let staff = await this.prisma.staff.findUnique({
       where: { id: staffId },

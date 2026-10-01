@@ -48,3 +48,15 @@ All admin and recruiter API endpoints under `/api/v1/admin/*` require a valid JS
 * Executed under dedicated `sql_sandbox_runner` database role.
 * Queries matching mutating keywords (`UPDATE`, `DELETE`, `DROP`, `ALTER`, `SET ROLE`) or catalog tables (`pg_authid`, `pg_shadow`) are rejected with `BadRequestException`.
 * Dynamic temporary schemas are dropped in `finally` cleanup blocks.
+
+---
+
+## 4. Candidate Session Resilience & Anti-Cheat Question Sanitization
+
+Full specification: [CANDIDATE_RESILIENCE_AND_QUESTION_SECURITY.md](./CANDIDATE_RESILIENCE_AND_QUESTION_SECURITY.md)
+
+* **Question Delivery Sanitization:** Every question served in `POST /begin` and `POST /resume` runs through `sanitiseQuestionContent()`, completely removing `correctIndex`, `explanation`, `hiddenTestCases`, `expectedQuery`, and AI grading `rubric` before the payload is delivered over the wire.
+* **Disconnect & Grace Window:** 15s heartbeats with 45s stale threshold; 300s reconnect grace window with maximum 3 disconnects.
+* **Single Active Tab:** HTTP 409 `SECOND_TAB_DETECTED` prevents concurrent multi-browser assessment access.
+* **Client-Server Time Authority:** Clock drift offset calculation prevents local computer clock tampering.
+

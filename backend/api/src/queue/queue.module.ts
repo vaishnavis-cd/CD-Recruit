@@ -35,6 +35,7 @@ const isFull = infraMode === "full";
             { name: "execution-inbound" },
             { name: "execution-outbound" },
             { name: "execution-watchdog" },
+            { name: "payment-webhook" },
           ),
         ]
       : []),

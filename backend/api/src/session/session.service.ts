@@ -196,6 +196,76 @@ function allocateQuestions(
   return selected;
 }
 
+/**
+ * Strip server-only sensitive fields before sending question content to the candidate.
+ * - MCQ: remove correctIndex, answerIndex, correctAnswer, correctOption, and explanation
+ * - SQL: remove expectedQuery and explanation
+ * - NOSQL: remove expectedOperation, expectedQuery, and explanation
+ * - CODING / DEBUGGING: remove hiddenTestCases, hiddenTests, explanation, solution, referenceSolution, and filter out isHidden test cases
+ * - AI_PROMPTING: remove rubric, idealResponseSummary, evaluationCriteria, explanation
+ * - SIMULATION: remove rubric, explanation, hiddenTestCases
+ * - TEST_SCENARIOS: remove rubric, referenceCriteria, idealAnswer, modelAnswer, explanation
+ */
+export function sanitiseQuestionContent(moduleType: string, content: unknown): unknown {
+  if (!content || typeof content !== "object") return content;
+
+  const c = content as Record<string, unknown>;
+
+  if (moduleType === "MCQ") {
+    const {
+      correctIndex: _ci,
+      answerIndex: _ai,
+      correctAnswer: _ca,
+      correctOption: _co,
+      explanation: _ex,
+      ...safe
+    } = c;
+    return safe;
+  }
+
+  if (moduleType === "SQL") {
+    const { expectedQuery: _eq, explanation: _ex, ...safe } = c;
+    return safe;
+  }
+
+  if (moduleType === "NOSQL") {
+    const { expectedOperation: _eo, expectedQuery: _eq, explanation: _ex, ...safe } = c;
+    return safe;
+  }
+
+  if (moduleType === "CODING" || moduleType === "DEBUGGING") {
+    const {
+      hiddenTestCases: _htc,
+      hiddenTests: _ht,
+      explanation: _ex,
+      solution: _sol,
+      referenceSolution: _refSol,
+      ...rest
+    } = c;
+    const visibleTestCases = rest.visibleTestCases || (Array.isArray(rest.testCases)
+      ? (rest.testCases as Array<Record<string, unknown>>).filter((tc) => !tc.isHidden)
+      : []);
+    return { ...rest, testCases: visibleTestCases };
+  }
+
+  if (moduleType === "AI_PROMPTING") {
+    const { rubric: _rubric, explanation: _ex, idealResponseSummary: _irs, evaluationCriteria: _ec, ...safe } = c;
+    return safe;
+  }
+
+  if (moduleType === "SIMULATION") {
+    const { rubric: _rubric, explanation: _ex, hiddenTestCases: _htc, ...safe } = c;
+    return safe;
+  }
+
+  if (moduleType === "TEST_SCENARIOS") {
+    const { rubric: _rubric, referenceCriteria: _rc, explanation: _ex, idealAnswer: _ia, modelAnswer: _ma, ...safe } = c;
+    return safe;
+  }
+
+  return content;
+}
+
 export async function buildQuestionList(
   prisma: PrismaService,
   session: Session,
@@ -273,7 +343,7 @@ export async function buildQuestionList(
               ...q,
               questionId: q.questionId || rawQ.id,
               moduleType: effectiveModuleType,
-              content: rawQ.content || q.content || {},
+              content: sanitiseQuestionContent(effectiveModuleType, rawQ.content || q.content || {}),
               difficulty: rawQ.difficulty || q.difficulty || "medium",
             };
           });
@@ -340,7 +410,7 @@ export async function buildQuestionList(
               ...q,
               questionId: q.questionId || rawQ.id,
               moduleType: effectiveModuleType,
-              content: rawQ.content || q.content || {},
+              content: sanitiseQuestionContent(effectiveModuleType, rawQ.content || q.content || {}),
               difficulty: rawQ.difficulty || q.difficulty || "medium",
             };
           });
@@ -428,7 +498,7 @@ export async function buildQuestionList(
             return shuffled.map((q: any) => ({
               questionId: q.id || q.questionId,
               moduleType: q.moduleType,
-              content: q.content || {},
+              content: sanitiseQuestionContent(q.moduleType, q.content || {}),
               difficulty: q.difficulty || "medium",
             }));
           }
@@ -1429,39 +1499,10 @@ export class SessionService implements SessionStatusPort {
 
   /**
    * Strip server-only fields before sending question content to the candidate.
-   * - MCQ: remove correctIndex and explanation
-   * - SQL: remove expectedQuery
-   * - CODING: remove testCases where isHidden === true (and any legacy hiddenTests array)
+   * Delegates to the shared sanitiseQuestionContent utility.
    */
   private sanitiseQuestionContent(moduleType: string, content: unknown): unknown {
-    if (!content || typeof content !== "object") return content;
-
-    const c = content as Record<string, unknown>;
-
-    if (moduleType === "MCQ") {
-      const { correctIndex: _ci, explanation: _ex, ...safe } = c;
-      return safe;
-    }
-
-    if (moduleType === "SQL") {
-      const { expectedQuery: _eq, ...safe } = c;
-      return safe;
-    }
-
-    if (moduleType === "NOSQL") {
-      const { expectedOperation: _eo, ...safe } = c;
-      return safe;
-    }
-
-    if (moduleType === "CODING" || moduleType === "DEBUGGING") {
-      const { hiddenTestCases: _htc, hiddenTests: _ht, ...rest } = c;
-      const visibleTestCases = rest.visibleTestCases || (Array.isArray(rest.testCases)
-        ? (rest.testCases as Array<Record<string, unknown>>).filter((tc) => !tc.isHidden)
-        : []);
-      return { ...rest, testCases: visibleTestCases };
-    }
-
-    return content;
+    return sanitiseQuestionContent(moduleType, content);
   }
 
   /**

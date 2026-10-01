@@ -1,18 +1,22 @@
-// CD-Recruit — Prisma Schema (Phase 1 final)
+// CD-Recruit — Prisma Schema (Phase 1 final + Super Admin Platform Schema)
 // Field naming: camelCase in Prisma models (matches packages/shared-types + API contract)
 // mapped via @map to snake_case DB columns (standard Postgres convention).
 // Table names mapped via @@map to snake_case as well.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "billing", "platform"]
 }
 
-// ---------- Enums ----------
+// ==========================================
+// ---------- PUBLIC SCHEMA ENUMS ----------
+// ==========================================
 
 enum ModuleType {
   MCQ
@@ -23,6 +27,8 @@ enum ModuleType {
   AI_PROMPTING
   SIMULATION
   TEST_SCENARIOS
+
+  @@schema("public")
 }
 
 enum SessionStatus {
@@ -33,11 +39,15 @@ enum SessionStatus {
   SUBMITTED
   CLOSED
   ABANDONED
+
+  @@schema("public")
 }
 
 enum CvMode {
   FULL
   REDUCED
+
+  @@schema("public")
 }
 
 enum StaffRole {
@@ -166,16 +176,22 @@ enum SessionEndReason {
 
 enum HoldReason {
   CAPACITY
+
+  @@schema("public")
 }
 
 enum DecisionType {
   ADVANCE
   REJECT
+
+  @@schema("public")
 }
 
 enum OriginChannel {
   DIRECT
   PARTNER_API
+
+  @@schema("public")
 }
 
 enum InviteStatus {
@@ -183,6 +199,8 @@ enum InviteStatus {
   REDEEMED
   EXPIRED
   REVOKED
+
+  @@schema("public")
 }
 
 enum DriveStatus {
@@ -190,17 +208,23 @@ enum DriveStatus {
   SCHEDULED
   ACTIVE
   CLOSED
+
+  @@schema("public")
 }
 
 enum QuestionStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+
+  @@schema("public")
 }
 
 enum SubmissionType {
   RUN
   SUBMIT
+
+  @@schema("public")
 }
 
 enum ExecutionStatus {
@@ -212,6 +236,8 @@ enum ExecutionStatus {
   TIMEOUT
   MEMORY_LIMIT
   FAILED
+
+  @@schema("public")
 }
 
 enum SqlExecutionStatus {
@@ -221,6 +247,8 @@ enum SqlExecutionStatus {
   QUERY_ERROR
   TIMEOUT
   FAILED
+
+  @@schema("public")
 }
 
 enum ConsentType {
@@ -228,6 +256,8 @@ enum ConsentType {
   BIOMETRIC
   SELFIE
   AUDIO
+
+  @@schema("public")
 }
 
 enum Department {
@@ -239,17 +269,54 @@ enum Department {
   ITOPS
   SECOPS
   SRE
+
+  @@schema("public")
 }
 
 enum CandidateCategory {
   FRESHER
   EXPERIENCED
+
+  @@schema("public")
 }
 
 enum ExperienceLevel {
   FRESHER
   EXPERIENCED
+
+  @@schema("public")
 }
+
+enum ProctoringEventType {
+  FACE_MISSING
+  MULTIPLE_FACES
+  LOOKING_AWAY
+  SEAT_EXIT
+  EXCESSIVE_MOVEMENT
+  PHONE_DETECTED
+  HEADPHONES_DETECTED
+  BOOK_DETECTED
+  SPEECH_DETECTED
+  SECOND_VOICE_SUSPECTED
+  IDENTITY_MISMATCH
+  TAB_SWITCH
+  PASTE
+  FULLSCREEN_EXIT
+
+  @@schema("public")
+}
+
+enum ProctoringUploadStatus {
+  PENDING
+  UPLOADED
+  FAILED
+
+  @@schema("public")
+}
+
+// ==========================================
+// ---------- PUBLIC SCHEMA MODELS ----------
+// ==========================================
 
 model RoleTemplate {
   id              String             @id @default(uuid())
@@ -270,6 +337,7 @@ model RoleTemplate {
 
   @@unique([department, category, experienceTier, version])
   @@map("role_template")
+  @@schema("public")
 }
 
 model Drive {
@@ -288,17 +356,18 @@ model Drive {
   slotDistribution Json?     @map("slot_distribution")
   originChannel  OriginChannel @default(DIRECT) @map("origin_channel")
   isEditingUnlocked Boolean   @default(false) @map("is_editing_unlocked")
-  fallthrough    DrivePoolFallthrough @default(ALLOW)
-  expectedAttendance Int?      @map("expected_attendance")
+  fallthrough    String        @default("ALLOW") @db.VarChar(16)
 
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  roleTemplate   RoleTemplate  @relation(fields: [roleTemplateId], references: [id])
-  createdBy      Staff         @relation(fields: [createdById], references: [id])
+  organization   Organization?   @relation(fields: [organizationId], references: [id])
+  roleTemplate   RoleTemplate    @relation(fields: [roleTemplateId], references: [id])
+  createdBy      Staff           @relation(fields: [createdById], references: [id])
   sessions       Session[]
   invites        Invite[]
   questions      DriveQuestion[]
+  overrideActions OverrideAction[]
 
   @@map("drive")
+  @@schema("public")
 }
 
 model DriveQuestion {
@@ -314,6 +383,7 @@ model DriveQuestion {
 
   @@unique([driveId, questionId])
   @@map("drive_question")
+  @@schema("public")
 }
 
 model RoleTemplateQuestion {
@@ -330,20 +400,21 @@ model RoleTemplateQuestion {
 
   @@unique([roleTemplateId, questionId])
   @@map("role_template_question")
+  @@schema("public")
 }
 
 model Question {
-  id             String     @id @default(uuid())
-  moduleType     ModuleType @map("module_type")
-  role           String?    @default("General")
-  targetLevel    String?    @map("target_level")
-  content        Json
-  scoringConfig  Json?      @map("scoring_config")
-  difficulty     String?
-  tags           String[]
-  folderId       String?    @map("folder_id")
-  version        Int        @default(1)
-  status         QuestionStatus @default(PUBLISHED)
+  id            String         @id @default(uuid())
+  moduleType    ModuleType     @map("module_type")
+  role          String?        @default("General")
+  targetLevel   String?        @map("target_level")
+  content       Json
+  scoringConfig Json?          @map("scoring_config")
+  difficulty    String?
+  tags          String[]
+  folderId      String?        @map("folder_id")
+  version       Int            @default(1)
+  status        QuestionStatus @default(PUBLISHED)
 
   moduleResponses       ModuleResponse[]
   driveQuestions        DriveQuestion[]
@@ -352,59 +423,68 @@ model Question {
   sqlExecutions         SQLExecution[]
 
   @@map("question")
+  @@schema("public")
 }
 
 model Organization {
-  id               String         @id @default(uuid())
-  billingAccountId String         @map("billing_account_id")
-  name             String
-  slug             String         @unique
-  createdAt        DateTime       @default(now()) @map("created_at")
+  id                       String   @id @default(uuid())
+  name                     String
+  slug                     String   @unique
+  billingAccountId         String?  @unique @map("billing_account_id")
+  appealWindowDaysOverride Int?     @map("appeal_window_days_override")
+  createdAt                DateTime @default(now()) @map("created_at")
 
-  billingAccount   BillingAccount @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
-  candidates Candidate[]
-  drives     Drive[]
-  staff      Staff[]
-  sessions   Session[]
 
+  billingAccount BillingAccount? @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  candidates     Candidate[]
+  drives         Drive[]
+  staff          Staff[]
+  sessions       Session[]
+  tenantProfile         TenantProfile?
+  overrideActions       OverrideAction[]
+  impersonationSessions ImpersonationSession[]
+ 
   @@map("organization")
+  @@schema("public")
 }
 
 model Candidate {
-  id                         String        @id @default(uuid())
-  organizationId             String?       @map("organization_id")
-  email                      String        @unique
+  id                         String    @id @default(uuid())
+  organizationId             String?   @map("organization_id")
+  email                      String    @unique
   name                       String
-  idProofRef                 String?       @map("id_proof_ref")
-  idProofEmbedding           Json?         @map("id_proof_embedding")
-  idProofModel               String?       @map("id_proof_model")
-  idProofExtractedName       String?       @map("id_proof_extracted_name")
-  idProofOcrRaw              String?       @map("id_proof_ocr_raw")
-  ocrConfidence              Float?        @map("ocr_confidence")
-  idVerifiedAt               DateTime?     @map("id_verified_at")
-  baselineSelfieEmbedding    Json?         @map("baseline_selfie_embedding")
-  baselineSelfieRef          String?       @map("baseline_selfie_ref")
-  identityVerificationResult Json?         @map("identity_verification_result")
-  createdAt                  DateTime      @default(now()) @map("created_at")
+  idProofRef                 String?   @map("id_proof_ref")
+  idProofEmbedding           Json?     @map("id_proof_embedding")
+  idProofModel               String?   @map("id_proof_model")
+  idProofExtractedName       String?   @map("id_proof_extracted_name")
+  idProofOcrRaw              String?   @map("id_proof_ocr_raw")
+  ocrConfidence              Float?    @map("ocr_confidence")
+  idVerifiedAt               DateTime? @map("id_verified_at")
+  baselineSelfieEmbedding    Json?     @map("baseline_selfie_embedding")
+  baselineSelfieRef          String?   @map("baseline_selfie_ref")
+  identityVerificationResult Json?     @map("identity_verification_result")
+  createdAt                  DateTime  @default(now()) @map("created_at")
 
-  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organization   Organization?   @relation(fields: [organizationId], references: [id])
   sessions       Session[]
   consentRecords ConsentRecord[]
 
   @@map("candidate")
+  @@schema("public")
 }
 
 model ConsentRecord {
-  id           String      @id @default(uuid())
-  candidateId  String      @map("candidate_id")
-  consentType  ConsentType @map("consent_type")
-  version      String
-  consentedAt  DateTime    @default(now()) @map("consented_at")
-  ipAddress    String      @map("ip_address")
+  id          String      @id @default(uuid())
+  candidateId String      @map("candidate_id")
+  consentType ConsentType @map("consent_type")
+  version     String
+  consentedAt DateTime    @default(now()) @map("consented_at")
+  ipAddress   String      @map("ip_address")
 
   candidate Candidate @relation(fields: [candidateId], references: [id])
 
   @@map("consent_record")
+  @@schema("public")
 }
 
 model Session {
@@ -415,14 +495,15 @@ model Session {
   driveId                    String?       @map("drive_id")
   cvMode                     CvMode        @map("cv_mode")
   status                     SessionStatus @default(NOT_STARTED)
+  kind                       String        @default("LIVE") @db.VarChar(16)
   baselineSelfieRef          String?       @map("baseline_selfie_ref")
   baselineSelfieEmbedding    Json?         @map("baseline_selfie_embedding")
   idProofRef                 String?       @map("id_proof_ref")
   idProofEmbedding           Json?         @map("id_proof_embedding")
   idVerifiedAt               DateTime?     @map("id_verified_at")
   identityVerificationResult Json?         @map("identity_verification_result")
-  tutorialMode       String        @default("full") @map("tutorial_mode")
-  actualStartAt      DateTime?     @map("actual_start_at")
+  tutorialMode               String        @default("full") @map("tutorial_mode")
+  actualStartAt              DateTime?     @map("actual_start_at")
 
   startedAt        DateTime? @map("started_at")
   deadlineAt        DateTime? @map("deadline_at")          // startedAt + roleTemplate.durationMinutes
@@ -436,26 +517,26 @@ model Session {
   simulationSnapshot Json?    @map("simulation_snapshot")
   originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
   referenceId       String?   @unique @map("reference_id")
-  kind              SessionKind @default(LIVE)
   heldAt            DateTime? @map("held_at")
-  holdReason        HoldReason? @map("hold_reason")
-  reattemptOfSessionId String? @map("reattempt_of_session_id")
+  holdReason        String?   @map("hold_reason") @db.VarChar(32)
+  endReason         String?   @map("end_reason") @db.VarChar(32)
+
 
   organization Organization? @relation(fields: [organizationId], references: [id])
   candidate    Candidate    @relation(fields: [candidateId], references: [id])
   roleTemplate RoleTemplate @relation(fields: [roleTemplateId], references: [id])
   drive        Drive?       @relation(fields: [driveId], references: [id])
 
-  moduleResponses   ModuleResponse[]
-  eventLogs         EventLog[]
-  integrityFlags    IntegrityFlag[]
-  proctoringEvents  ProctoringEvent[]
-  score             Score?
-  reviewerDecision  ReviewerDecision?
-  invite            Invite?
-  codingExecutions  CodingExecution[]
-  sqlExecutions     SQLExecution[]
-  identityCaptures  IdentityCapture[]
+  moduleResponses  ModuleResponse[]
+  eventLogs        EventLog[]
+  integrityFlags   IntegrityFlag[]
+  proctoringEvents ProctoringEvent[]
+  score            Score?
+  reviewerDecision ReviewerDecision?
+  invite           Invite?
+  codingExecutions CodingExecution[]
+  sqlExecutions    SQLExecution[]
+  identityCaptures IdentityCapture[]
 
   @@index([referenceId])
   @@index([candidateId])
@@ -466,19 +547,20 @@ model Session {
   @@index([deadlineAt])
   @@index([lastHeartbeatAt])
   @@map("session")
+  @@schema("public")
 }
 
 model ModuleResponse {
-  id                String   @id @default(uuid())
-  sessionId         String   @map("session_id")
-  questionId        String   @map("question_id")
-  responsePayload   Json     @map("response_payload")
-  timeSpentSeconds  Int?     @map("time_spent_seconds")
-  isDraft           Boolean  @default(true) @map("is_draft") // true until real submit overwrites it
-  lastAutosavedAt   DateTime? @map("last_autosaved_at")
-  sandboxDbName     String?  @map("sandbox_db_name")
-  executionCount    Int      @default(0) @map("execution_count")
-  lastOperation     Json?    @map("last_operation")
+  id               String    @id @default(uuid())
+  sessionId        String    @map("session_id")
+  questionId       String    @map("question_id")
+  responsePayload  Json      @map("response_payload")
+  timeSpentSeconds Int?      @map("time_spent_seconds")
+  isDraft          Boolean   @default(true) @map("is_draft") // true until real submit overwrites it
+  lastAutosavedAt  DateTime? @map("last_autosaved_at")
+  sandboxDbName    String?   @map("sandbox_db_name")
+  executionCount   Int       @default(0) @map("execution_count")
+  lastOperation    Json?     @map("last_operation")
 
   session  Session  @relation(fields: [sessionId], references: [id])
   question Question @relation(fields: [questionId], references: [id])
@@ -487,16 +569,13 @@ model ModuleResponse {
   @@index([sessionId])
   @@index([questionId])
   @@map("module_response")
+  @@schema("public")
 }
 
 model EventLog {
   id         String   @id @default(uuid())
   sessionId  String   @map("session_id")
   eventType  String   @map("event_type")
-  // Proctoring events (PASTE, TAB_SWITCH, GAZE_DEVIATION, ...) plus session-integrity
-  // events (HEARTBEAT_MISSED, DISCONNECTED, RECONNECTED, GRACE_WINDOW_EXPIRED,
-  // AUTO_SUBMITTED, SECOND_TAB_DETECTED). Kept as string here for flexibility;
-  // valid values are enforced via a shared enum in packages/shared-types.
   payload    Json
   occurredAt DateTime @default(now()) @map("occurred_at")
 
@@ -505,6 +584,7 @@ model EventLog {
   @@index([sessionId])
   @@index([eventType])
   @@map("event_log")
+  @@schema("public")
 }
 
 model IntegrityFlag {
@@ -526,6 +606,7 @@ model IntegrityFlag {
   @@index([category])
   @@index([severity])
   @@map("integrity_flag")
+  @@schema("public")
 }
 
 model EvidenceClip {
@@ -537,22 +618,23 @@ model EvidenceClip {
   flag IntegrityFlag @relation(fields: [flagId], references: [id])
 
   @@map("evidence_clip")
+  @@schema("public")
 }
 
 model Score {
-  id                     String  @id @default(uuid())
-  sessionId              String  @unique @map("session_id")
-  compositeScore         Float   @map("composite_score")
-  coreScore              Float?  @default(0) @map("core_score")
-  bonusScore             Float?  @default(0) @map("bonus_score")
-  totalScore             Float?  @default(0) @map("total_score")
-  moduleScores           Json    @map("module_scores")
-  sayDoConsistencyScore  Float?  @map("say_do_consistency_score")
-  aiConfidence           Float?  @map("ai_confidence")
-  humanReviewed          Boolean @default(false) @map("human_reviewed")
-  sayDoRationale         String? @map("say_do_rationale")
-  sayDoMismatches        Json?   @map("say_do_mismatches")
-  gradingSource          String  @default("placeholder") @map("grading_source")
+  id                    String  @id @default(uuid())
+  sessionId             String  @unique @map("session_id")
+  compositeScore        Float   @map("composite_score")
+  coreScore             Float?  @default(0) @map("core_score")
+  bonusScore            Float?  @default(0) @map("bonus_score")
+  totalScore            Float?  @default(0) @map("total_score")
+  moduleScores          Json    @map("module_scores")
+  sayDoConsistencyScore Float?  @map("say_do_consistency_score")
+  aiConfidence          Float?  @map("ai_confidence")
+  humanReviewed         Boolean @default(false) @map("human_reviewed")
+  sayDoRationale        String? @map("say_do_rationale")
+  sayDoMismatches       Json?   @map("say_do_mismatches")
+  gradingSource         String  @default("placeholder") @map("grading_source")
 
   session Session @relation(fields: [sessionId], references: [id])
 
@@ -560,65 +642,67 @@ model Score {
   @@index([compositeScore])
   @@index([aiConfidence])
   @@map("score")
+  @@schema("public")
 }
 
 model Staff {
-  id               String    @id @default(uuid())
-  organizationId   String?   @map("organization_id")
-  email            String    @unique
-  name             String
-  role             StaffRole @default(RECRUITER)
+  id                    String    @id @default(uuid())
+  organizationId        String?   @map("organization_id")
+  email                 String    @unique
+  name                  String
+  role                  StaffRole @default(RECRUITER)
   passwordHash          String?   @map("password_hash")
   refreshTokenHash      String?   @map("refresh_token_hash")
   refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
   createdAt             DateTime  @default(now()) @map("created_at")
 
-
-  organization      Organization?    @relation(fields: [organizationId], references: [id])
+  organization      Organization?      @relation(fields: [organizationId], references: [id])
   reviewerDecisions ReviewerDecision[]
   invites           Invite[]
   drives            Drive[]
   auditLogs         AuditLog[]
 
   @@map("staff")
+  @@schema("public")
 }
 
 model ReviewerDecision {
-  id         String       @id @default(uuid())
-  sessionId  String       @unique @map("session_id")
-  staffId    String       @map("staff_id") // renamed from reviewerId to match STAFF table
-  decision   DecisionType
-  decidedAt  DateTime     @default(now()) @map("decided_at")
-  note       String?
-  agreedWithAi Boolean?   @map("agreed_with_ai")
+  id           String       @id @default(uuid())
+  sessionId    String       @unique @map("session_id")
+  staffId      String       @map("staff_id")
+  decision     DecisionType
+  decidedAt    DateTime     @default(now()) @map("decided_at")
+  note         String?
+  agreedWithAi Boolean?     @map("agreed_with_ai")
 
   session Session @relation(fields: [sessionId], references: [id])
   staff   Staff   @relation(fields: [staffId], references: [id])
 
   @@map("reviewer_decision")
+  @@schema("public")
 }
 
 model Invite {
-  id                String       @id @default(uuid())
-  candidateEmail    String       @map("candidate_email")
-  candidateName     String       @map("candidate_name")
-  roleTemplateId    String       @map("role_template_id")
-  driveId           String?      @map("drive_id")
-  status            InviteStatus @default(PENDING)
-  token             String       @unique
-  createdById       String       @map("created_by_id")
-  createdAt         DateTime     @default(now()) @map("created_at")
-  expiresAt         DateTime     @map("expires_at")
-  redeemedAt        DateTime?    @map("redeemed_at")
-  revokedAt         DateTime?    @map("revoked_at")
-  sessionId         String?      @unique @map("session_id")
-  isGenerated       Boolean      @default(false) @map("is_generated")
-  scheduledTime     DateTime?    @map("scheduled_time")
-  bufferMinutes     Int          @default(15) @map("buffer_minutes")
-  graceMinutes      Int          @default(5) @map("grace_minutes")
-  originChannel     OriginChannel @default(DIRECT) @map("origin_channel")
-  idProofRef        String?      @map("id_proof_ref")
-  idProofEmbedding  Json?        @map("id_proof_embedding")
+  id                String             @id @default(uuid())
+  candidateEmail    String             @map("candidate_email")
+  candidateName     String             @map("candidate_name")
+  roleTemplateId    String             @map("role_template_id")
+  driveId           String?            @map("drive_id")
+  status            InviteStatus       @default(PENDING)
+  token             String             @unique
+  createdById       String             @map("created_by_id")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  expiresAt         DateTime           @map("expires_at")
+  redeemedAt        DateTime?          @map("redeemed_at")
+  revokedAt         DateTime?          @map("revoked_at")
+  sessionId         String?            @unique @map("session_id")
+  isGenerated       Boolean            @default(false) @map("is_generated")
+  scheduledTime     DateTime?          @map("scheduled_time")
+  bufferMinutes     Int                @default(15) @map("buffer_minutes")
+  graceMinutes      Int                @default(5) @map("grace_minutes")
+  originChannel     OriginChannel      @default(DIRECT) @map("origin_channel")
+  idProofRef        String?            @map("id_proof_ref")
+  idProofEmbedding  Json?              @map("id_proof_embedding")
   idProofUploadedAt DateTime?          @map("id_proof_uploaded_at")
   category          CandidateCategory? @map("category")
   experienceTier    String?            @map("experience_tier")
@@ -631,6 +715,7 @@ model Invite {
   @@index([candidateEmail])
   @@index([status])
   @@map("invite")
+  @@schema("public")
 }
 
 model AuditLog {
@@ -645,28 +730,29 @@ model AuditLog {
   staff Staff @relation(fields: [staffId], references: [id])
 
   @@map("audit_log")
+  @@schema("public")
 }
 
 model CodingExecution {
-  id             String          @id @default(uuid())
-  sessionId      String          @map("session_id")
-  questionId     String          @map("question_id")
-  languageId     Int             @map("language_id")
-  submissionType SubmissionType  @map("submission_type")
+  id                String          @id @default(uuid())
+  sessionId         String          @map("session_id")
+  questionId        String          @map("question_id")
+  languageId        Int             @map("language_id")
+  submissionType    SubmissionType  @map("submission_type")
   sourceCode        String          @map("source_code")
   judge0Token       String?         @map("judge0_token")
   judge0Tokens      Json?           @map("judge0_tokens")
   webhookReceivedAt DateTime?       @map("webhook_received_at")
   status            ExecutionStatus
-  stdout         String?
-  stderr         String?
-  compileOutput  String?         @map("compile_output")
-  passedTests    Int             @map("passed_tests")
-  totalTests     Int             @map("total_tests")
-  executionTime  Float?          @map("execution_time")
-  memoryUsage    Int?            @map("memory_usage")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  completedAt    DateTime?       @map("completed_at")
+  stdout            String?
+  stderr            String?
+  compileOutput     String?         @map("compile_output")
+  passedTests       Int             @map("passed_tests")
+  totalTests        Int             @map("total_tests")
+  executionTime     Float?          @map("execution_time")
+  memoryUsage       Int?            @map("memory_usage")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  completedAt       DateTime?       @map("completed_at")
 
   session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -675,6 +761,7 @@ model CodingExecution {
   @@index([status])
   @@index([createdAt])
   @@map("coding_execution")
+  @@schema("public")
 }
 
 model SQLExecution {
@@ -694,29 +781,7 @@ model SQLExecution {
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("sql_execution")
-}
-
-enum ProctoringEventType {
-  FACE_MISSING
-  MULTIPLE_FACES
-  LOOKING_AWAY
-  SEAT_EXIT
-  EXCESSIVE_MOVEMENT
-  PHONE_DETECTED
-  HEADPHONES_DETECTED
-  BOOK_DETECTED
-  SPEECH_DETECTED
-  SECOND_VOICE_SUSPECTED
-  IDENTITY_MISMATCH
-  TAB_SWITCH
-  PASTE
-  FULLSCREEN_EXIT
-}
-
-enum ProctoringUploadStatus {
-  PENDING
-  UPLOADED
-  FAILED
+  @@schema("public")
 }
 
 model ProctoringEvent {
@@ -730,10 +795,11 @@ model ProctoringEvent {
   uploadStatus ProctoringUploadStatus @default(PENDING) @map("upload_status")
   createdAt    DateTime               @default(now()) @map("created_at")
 
-  session      Session                @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
   @@map("proctoring_event")
+  @@schema("public")
 }
 
 model Partner {
@@ -747,6 +813,7 @@ model Partner {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("partner")
+  @@schema("public")
 }
 
 model ModuleSetting {
@@ -757,6 +824,7 @@ model ModuleSetting {
 
   @@unique([department, moduleType])
   @@map("module_setting")
+  @@schema("public")
 }
 
 model IdentityCapture {
@@ -778,6 +846,505 @@ model IdentityCapture {
   @@index([sessionId])
   @@index([status])
   @@map("identity_capture")
+  @@schema("public")
+}
+
+// ============================================
+// ---------- PLATFORM SCHEMA ENUMS ----------
+// ============================================
+
+enum PlatformStaffRole {
+  SUPPORT
+  FINANCE
+  OWNER
+
+  @@schema("platform")
+}
+
+enum PlatformStaffStatus {
+  ACTIVE
+  DISABLED
+
+  @@schema("platform")
+}
+
+enum TenantLifecycleStage {
+  ONBOARDING
+  TRIAL
+  ACTIVE
+  DORMANT
+  SUSPENDED
+  CHURNED
+
+  @@schema("platform")
+}
+
+enum LicenseTier {
+  STARTER
+  GROWTH
+  ENTERPRISE
+
+  @@schema("platform")
+}
+
+enum OverrideType {
+  PROCTORING_SENSITIVITY
+  SCHEDULE_EXTENSION
+  QUESTION_FIX
+  INVITE_RATIO
+  INCIDENT_WINDOW
+
+  @@schema("platform")
+}
+
+enum OverrideStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+
+  @@schema("platform")
+}
+
+enum IncidentScopeType {
+  PLATFORM_WIDE
+  TENANT_SPECIFIC
+
+  @@schema("platform")
+}
+
+enum IncidentStatus {
+  ACTIVE
+  RESOLVED
+
+  @@schema("platform")
+}
+
+// =============================================
+// ---------- PLATFORM SCHEMA MODELS ----------
+// =============================================
+
+model PlatformStaff {
+  id                  String   @id @default(uuid())
+  email               String   @unique @db.VarChar(255)
+  name                String   @db.VarChar(255)
+  role                String   @default("SUPPORT") @db.VarChar(32)
+  passwordHash        String?  @map("password_hash")
+  refreshTokenHash    String?  @map("refresh_token_hash")
+  totpSecretEncrypted String?  @map("totp_secret_encrypted")
+  mfaEnabled          Boolean  @default(true) @map("mfa_enabled")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  overridesRequested OverrideAction[]       @relation("RequestedOverrides")
+  overridesApproved  OverrideAction[]       @relation("ApprovedOverrides")
+  impersonations     ImpersonationSession[]
+  draftsCreated      OnboardingDraft[]
+  incidentsDeclared  IncidentWindow[]
+
+  @@map("platform_staff")
+  @@schema("platform")
+}
+// ==========================================
+// SCHEMA: billing (Commercial Ledger & Payer)
+// ==========================================
+
+model BillingAccount {
+  id              String    @id @default(uuid())
+  name            String    @db.VarChar(255)
+  legalEntityName String?   @map("legal_entity_name") @db.VarChar(255)
+  billingCountry  String    @default("IN") @map("billing_country") @db.VarChar(2)
+  currency        String    @default("INR") @db.VarChar(3)
+  taxId           String?   @map("tax_id") @db.VarChar(64)
+  status          String    @default("ACTIVE") @db.VarChar(32)
+  overdraftLimit  Int       @default(0) @map("overdraft_limit")
+  overdraftUsed   Int       @default(0) @map("overdraft_used")
+  hasPaidPurchase Boolean   @default(false) @map("has_paid_purchase")
+  trialDomain     String?   @unique @map("trial_domain") @db.VarChar(255)
+  trialGrantedAt  DateTime? @map("trial_granted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @default(now()) @map("updated_at")
+
+  organization          Organization?
+  creditPools           CreditPool[]
+  ledgerEntries         CreditLedgerEntry[]
+  manualBillingRequests ManualBillingRequest[]
+  payments              Payment[]
+
+  @@index([status])
+  @@map("billing_account")
+  @@schema("billing")
+}
+
+model CreditPool {
+  id              String    @id @default(uuid())
+  billingAccountId String   @map("billing_account_id")
+  driveId         String?   @map("drive_id")
+  poolType        String    @map("pool_type") @db.VarChar(32)
+  name            String    @db.VarChar(255)
+  source          String    @db.VarChar(32)
+  totalCredits    Int       @map("total_credits")
+  cachedRemaining Int       @map("cached_remaining")
+  validityDays    Int?      @map("validity_days")
+  maxWaitDays     Int       @default(365) @map("max_wait_days")
+  queueOrder      Int?      @map("queue_order")
+  status          String    @default("QUEUED") @db.VarChar(32)
+  purchasedAt     DateTime  @default(now()) @map("purchased_at")
+  clockStartedAt  DateTime? @map("clock_started_at")
+  activatedAt     DateTime? @map("activated_at")
+  expiresAt       DateTime? @map("expires_at")
+  unitPriceMinor  Int?      @map("unit_price_minor")
+  currency        String?   @db.VarChar(3)
+  paymentId       String?   @map("payment_id")
+  termsVersion    String?   @map("terms_version") @db.VarChar(32)
+  termsAcceptedBy String?   @map("terms_accepted_by") @db.VarChar(255)
+  termsAcceptedAt DateTime? @map("terms_accepted_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  payment        Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  ledgerEntries  CreditLedgerEntry[]
+
+  @@index([billingAccountId, status])
+  @@index([expiresAt])
+  @@map("credit_pool")
+  @@schema("billing")
+}
+
+model CreditLedgerEntry {
+  id               String    @id @default(uuid())
+  billingAccountId String    @map("billing_account_id")
+  organizationId   String    @map("organization_id")
+  creditPoolId     String?   @map("credit_pool_id")
+  entryType        String    @map("entry_type") @db.VarChar(32)
+  amount           Int
+  balanceAfter     Int?      @map("balance_after")
+  sessionId        String?   @map("session_id")
+  driveId          String?   @map("drive_id")
+  relatedEntryId   String?   @map("related_entry_id")
+  grantSource      String?   @map("grant_source") @db.VarChar(32)
+  reason           String    @db.VarChar(64)
+  reasonNote       String?   @map("reason_note") @db.VarChar(200)
+  paymentId        String?   @map("payment_id")
+  requestId        String?   @map("request_id")
+  idempotencyKey   String    @unique @map("idempotency_key") @db.VarChar(128)
+  actorId          String    @map("actor_id") @db.VarChar(128)
+  approvedById     String?   @map("approved_by_id") @db.VarChar(128)
+  shadow           Boolean   @default(false)
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  billingAccount BillingAccount        @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  creditPool     CreditPool?           @relation(fields: [creditPoolId], references: [id], onDelete: Restrict)
+  relatedEntry   CreditLedgerEntry?    @relation("LedgerEntryReversal", fields: [relatedEntryId], references: [id], onDelete: Restrict)
+  reversedBy     CreditLedgerEntry[]   @relation("LedgerEntryReversal")
+  payment        Payment?              @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  request        ManualBillingRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+
+  @@index([billingAccountId, createdAt])
+  @@index([creditPoolId, createdAt])
+  @@index([sessionId])
+  @@index([driveId, entryType])
+  @@map("credit_ledger_entry")
+  @@schema("billing")
+}
+
+model Payment {
+  id                String    @id @default(uuid())
+  billingAccountId  String    @map("billing_account_id")
+  provider          String    @db.VarChar(32)
+  providerPaymentId String    @map("provider_payment_id") @db.VarChar(128)
+  providerOrderId   String?   @map("provider_order_id") @db.VarChar(128)
+  status            String    @db.VarChar(32)
+  priceBookEntryId  String    @map("price_book_entry_id")
+  quantityCredits   Int       @map("quantity_credits")
+  unitPriceMinor    Int       @map("unit_price_minor")
+  amountMinor       Int       @map("amount_minor")
+  taxMinor          Int?      @map("tax_minor")
+  currency          String    @db.VarChar(3)
+  invoiceNumber     String?   @map("invoice_number") @db.VarChar(64)
+  capturedAt        DateTime? @map("captured_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  priceBookEntry PriceBookEntry      @relation(fields: [priceBookEntryId], references: [id], onDelete: Restrict)
+  creditPools    CreditPool[]
+  ledgerEntries  CreditLedgerEntry[]
+
+  @@unique([provider, providerPaymentId])
+  @@index([billingAccountId, createdAt])
+  @@map("payment")
+  @@schema("billing")
+}
+
+model ManualBillingRequest {
+  id               String    @id @default(uuid())
+  billingAccountId String    @map("billing_account_id")
+  kind             String    @db.VarChar(32)
+  payload          Json
+  reason           String
+  ticketRef        String    @map("ticket_ref") @db.VarChar(64)
+  requestedById    String    @map("requested_by_id") @db.VarChar(128)
+  approvedById     String?   @map("approved_by_id") @db.VarChar(128)
+  status           String    @default("PENDING") @db.VarChar(32)
+  rejectionReason  String?   @map("rejection_reason")
+  executionError   String?   @map("execution_error")
+  decidedAt        DateTime? @map("decided_at")
+  executedAt       DateTime? @map("executed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
+  ledgerEntries  CreditLedgerEntry[]
+
+  @@index([billingAccountId, status])
+  @@index([status, createdAt])
+  @@map("manual_billing_request")
+  @@schema("billing")
+}
+
+model PriceBookEntry {
+  id             String    @id @default(uuid())
+  sku            String    @db.VarChar(64)
+  poolType       String    @map("pool_type") @db.VarChar(32)
+  credits        Int
+  validityDays   Int?      @map("validity_days")
+  billingCountry String    @map("billing_country") @db.VarChar(2)
+  currency       String    @db.VarChar(3)
+  unitPriceMinor Int       @map("unit_price_minor")
+  version        Int       @default(1)
+  effectiveFrom  DateTime  @map("effective_from")
+  effectiveTo    DateTime? @map("effective_to")
+
+  payments Payment[]
+
+  @@unique([sku, billingCountry, version])
+  @@map("price_book_entry")
+  @@schema("billing")
+}
+
+model BillingAuditEvent {
+  id                   String   @id @default(uuid())
+  timestamp            DateTime @default(now())
+  actorId              String   @map("actor_id") @db.VarChar(128)
+  actorRole            String   @map("actor_role") @db.VarChar(32)
+  subjectType          String   @map("subject_type") @db.VarChar(32)
+  subjectId            String   @map("subject_id")
+  action               String   @db.VarChar(64)
+  before               Json?
+  after                Json?
+  reason               String?
+  ticketRef            String?  @map("ticket_ref") @db.VarChar(64)
+  impersonationContext Json?    @map("impersonation_context")
+  requestId            String?  @map("request_id")
+  executionResult      String   @map("execution_result") @db.VarChar(16)
+
+  @@index([subjectType, subjectId])
+  @@index([timestamp])
+  @@map("billing_audit_event")
+  @@schema("billing")
+}
+
+model SessionBillingEvidence {
+  sessionId              String    @id @map("session_id")
+  billingAccountId       String    @map("billing_account_id")
+  driveId                String?   @map("drive_id")
+  kind                   String?   @db.VarChar(16)
+  startedAt              DateTime? @map("started_at")
+  firstContentRenderedAt DateTime? @map("first_content_rendered_at")
+  lastHeartbeatAt        DateTime? @map("last_heartbeat_at")
+  endedAt                DateTime? @map("ended_at")
+  endReason              String?   @map("end_reason") @db.VarChar(32)
+  eventCount             Int       @default(0) @map("event_count")
+  modulesReached         Int       @default(0) @map("modules_reached")
+  cvMode                 String?   @map("cv_mode") @db.VarChar(32)
+  infraFlags             Json?     @map("infra_flags")
+  createdAt              DateTime  @default(now()) @map("created_at")
+
+  @@index([billingAccountId])
+  @@index([driveId])
+  @@map("session_billing_evidence")
+  @@schema("billing")
+}
+
+model PaymentWebhookInbox {
+  id           String    @id @default(uuid())
+  provider     String    @db.VarChar(32)
+  eventId      String    @map("event_id") @db.VarChar(128)
+  eventType    String    @map("event_type") @db.VarChar(64)
+  payload      Json
+  status       String    @default("PENDING") @db.VarChar(32)
+  errorMessage String?   @map("error_message")
+  receivedAt   DateTime  @default(now()) @map("received_at")
+  processedAt  DateTime? @map("processed_at")
+
+  @@unique([provider, eventId])
+  @@map("payment_event")
+  @@schema("billing")
+}
+
+model ReconciliationRun {
+  id                 String    @id @default(uuid())
+  runType            String    @map("run_type") @db.VarChar(32)
+  status             String    @db.VarChar(32)
+  checkResults       Json      @map("check_results")
+  driftDetected      Boolean   @default(false) @map("drift_detected")
+  discrepancyDetails Json?     @map("discrepancy_details")
+  executedBy         String    @map("executed_by") @db.VarChar(128)
+  startedAt          DateTime  @default(now()) @map("started_at")
+  completedAt        DateTime? @map("completed_at")
+
+  @@index([startedAt])
+  @@map("reconciliation_run")
+  @@schema("billing")
+}
+
+
+
+model TenantProfile {
+  id             String @id @default(uuid())
+  organizationId String @unique @map("organization_id")
+
+  lifecycleStage         TenantLifecycleStage @default(ONBOARDING) @map("lifecycle_stage")
+  domainVerifiedAt       DateTime?            @map("domain_verified_at")
+  walkthroughCompletedAt DateTime?            @map("walkthrough_completed_at")
+  internalOwnerId        String?              @map("internal_owner_id")
+
+  licenseTier  LicenseTier @default(STARTER) @map("license_tier")
+  entitlements Json        @default("{}")
+
+  appealWindowDaysOverride Int?  @map("appeal_window_days_override")
+  trialNudgeLog            Json  @default("[]") @map("trial_nudge_log")
+
+  isManuallySuspended Boolean @default(false) @map("is_manually_suspended")
+  isManuallyChurned   Boolean @default(false) @map("is_manually_churned")
+  suspensionReason    String? @map("suspension_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  @@map("tenant_profile")
+  @@schema("platform")
+}
+
+model OverrideAction {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  driveId        String? @map("drive_id")
+
+  overrideType OverrideType @map("override_type")
+  beforeState  Json         @map("before_state")
+  afterState   Json         @map("after_state")
+
+  reason    String
+  ticketRef String @map("ticket_ref")
+
+  requestedById String  @map("requested_by_id")
+  approvedById  String? @map("approved_by_id")
+
+  activeFrom DateTime       @default(now()) @map("active_from")
+  expiresAt  DateTime?      @map("expires_at")
+  status     OverrideStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id])
+  drive        Drive?         @relation(fields: [driveId], references: [id])
+  requestedBy  PlatformStaff  @relation("RequestedOverrides", fields: [requestedById], references: [id])
+  approvedBy   PlatformStaff? @relation("ApprovedOverrides", fields: [approvedById], references: [id])
+
+  @@index([organizationId, status])
+  @@index([driveId, status])
+  @@map("override_action")
+  @@schema("platform")
+}
+
+model ImpersonationSession {
+  id                 String @id @default(uuid())
+  staffId            String @map("staff_id")
+  organizationId     String @map("organization_id")
+  impersonatedUserId String @map("impersonated_user_id")
+
+  ticketRef        String @map("ticket_ref")
+  sessionTokenHash String @map("session_token_hash")
+
+  startedAt         DateTime  @default(now()) @map("started_at")
+  expiresAt         DateTime  @map("expires_at")
+  terminatedAt      DateTime? @map("terminated_at")
+  terminationReason String?   @map("termination_reason")
+
+  clientIp  String  @map("client_ip")
+  userAgent String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  staff        PlatformStaff @relation(fields: [staffId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+
+  @@index([staffId, expiresAt])
+  @@index([organizationId, startedAt])
+  @@map("impersonation_session")
+  @@schema("platform")
+}
+
+model SystemAuditEvent {
+  id                   String   @id @default(uuid())
+  timestamp            DateTime @default(now())
+  actorId              String   @map("actor_id") @db.VarChar(128)
+  actorRole            String   @map("actor_role") @db.VarChar(32)
+  subjectType          String   @map("subject_type") @db.VarChar(32)
+  subjectId            String   @map("subject_id")
+  action               String   @db.VarChar(64)
+  before               Json?
+  after                Json?
+  reason               String?
+  ticketRef            String?  @map("ticket_ref") @db.VarChar(64)
+  impersonationContext Json?    @map("impersonation_context")
+  requestId            String?  @map("request_id")
+  executionResult      String   @map("execution_result") @db.VarChar(16)
+
+  @@index([subjectType, subjectId])
+  @@index([timestamp])
+  @@map("platform_audit_event")
+  @@schema("platform")
+}
+
+model OnboardingDraft {
+  id               String   @id @default(uuid())
+  corporateDomain  String   @unique @map("corporate_domain")
+  currentStep      Int      @default(1) @map("current_step")
+  draftData        Json     @default("{}") @map("draft_data")
+  createdByStaffId String   @map("created_by_staff_id")
+  expiresAt        DateTime @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  createdBy PlatformStaff @relation(fields: [createdByStaffId], references: [id])
+
+  @@map("onboarding_draft")
+  @@schema("platform")
+}
+
+model IncidentWindow {
+  id                   String            @id @default(uuid())
+  title                String
+  description          String
+  scopeType            IncidentScopeType @map("scope_type")
+  targetOrganizationId String?           @map("target_organization_id")
+
+  startedAt         DateTime       @map("started_at")
+  endedAt           DateTime?      @map("ended_at")
+  declaredByStaffId String         @map("declared_by_staff_id")
+  ticketRef         String         @map("ticket_ref")
+  status            IncidentStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  declaredBy PlatformStaff @relation(fields: [declaredByStaffId], references: [id])
+
+  @@index([status, startedAt])
+  @@map("incident_window")
+  @@schema("platform")
 }
 
 /// The payer entity. 1:1 with Organization by default; decouples payer from tenant orgs.

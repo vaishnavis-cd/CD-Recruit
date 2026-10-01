@@ -345,14 +345,14 @@ async function main(): Promise<void> {
 
             const hasOptions = Array.isArray(q.options) && q.options.length > 0;
             const correctAns = q.correctAnswer || (hasOptions ? q.options[0] : "");
-            content = {
+            const content = {
               prompt: q.question || q.prompt || "",
               options: q.options || [],
               correctAnswer: correctAns,
               explanation: q.explanation || "",
               category: q.category || "",
             };
-            scoringConfig = {
+            const scoringConfig = {
               correctIndex: hasOptions && q.options.indexOf(correctAns) >= 0 ? q.options.indexOf(correctAns) : 0,
               correctAnswer: correctAns,
               points: diff === "hard" ? 3 : diff === "medium" ? 2 : 1,
@@ -823,6 +823,194 @@ async function main(): Promise<void> {
         }
       }
       console.log(`  ✔ Seeded candidate sessions, scores, integrity flags, and reviewer decisions.`);
+
+      // -------------------------------------------------------------------------
+      // Step 1.4 Baseline Seed Data (Billing & Platform Ops)
+      // -------------------------------------------------------------------------
+
+      // 9. Organizations & Baseline Credit Pools
+      console.log("  🏢 Ensuring Organizations and Baseline Credit Pools...");
+      let defaultOrg = await tx.organization.findFirst();
+      if (!defaultOrg) {
+        const defaultBa = await tx.billingAccount.create({
+          data: {
+            name: "Acme Corporation",
+            billingCountry: "IN",
+            currency: "INR",
+            status: "ACTIVE",
+          },
+        });
+        defaultOrg = await tx.organization.create({
+          data: {
+            name: "Acme Corporation",
+            slug: "acme-corp",
+            billingAccountId: defaultBa.id,
+          },
+        });
+        console.log(`  ✔ Created default Organization "${defaultOrg.name}" with BillingAccount ${defaultBa.id}`);
+      }
+
+      // Ensure every organization has a BillingAccount and baseline TALENT_RESERVE CreditPool
+      const orgs = await tx.organization.findMany();
+      for (const org of orgs) {
+        let baId = org.billingAccountId;
+        if (!baId) {
+          const newBa = await tx.billingAccount.create({
+            data: {
+              name: org.name,
+              billingCountry: "IN",
+              currency: "INR",
+              status: "ACTIVE",
+            },
+          });
+          await tx.organization.update({
+            where: { id: org.id },
+            data: { billingAccountId: newBa.id },
+          });
+          baId = newBa.id;
+        }
+
+        const ba = await tx.billingAccount.findUnique({ where: { id: baId } });
+
+        // Check if an ACTIVE general TALENT_RESERVE pool already exists (satisfies uq_pool_one_active_general)
+        const existingPool = await tx.creditPool.findFirst({
+          where: {
+            billingAccountId: baId,
+            status: "ACTIVE",
+            driveId: null,
+          },
+        });
+
+        if (!existingPool) {
+          const pool = await tx.creditPool.create({
+            data: {
+              billingAccountId: baId,
+              poolType: "TALENT_RESERVE",
+              name: "Promotional Trial Pool",
+              source: "TRIAL",
+              totalCredits: 50,
+              cachedRemaining: 50,
+              validityDays: 365,
+              queueOrder: 0,
+              status: "ACTIVE",
+              activatedAt: new Date(),
+              expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+              unitPriceMinor: 5000,
+              currency: ba?.currency || "INR",
+            },
+          });
+
+          await tx.creditLedgerEntry.create({
+            data: {
+              billingAccountId: baId,
+              organizationId: org.id,
+              creditPoolId: pool.id,
+              entryType: "GRANT",
+              amount: 50,
+              balanceAfter: 50,
+              grantSource: "TRIAL",
+              reason: "PROMOTIONAL_SEED_GRANT",
+              idempotencyKey: `seed:grant:trial:${pool.id}`,
+              actorId: "system",
+              shadow: false,
+            },
+          });
+          console.log(`  ✔ Seeded baseline TALENT_RESERVE pool (50 credits) and TRIAL grant for "${org.name}" (BA: ${baId})`);
+        } else {
+          console.log(`  ℹ Baseline active pool already exists for "${org.name}" (${existingPool.id}) - skipping`);
+        }
+      }
+
+      // 10. Platform Staff Owner Seed (platform.platform_staff)
+      console.log("  👤 Seeding Platform Staff OWNER account...");
+      const platformOwnerEmail = process.env.PLATFORM_OWNER_EMAIL || "owner@cdrecruit.local";
+      const ownerPasswordHash = await hashPassword(process.env.PLATFORM_OWNER_DEV_PASSWORD || "password");
+
+      const platformOwner = await tx.platformStaff.upsert({
+        where: { email: platformOwnerEmail },
+        update: {
+          name: "Platform Owner",
+          role: "OWNER",
+          mfaEnabled: true,
+          isActive: true,
+        },
+        create: {
+          email: platformOwnerEmail,
+          name: "Platform Owner",
+          role: "OWNER",
+          passwordHash: ownerPasswordHash,
+          mfaEnabled: true,
+          isActive: true,
+        },
+      });
+      console.log(`  ✔ Upserted Platform Staff OWNER "${platformOwner.name}" (${platformOwner.email}, role: ${platformOwner.role}, mfa: ${platformOwner.mfaEnabled})`);
+
+      // 11. Price Book Baseline Entries (billing.price_book_entry)
+      console.log("  💳 Seeding Price Book baseline catalog (India & US)...");
+
+      const inPrice = await tx.priceBookEntry.upsert({
+        where: {
+          sku_billingCountry_version: {
+            sku: "DRIVE_PASS",
+            billingCountry: "IN",
+            version: 1,
+          },
+        },
+        update: {
+          poolType: "DRIVE_PASS",
+          credits: 1,
+          validityDays: 30,
+          currency: "INR",
+          unitPriceMinor: 5000,
+          effectiveFrom: new Date("2026-01-01T00:00:00.000Z"),
+          effectiveTo: null,
+        },
+        create: {
+          sku: "DRIVE_PASS",
+          poolType: "DRIVE_PASS",
+          credits: 1,
+          validityDays: 30,
+          billingCountry: "IN",
+          currency: "INR",
+          unitPriceMinor: 5000,
+          version: 1,
+          effectiveFrom: new Date("2026-01-01T00:00:00.000Z"),
+          effectiveTo: null,
+        },
+      });
+      console.log(`  ✔ Seeded Price Book Entry [IN]: ${inPrice.sku} v${inPrice.version} - ₹${inPrice.unitPriceMinor / 100} (${inPrice.currency})`);
+
+      const usPrice = await tx.priceBookEntry.upsert({
+        where: {
+          sku_billingCountry_version: {
+            sku: "DRIVE_PASS",
+            billingCountry: "US",
+            version: 1,
+          },
+        },
+        update: {
+          poolType: "DRIVE_PASS",
+          credits: 1,
+          validityDays: 30,
+          currency: "USD",
+          unitPriceMinor: 200,
+          effectiveFrom: new Date("2026-01-01T00:00:00.000Z"),
+          effectiveTo: null,
+        },
+        create: {
+          sku: "DRIVE_PASS",
+          poolType: "DRIVE_PASS",
+          credits: 1,
+          validityDays: 30,
+          billingCountry: "US",
+          currency: "USD",
+          unitPriceMinor: 200,
+          version: 1,
+          effectiveFrom: new Date("2026-01-01T00:00:00.000Z"),
+          effectiveTo: null,
+        },
+      });
+      console.log(`  ✔ Seeded Price Book Entry [US]: ${usPrice.sku} v${usPrice.version} - $${(usPrice.unitPriceMinor / 100).toFixed(2)} (${usPrice.currency})`);
     },
     { timeout: 120000 },
   );
