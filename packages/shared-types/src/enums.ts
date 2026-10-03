@@ -551,38 +551,8 @@ export enum DrivePoolFallthrough {
   HOLD = "HOLD",
 }
 
-export enum PaymentProvider {
-  RAZORPAY = "RAZORPAY",
-  STRIPE = "STRIPE",
-  MANUAL_INVOICE = "MANUAL_INVOICE",
-}
 
-export enum PaymentStatus {
-  CREATED = "CREATED",
-  CAPTURED = "CAPTURED",
-  FAILED = "FAILED",
-  REFUNDED = "REFUNDED",
-  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
-  DISPUTED = "DISPUTED",
-}
 
-export enum ManualRequestKind {
-  GRANT = "GRANT",
-  ADJUST = "ADJUST",
-  REFUND = "REFUND",
-  EXPIRY_EXTEND = "EXPIRY_EXTEND",
-  OVERDRAFT_LIMIT = "OVERDRAFT_LIMIT",
-  ACCOUNT_STATUS = "ACCOUNT_STATUS",
-  BILLING_COUNTRY = "BILLING_COUNTRY",
-}
-
-export enum ManualRequestStatus {
-  PENDING = "PENDING",
-  APPROVED = "APPROVED",
-  REJECTED = "REJECTED",
-  EXECUTED = "EXECUTED",
-  CANCELLED = "CANCELLED",
-}
 
 export enum SessionEndReason {
   SUBMITTED = "SUBMITTED",
