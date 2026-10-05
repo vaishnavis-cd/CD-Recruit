@@ -239,7 +239,7 @@ export class BillingAccountService {
 
     return this.prisma.billingAccount.findUnique({
       where: { id },
-      include: { organization: true },
+      include: { organizations: true },
     });
   }
 
@@ -260,7 +260,7 @@ export class BillingAccountService {
   }
 
   /**
-   * Generates a comprehensive financial and operational summary matching Artifact 04 §2.1 and Artifact 07 §2.3.
+   * Generates a comprehensive financial and operational summary matching Artifact 04 Ã‚Â§2.1 and Artifact 07 Ã‚Â§2.3.
    */
   async getAccountSummary(id: string): Promise<BillingAccountSummaryDto> {
     if (!id || typeof id !== "string") {
@@ -270,8 +270,8 @@ export class BillingAccountService {
     const account = await this.prisma.billingAccount.findUnique({
       where: { id },
       include: {
-        organization: true,
-        creditPools: {
+        organizations: true,
+        pools: {
           orderBy: [{ createdAt: "asc" }],
         },
       },
@@ -283,13 +283,13 @@ export class BillingAccountService {
 
     const now = new Date();
     // Compute available balance from active non-expired pools
-    const totalAvailableCredits = account.creditPools
+    const totalAvailableCredits = account.pools
       .filter((p) => p.status === "ACTIVE" && (!p.expiresAt || p.expiresAt > now))
       .reduce((sum, p) => sum + p.cachedRemaining, 0);
 
     return {
       id: account.id,
-      organizationId: account.organization?.id || null,
+      organizationId: account.organizations[0]?.id || null,
       name: account.name,
       legalEntityName: account.legalEntityName,
       billingCountry: account.billingCountry,
@@ -302,7 +302,7 @@ export class BillingAccountService {
       trialDomain: account.trialDomain,
       trialGrantedAt: account.trialGrantedAt,
       totalAvailableCredits,
-      pools: account.creditPools.map((p) => ({
+      pools: account.pools.map((p) => ({
         id: p.id,
         name: p.name,
         poolType: p.poolType,
@@ -378,7 +378,7 @@ export class BillingAccountService {
   }
 
   /**
-   * Transitions billing account status per Artifact 06 §1.1 state machine.
+   * Transitions billing account status per Artifact 06 Ã‚Â§1.1 state machine.
    * Requires a valid requestId (maker-checker requirement).
    */
   async updateStatus(
@@ -439,7 +439,7 @@ export class BillingAccountService {
   }
 
   /**
-   * Paginated listing of billing accounts matching Artifact 04 §2.1 and API-H2-01.
+   * Paginated listing of billing accounts matching Artifact 04 Ã‚Â§2.1 and API-H2-01.
    */
   async listAccounts(options: ListBillingAccountsOptions = {}): Promise<PaginatedBillingAccountsResultDto> {
     const page = Math.max(1, options.page || 1);
@@ -470,7 +470,7 @@ export class BillingAccountService {
         skip,
         take: limit,
         include: {
-          creditPools: {
+          pools: {
             where: {
               status: "ACTIVE",
             },
@@ -486,7 +486,7 @@ export class BillingAccountService {
 
     const now = new Date();
     const data = accounts.map((acc) => {
-      const activeNonExpired = acc.creditPools.filter(
+      const activeNonExpired = acc.pools.filter(
         (p) => !p.expiresAt || p.expiresAt > now,
       );
       const totalRemainingCredits = activeNonExpired.reduce(

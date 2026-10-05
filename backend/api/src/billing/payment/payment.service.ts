@@ -68,7 +68,7 @@ export class PaymentService {
   }
 
   /**
-   * Enforces Artifact 06 §3.2:
+   * Enforces Artifact 06 Ã‚Â§3.2:
    * Only FINANCE and OWNER roles can record manual PO payments or issue cash refunds.
    * SUPPORT and Recruiter roles are strictly forbidden.
    */
@@ -88,7 +88,7 @@ export class PaymentService {
 
   /**
    * Records an offline Enterprise PO / wire transfer invoice payment.
-   * Per Artifact 04 (§2.4 API-H2-17), Artifact 06 (§1.4), and Re-Audit §9.1.
+   * Per Artifact 04 (Ã‚Â§2.4 API-H2-17), Artifact 06 (Ã‚Â§1.4), and Re-Audit Ã‚Â§9.1.
    *
    * Transactionally executes:
    * 1. Validate BillingAccount (must exist and be ACTIVE).
@@ -134,7 +134,7 @@ export class PaymentService {
     // 1. Verify target BillingAccount
     const account = await this.prisma.billingAccount.findUnique({
       where: { id: dto.billingAccountId },
-      include: { organization: true },
+      include: { organizations: true },
     });
 
     if (!account) {
@@ -207,7 +207,7 @@ export class PaymentService {
             },
           },
           include: {
-            creditPools: true,
+            pools: true,
             ledgerEntries: true,
           },
         });
@@ -251,7 +251,7 @@ export class PaymentService {
           },
         });
 
-        // 5b. Mint CreditPool (CONTRACT pool per Artifact 04 §2.4 & Artifact 06 §1.4)
+        // 5b. Mint CreditPool (CONTRACT pool per Artifact 04 Ã‚Â§2.4 & Artifact 06 Ã‚Â§1.4)
         const pool = await this.creditPoolService.createPool(
           {
             billingAccountId: dto.billingAccountId,
@@ -354,7 +354,7 @@ export class PaymentService {
             },
           },
           include: {
-            creditPools: true,
+            pools: true,
             ledgerEntries: true,
           },
         });
@@ -433,7 +433,7 @@ export class PaymentService {
         const existing = await tx.payment.findUnique({
           where: {
             provider_providerPaymentId: {
-              provider: dto.provider,
+              provider: dto.provider as PaymentProvider,
               providerPaymentId: dto.providerPaymentId.trim(),
             },
           },
@@ -449,10 +449,10 @@ export class PaymentService {
           data: {
             id: paymentId,
             billingAccountId: dto.billingAccountId,
-            provider: dto.provider,
+            provider: dto.provider as PaymentProvider,
             providerPaymentId: dto.providerPaymentId.trim(),
             providerOrderId: dto.providerOrderId?.trim() || null,
-            status,
+            status: status as PaymentStatus,
             priceBookEntryId: priceEntry.id,
             quantityCredits: dto.quantityCredits,
             unitPriceMinor: priceEntry.unitPriceMinor,
@@ -539,12 +539,12 @@ export class PaymentService {
         const existing = await this.prisma.payment.findUnique({
           where: {
             provider_providerPaymentId: {
-              provider: dto.provider,
+              provider: dto.provider as PaymentProvider,
               providerPaymentId: dto.providerPaymentId.trim(),
             },
           },
           include: {
-            creditPools: true,
+            pools: true,
             ledgerEntries: true,
           },
         });
@@ -588,7 +588,7 @@ export class PaymentService {
 
       const payment = await tx.payment.findUnique({
         where: { id: paymentId },
-        include: { priceBookEntry: true, creditPools: true, ledgerEntries: true },
+        include: { priceBookEntry: true, pools: true, ledgerEntries: true },
       });
 
       if (!payment) {
@@ -676,7 +676,7 @@ export class PaymentService {
 
   /**
    * Issues cash refunds on captured payments.
-   * Enforces unconsumed-only boundaries (Artifact 02 §6.3, Artifact 06 §1.4).
+   * Enforces unconsumed-only boundaries (Artifact 02 Ã‚Â§6.3, Artifact 06 Ã‚Â§1.4).
    *
    * Invariants enforced:
    * - Actor must be FINANCE or OWNER platform staff.
@@ -702,7 +702,7 @@ export class PaymentService {
       const payment = await tx.payment.findUnique({
         where: { id: dto.paymentId },
         include: {
-          creditPools: true,
+          pools: true,
           ledgerEntries: true,
         },
       });
@@ -777,7 +777,7 @@ export class PaymentService {
       // 4. Resolve linked pool(s)
       let targetPoolId = dto.poolId;
       if (!targetPoolId) {
-        const linkedPool = payment.creditPools.find((p) => p.cachedRemaining > 0) || payment.creditPools[0];
+        const linkedPool = payment.pools.find((p) => p.cachedRemaining > 0) || payment.pools[0];
         if (!linkedPool) {
           throw new NotFoundException(
             `CREDIT_POOL_NOT_FOUND: No linked credit pool found for payment '${payment.id}'`,
@@ -859,7 +859,7 @@ export class PaymentService {
 
   /**
    * Disputes a payment (transitions to DISPUTED, suspends associated pools).
-   * Per Artifact 02 §6.4 and Artifact 06 §1.4.
+   * Per Artifact 02 Ã‚Â§6.4 and Artifact 06 Ã‚Â§1.4.
    */
   async disputePayment(
     actor: PaymentActor,
@@ -875,7 +875,7 @@ export class PaymentService {
 
     const payment = await this.prisma.payment.findUnique({
       where: { id: paymentId },
-      include: { creditPools: true, billingAccount: true },
+      include: { pools: true, billingAccount: true },
     });
 
     if (!payment) {
@@ -889,7 +889,7 @@ export class PaymentService {
 
     // Suspend linked pools that are not terminal
     let suspendedPoolId: string | null = null;
-    for (const pool of payment.creditPools) {
+    for (const pool of payment.pools) {
       if (
         pool.status !== "CANCELLED" &&
         pool.status !== "EXPIRED" &&
@@ -970,7 +970,7 @@ export class PaymentService {
     return await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { id: paymentId },
-        include: { creditPools: true },
+        include: { pools: true },
       });
 
       if (!payment) {
@@ -1021,7 +1021,7 @@ export class PaymentService {
     const payment = await this.prisma.payment.findUnique({
       where: { id },
       include: {
-        creditPools: true,
+        pools: true,
         ledgerEntries: true,
       },
     });
@@ -1064,7 +1064,7 @@ export class PaymentService {
         skip,
         take: limit,
         include: {
-          creditPools: true,
+          pools: true,
           ledgerEntries: true,
         },
       }),
@@ -1092,7 +1092,7 @@ export class PaymentService {
   ): PaymentResultDto {
     const poolId =
       creditPoolId ||
-      (payment.creditPools && payment.creditPools.length > 0 ? payment.creditPools[0].id : null);
+      (payment.pools && payment.pools.length > 0 ? payment.pools[0].id : null);
 
     let calculatedRefundCredits = refundedCredits;
     let calculatedRefundMinor = refundedAmountMinor;

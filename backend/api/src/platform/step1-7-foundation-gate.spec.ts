@@ -28,7 +28,7 @@ async function createPgClient(): Promise<Client> {
 
 async function runFoundationGateTests() {
   console.log("================================================================================");
-  console.log("Phase 1 — Step 1.7: Final Foundation Hardening & Integration Gate Spec");
+  console.log("Phase 1 â€” Step 1.7: Final Foundation Hardening & Integration Gate Spec");
   console.log("================================================================================");
 
   let passedCount = 0;
@@ -37,7 +37,7 @@ async function runFoundationGateTests() {
   function pass(msg: string) {
     totalCount++;
     passedCount++;
-    console.log(`✅ GATE CHECK [${totalCount}]: ${msg}`);
+    console.log(`âœ… GATE CHECK [${totalCount}]: ${msg}`);
   }
 
   const prisma = new PrismaService();
@@ -309,7 +309,7 @@ async function runFoundationGateTests() {
       include: {
         billingAccount: {
           include: {
-            creditPools: {
+            pools: {
               include: {
                 ledgerEntries: true,
               },
@@ -326,7 +326,7 @@ async function runFoundationGateTests() {
         assert.strictEqual(org.billingAccount.overdraftLimit, 0, `BillingAccount ${org.billingAccount.id} overdraftLimit must be 0`);
         assert.strictEqual(org.billingAccount.overdraftUsed, 0, `BillingAccount ${org.billingAccount.id} overdraftUsed must be 0`);
 
-        const trialPool = org.billingAccount.creditPools.find((p) => p.source === "TRIAL");
+        const trialPool = org.billingAccount.pools.find((p) => p.source === "TRIAL");
         if (trialPool) {
           assert.strictEqual(trialPool.totalCredits, 50, "Seeded trial pool must have totalCredits = 50");
           assert.strictEqual(trialPool.cachedRemaining, 50, "Seeded trial pool must have cachedRemaining = 50");

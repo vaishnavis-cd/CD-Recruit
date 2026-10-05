@@ -10,8 +10,8 @@ import {
   LedgerEntryType,
   LedgerReason,
   PoolStatus,
-  DrivePoolFallthrough,
 } from "@prisma/client";
+import { DrivePoolFallthrough } from "@cd-recruit/shared-types";
 
 export interface ShadowAcquisitionResult {
   outcome:

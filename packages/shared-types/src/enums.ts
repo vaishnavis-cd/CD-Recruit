@@ -186,28 +186,9 @@ export enum ManualRequestStatus {
   CANCELLED = "CANCELLED",
 }
 
-/**
- * Commercial payment providers.
- * Governed by schema.prisma line 831.
- */
-export enum PaymentProvider {
-  MANUAL_INVOICE = "MANUAL_INVOICE",
-  RAZORPAY = "RAZORPAY",
-  STRIPE = "STRIPE",
-}
 
-/**
- * Payment transaction lifecycle states.
- * Governed by Artifact 06 §1.4 and schema.prisma line 834.
- */
-export enum PaymentStatus {
-  CREATED = "CREATED",
-  CAPTURED = "CAPTURED",
-  FAILED = "FAILED",
-  REFUNDED = "REFUNDED",
-  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
-  DISPUTED = "DISPUTED",
-}
+
+
 
 export enum Permission {
   // Drive Logistics
@@ -511,12 +492,21 @@ export enum LedgerReason {
   PAYMENT_REFUNDED = "PAYMENT_REFUNDED",
   CHARGEBACK = "CHARGEBACK",
   POOL_EXPIRED = "POOL_EXPIRED",
+  POOL_EXPIRATION = "POOL_EXPIRATION",
   ROLLOVER = "ROLLOVER",
   TRIAL = "TRIAL",
+  TRIAL_GRANT = "TRIAL_GRANT",
   PROMO = "PROMO",
+  PROMOTIONAL_SEED_GRANT = "PROMOTIONAL_SEED_GRANT",
   GOODWILL = "GOODWILL",
+  GOODWILL_GRANT = "GOODWILL_GRANT",
   MIGRATION_SEED = "MIGRATION_SEED",
   MANUAL_CORRECTION = "MANUAL_CORRECTION",
+  PURCHASE_ALLOCATION = "PURCHASE_ALLOCATION",
+  COURTESY_WAIVER = "COURTESY_WAIVER",
+  OVERDRAFT_SETTLEMENT = "OVERDRAFT_SETTLEMENT",
+  ADMINISTRATIVE_ADJUSTMENT = "ADMINISTRATIVE_ADJUSTMENT",
+  CANDIDATE_APPEAL = "CANDIDATE_APPEAL",
 }
 
 export enum PoolType {
@@ -564,24 +554,6 @@ export enum PaymentStatus {
   REFUNDED = "REFUNDED",
   PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
   DISPUTED = "DISPUTED",
-}
-
-export enum ManualRequestKind {
-  GRANT = "GRANT",
-  ADJUST = "ADJUST",
-  REFUND = "REFUND",
-  EXPIRY_EXTEND = "EXPIRY_EXTEND",
-  OVERDRAFT_LIMIT = "OVERDRAFT_LIMIT",
-  ACCOUNT_STATUS = "ACCOUNT_STATUS",
-  BILLING_COUNTRY = "BILLING_COUNTRY",
-}
-
-export enum ManualRequestStatus {
-  PENDING = "PENDING",
-  APPROVED = "APPROVED",
-  REJECTED = "REJECTED",
-  EXECUTED = "EXECUTED",
-  CANCELLED = "CANCELLED",
 }
 
 export enum SessionEndReason {

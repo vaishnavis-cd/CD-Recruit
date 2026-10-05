@@ -299,7 +299,7 @@ export class LedgerService {
           entryType: LedgerEntryType.CONSUME,
           amount: -1,
           balanceAfter,
-          reason: params.reason,
+          reason: params.reason as any,
           reasonNote: params.reasonNote || null,
           sessionId: params.sessionId || null,
           driveId: params.driveId || null,
@@ -425,7 +425,7 @@ export class LedgerService {
             relatedEntryId: original.id,
             sessionId: original.session_id,
             driveId: original.drive_id,
-            reason: params.reason,
+            reason: params.reason as any,
             reasonNote: params.reasonNote || null,
             requestId: params.requestId || null,
             idempotencyKey,
@@ -483,7 +483,7 @@ export class LedgerService {
             relatedEntryId: original.id,
             sessionId: original.session_id,
             driveId: original.drive_id,
-            reason: params.reason,
+            reason: params.reason as any,
             reasonNote: params.reasonNote || null,
             requestId: params.requestId || null,
             idempotencyKey,
@@ -660,7 +660,7 @@ export class LedgerService {
    * - Authoritative row locking (SELECT ... FOR UPDATE) on target credit_pool.
    * - Unconsumed balance boundary check (cached_remaining >= amount).
    * - Never creates overdraft debt.
-   * - If pool balance reaches 0, status transitions to CANCELLED per Artifact 06 §1.4.
+   * - If pool balance reaches 0, status transitions to CANCELLED per Artifact 06 Â§1.4.
    * - Emits billing audit event.
    */
   async refundCredits(params: RefundCreditParams) {
@@ -715,7 +715,7 @@ export class LedgerService {
         throw new BadRequestException("POOL_ACCOUNT_MISMATCH: Pool does not belong to specified billing account");
       }
 
-      // 2. Enforce cash refund boundary (Artifact 02 §6.3: cached_remaining >= refund_credits)
+      // 2. Enforce cash refund boundary (Artifact 02 Â§6.3: cached_remaining >= refund_credits)
       if (pool.cached_remaining < params.amount) {
         throw new BadRequestException(
           `REFUND_EXCEEDS_UNCONSUMED_BALANCE: Cannot refund ${params.amount} credits; pool only has ${pool.cached_remaining} unconsumed credits`,
@@ -729,7 +729,7 @@ export class LedgerService {
       if (!orgId) {
         const ba = await tx.billingAccount.findUnique({
           where: { id: params.billingAccountId },
-          include: { organization: true },
+          include: { organizations: true },
         });
         orgId = ba?.organization?.id || "";
       }
@@ -848,7 +848,7 @@ export class LedgerService {
           entryType: LedgerEntryType.EXPIRE,
           amount,
           balanceAfter: 0,
-          reason: params.reason || LedgerReason.POOL_EXPIRATION,
+          reason: (params.reason || LedgerReason.POOL_EXPIRATION) as any,
           idempotencyKey,
           actorId: actorInfo.actorId,
           shadow: false,
@@ -977,7 +977,7 @@ export class LedgerService {
 
   /**
    * Generates a pseudonymous CSV export string matching Artifact 05 API-H2-07.
-   * Strictly UUIDs and financial identifiers — zero candidate PII.
+   * Strictly UUIDs and financial identifiers â€” zero candidate PII.
    */
   async exportLedgerCsv(filter: LedgerQueryFilter = {}): Promise<string> {
     const entries = await this.getLedgerEntries({
@@ -1067,7 +1067,7 @@ export class LedgerService {
   /**
    * Declares an incident window and triggers automated T3 session credit reversals (API-H2-24).
    *
-   * Invariants enforced (Artifact 02 §9.3, Artifact 05 API-H2-24, Artifact 06 §3.2):
+   * Invariants enforced (Artifact 02 Â§9.3, Artifact 05 API-H2-24, Artifact 06 Â§3.2):
    * - Platform staff authentication: FINANCE or OWNER role required.
    * - Validated non-PII title and reason (min 10 chars).
    * - Mandatory ticket reference.

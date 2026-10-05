@@ -173,7 +173,7 @@ export class ManualBillingRequestService {
       );
     }
 
-    // Reason validation (min 10 chars per Artifact 02 §5.2)
+    // Reason validation (min 10 chars per Artifact 02 Ã‚Â§5.2)
     if (!dto.reason || typeof dto.reason !== "string" || dto.reason.trim().length < 10) {
       throw new BadRequestException(
         "INVALID_REASON: A descriptive business reason of at least 10 characters is mandatory",
@@ -196,7 +196,7 @@ export class ManualBillingRequestService {
     // Verify target BillingAccount exists
     const account = await this.prisma.billingAccount.findUnique({
       where: { id: dto.billingAccountId },
-      include: { organization: true },
+      include: { organizations: true },
     });
     if (!account) {
       throw new NotFoundException(`BILLING_ACCOUNT_NOT_FOUND: Billing account '${dto.billingAccountId}' not found`);
@@ -216,7 +216,7 @@ export class ManualBillingRequestService {
       const created = await tx.manualBillingRequest.create({
         data: {
           billingAccountId: account.id,
-          kind: dto.kind,
+          kind: dto.kind as ManualRequestKind,
           payload: dto.payload,
           reason,
           ticketRef,

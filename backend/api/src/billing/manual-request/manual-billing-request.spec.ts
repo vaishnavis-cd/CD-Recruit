@@ -9,11 +9,13 @@ import { Client } from "pg";
 import { PrismaClient } from "@prisma/client";
 import { LedgerService } from "../ledger/ledger.service";
 import { CreditPoolService } from "../pool/credit-pool.service";
+import { BillingAccountService } from "../account/billing-account.service";
 import { ManualBillingRequestService } from "./manual-billing-request.service";
+import { PlatformStaffRole } from "@cd-recruit/shared-types";
 import {
   ManualRequestKind,
   ManualRequestStatus,
-  CreateManualBillingRequestDto,
+  CreateManualRequestDto,
 } from "./manual-billing-request.types";
 import {
   BadRequestException,
@@ -29,7 +31,7 @@ const DB_URL =
 
 async function runManualBillingRequestServiceTests() {
   console.log("================================================================================");
-  console.log("Phase 2 — Stage 2.5: ManualBillingRequestService Comprehensive Verification");
+  console.log("Phase 2 â€” Stage 2.5: ManualBillingRequestService Comprehensive Verification");
   console.log("================================================================================");
 
   const pg = new Client({ connectionString: DB_URL });
@@ -38,10 +40,12 @@ async function runManualBillingRequestServiceTests() {
   const prisma = new PrismaClient();
   const ledgerService = new LedgerService(prisma as any);
   const creditPoolService = new CreditPoolService(prisma as any, ledgerService);
+  const billingAccountService = new BillingAccountService(prisma as any);
   const service = new ManualBillingRequestService(
     prisma as any,
     ledgerService,
     creditPoolService,
+    billingAccountService,
   );
 
   const timestamp = Date.now();
@@ -51,7 +55,7 @@ async function runManualBillingRequestServiceTests() {
   function pass(testName: string) {
     totalCount++;
     passedCount++;
-    console.log(`✅ TEST [${totalCount}]: ${testName}`);
+    console.log(`âœ… TEST [${totalCount}]: ${testName}`);
   }
 
   // Tracking test entities for clean teardown
@@ -82,7 +86,7 @@ async function runManualBillingRequestServiceTests() {
   }
 
   // Helper to create platform staff users for actor provenance
-  async function createTestStaff(role: "SUPPORT" | "FINANCE" | "OWNER", suffix: string) {
+  async function createTestStaff(role: PlatformStaffRole, suffix: string) {
     const staffId = `staff-${role.toLowerCase()}-${timestamp}-${suffix}`;
     const email = `staff-${role.toLowerCase()}-${timestamp}-${suffix}@platform.proctora.internal`;
 
@@ -93,15 +97,15 @@ async function runManualBillingRequestServiceTests() {
     );
     testStaffToCleanup.push(staffId);
 
-    return { id: staffId, role, email, isPlatformStaff: true };
+    return { id: staffId, role, email, isPlatformStaff: true as const };
   }
 
   try {
     // Setup platform staff actors
-    const staffSupport = await createTestStaff("SUPPORT", "1");
-    const staffFinance1 = await createTestStaff("FINANCE", "1");
-    const staffFinance2 = await createTestStaff("FINANCE", "2");
-    const staffOwner = await createTestStaff("OWNER", "1");
+    const staffSupport = await createTestStaff(PlatformStaffRole.SUPPORT, "1");
+    const staffFinance1 = await createTestStaff(PlatformStaffRole.FINANCE, "1");
+    const staffFinance2 = await createTestStaff(PlatformStaffRole.FINANCE, "2");
+    const staffOwner = await createTestStaff(PlatformStaffRole.OWNER, "1");
 
     // -------------------------------------------------------------------------
     // SECTION 1: Request Creation & Validation
@@ -282,7 +286,7 @@ async function runManualBillingRequestServiceTests() {
             reason: "Recruiter attempting platform manual request",
             ticketRef: "JIRA-3001",
           },
-          { id: "recruiter-123", role: "ADMIN" as any },
+          { id: "recruiter-123", role: "ADMIN" as any, isPlatformStaff: false } as any,
         );
       },
       (err: any) => err instanceof ForbiddenException && err.message.includes("PLATFORM_ROLE_REQUIRED"),
@@ -319,7 +323,7 @@ async function runManualBillingRequestServiceTests() {
     // 12. Recruiter role cannot approve
     await assert.rejects(
       async () => {
-        await service.approveRequest(req1.id, { id: "recruiter-456", role: "HR_LEAD" as any });
+        await service.approveRequest(req1.id, { id: "recruiter-456", role: "HR_LEAD" as any, isPlatformStaff: false } as any);
       },
       (err: any) => err instanceof ForbiddenException && err.message.includes("PLATFORM_ROLE_REQUIRED"),
     );
@@ -619,7 +623,7 @@ async function runManualBillingRequestServiceTests() {
     // -------------------------------------------------------------------------
     console.log("\n--- SECTION 6: Concurrency & Invariant Tests ---");
 
-    // 34. Test 1 — Double Approval: Two staff attempt to approve simultaneously
+    // 34. Test 1 â€” Double Approval: Two staff attempt to approve simultaneously
     const { baId: baConcurrency } = await createTestAccount("concurrency");
     const reqDoubleApprove = await service.createRequest(
       {
@@ -649,9 +653,9 @@ async function runManualBillingRequestServiceTests() {
 
     const finalReqState = await service.getRequestById(reqDoubleApprove.id);
     assert.strictEqual(finalReqState.status, ManualRequestStatus.APPROVED);
-    pass("Test 1 — Double approval race: exactly one succeeds, one rejected with ConflictException");
+    pass("Test 1 â€” Double approval race: exactly one succeeds, one rejected with ConflictException");
 
-    // 35. Test 2 — Self Approval: Requester attempts to approve own request
+    // 35. Test 2 â€” Self Approval: Requester attempts to approve own request
     const reqSelfApprove = await service.createRequest(
       {
         billingAccountId: baConcurrency,
@@ -673,9 +677,9 @@ async function runManualBillingRequestServiceTests() {
     const checkSelfReq = await service.getRequestById(reqSelfApprove.id);
     assert.strictEqual(checkSelfReq.status, ManualRequestStatus.REQUESTED);
     assert.strictEqual(checkSelfReq.approvedById, null);
-    pass("Test 2 — Self approval: requester cannot approve own request, state remains REQUESTED");
+    pass("Test 2 â€” Self approval: requester cannot approve own request, state remains REQUESTED");
 
-    // 36. Test 3 — Concurrent Execution: Two execution attempts simultaneously
+    // 36. Test 3 â€” Concurrent Execution: Two execution attempts simultaneously
     const reqConcExec = await service.createRequest(
       {
         billingAccountId: baConcurrency,
@@ -712,9 +716,9 @@ async function runManualBillingRequestServiceTests() {
       [baConcurrency],
     );
     assert.strictEqual(parseInt(ledgerAfterRace.rows[0].count, 10), 1, "Exactly 1 ledger entry, zero duplicates");
-    pass("Test 3 — Concurrent execution: exactly one financial mutation, zero duplicate credits");
+    pass("Test 3 â€” Concurrent execution: exactly one financial mutation, zero duplicate credits");
 
-    // 37. Test 4 — Execution Retry: Repeated calls produce exactly one financial effect
+    // 37. Test 4 â€” Execution Retry: Repeated calls produce exactly one financial effect
     const retry1 = await service.executeRequest(approvedConcExec.id, staffFinance1);
     const retry2 = await service.executeRequest(approvedConcExec.id, staffFinance2);
     assert.strictEqual(retry1.status, ManualRequestStatus.EXECUTED);
@@ -725,9 +729,9 @@ async function runManualBillingRequestServiceTests() {
       [baConcurrency],
     );
     assert.strictEqual(parseInt(ledgerAfterRetry.rows[0].count, 10), 1, "Ledger entries count strictly preserved");
-    pass("Test 4 — Execution retry: repeated calls are idempotent with exactly one financial effect");
+    pass("Test 4 â€” Execution retry: repeated calls are idempotent with exactly one financial effect");
 
-    // 38. Test 5 — Rejected Request Execution: Cannot execute after rejection
+    // 38. Test 5 â€” Rejected Request Execution: Cannot execute after rejection
     const reqRejectedExec = await service.createRequest(
       {
         billingAccountId: baConcurrency,
@@ -752,9 +756,9 @@ async function runManualBillingRequestServiceTests() {
       [reqRejectedExec.id],
     );
     assert.strictEqual(parseInt(ledgerAfterRejExec.rows[0].count, 10), 0);
-    pass("Test 5 — Rejected request execution fails: zero financial mutation");
+    pass("Test 5 â€” Rejected request execution fails: zero financial mutation");
 
-    // 39. Test 6 — Unapproved Request Execution: Cannot execute while REQUESTED
+    // 39. Test 6 â€” Unapproved Request Execution: Cannot execute while REQUESTED
     const reqUnapprovedExec = await service.createRequest(
       {
         billingAccountId: baConcurrency,
@@ -778,9 +782,9 @@ async function runManualBillingRequestServiceTests() {
       [reqUnapprovedExec.id],
     );
     assert.strictEqual(parseInt(ledgerAfterUnapp.rows[0].count, 10), 0);
-    pass("Test 6 — Unapproved request execution fails: zero financial mutation");
+    pass("Test 6 â€” Unapproved request execution fails: zero financial mutation");
 
-    // 40. Test 7 — Concurrent Approval and Execution Race
+    // 40. Test 7 â€” Concurrent Approval and Execution Race
     const reqApproveExecRace = await service.createRequest(
       {
         billingAccountId: baConcurrency,
@@ -806,7 +810,7 @@ async function runManualBillingRequestServiceTests() {
         finalRaceReq.status === ManualRequestStatus.EXECUTED,
       `Final status must be valid (APPROVED or EXECUTED), got: ${finalRaceReq.status}`,
     );
-    pass("Test 7 — Concurrent approval/execution race preserves valid database state");
+    pass("Test 7 â€” Concurrent approval/execution race preserves valid database state");
 
     // -------------------------------------------------------------------------
     // SECTION 7: Listing and Read Models
@@ -965,7 +969,7 @@ async function runManualBillingRequestServiceTests() {
       include: {
         billingAccount: {
           include: {
-            creditPools: {
+            pools: {
               include: { ledgerEntries: true },
             },
           },
@@ -978,7 +982,7 @@ async function runManualBillingRequestServiceTests() {
       assert.strictEqual(org.billingAccount!.overdraftLimit, 0);
       assert.strictEqual(org.billingAccount!.overdraftUsed, 0);
 
-      const trialPool = org.billingAccount!.creditPools.find((p) => p.source === "TRIAL");
+      const trialPool = org.billingAccount!.pools.find((p) => p.source === "TRIAL");
       assert.ok(trialPool, `Baseline TRIAL pool must exist for ${org.name}`);
       assert.strictEqual(trialPool.totalCredits, 50, "Baseline seed totalCredits must remain 50");
       assert.strictEqual(trialPool.cachedRemaining, 50, "Baseline seed cachedRemaining must remain 50");
