@@ -238,6 +238,34 @@ function IndividualResultPage() {
     return false;
   };
 
+  const extractCodeSnippet = (
+    rawCode: any,
+    targetLang?: string,
+    fallback: string = "// Candidate did not submit code for this problem."
+  ): string => {
+    if (!rawCode) return fallback;
+    if (typeof rawCode === "string") {
+      const trimmed = rawCode.trim();
+      return trimmed.length > 0 ? rawCode : fallback;
+    }
+    if (typeof rawCode === "object") {
+      const preferredLang = (targetLang || "").toLowerCase();
+      if (preferredLang && typeof rawCode[preferredLang] === "string" && rawCode[preferredLang].trim()) {
+        return rawCode[preferredLang];
+      }
+      for (const k of ["python", "javascript", "typescript", "java", "cpp", "c", "sql"]) {
+        if (typeof rawCode[k] === "string" && rawCode[k].trim()) {
+          return rawCode[k];
+        }
+      }
+      const firstStr = Object.values(rawCode).find(
+        (v) => typeof v === "string" && (v as string).trim().length > 0
+      );
+      if (firstStr) return String(firstStr);
+    }
+    return fallback;
+  };
+
   const availableTabs = useMemo(() => {
     if (!detail) return [];
 
@@ -622,76 +650,100 @@ function IndividualResultPage() {
               return (qMod === "CODING" || qMod === "" || qMod === "DSA") && !isDebuggingItem(q);
             });
 
+            const usedRespKeys = new Set<string>();
+            const unifiedItems = codingDriveQuestions.map((qItem: any, idx: number) => {
+              const qId = qItem.id || qItem.questionId || qItem.question?.id;
+              const matchingResp = codingResponses.find((r: any) => {
+                const rQId = r.questionId || r.question?.id || r.id;
+                return rQId && qId && rQId === qId;
+              });
+              if (matchingResp) {
+                const k = matchingResp.id || matchingResp.moduleResponseId || qId;
+                usedRespKeys.add(k);
+              }
+              return {
+                id: qId || `coding-drive-${idx}`,
+                questionObj: qItem.question || qItem,
+                response: matchingResp || null,
+                index: idx,
+              };
+            });
+
+            codingResponses.forEach((r: any, idx: number) => {
+              const k = r.id || r.moduleResponseId || r.questionId || r.question?.id || `extra-${idx}`;
+              if (!usedRespKeys.has(k)) {
+                unifiedItems.push({
+                  id: k,
+                  questionObj: r.question || r,
+                  response: r,
+                  index: unifiedItems.length,
+                });
+              }
+            });
+
+            if (unifiedItems.length === 0) {
+              return (
+                <div className="space-y-4">
+                  <h3 className="text-md font-semibold text-ink">Coding Submissions &amp; Unit Test Execution Results</h3>
+                  <p className="text-sm-minus text-ink-tertiary italic">No coding challenges assigned or recorded for this assessment.</p>
+                </div>
+              );
+            }
+
             return (
               <div className="space-y-4">
                 <h3 className="text-md font-semibold text-ink">Coding Submissions &amp; Unit Test Execution Results</h3>
-                {codingResponses.length === 0 ? (
-                  codingDriveQuestions.length > 0 ? (
-                    <div className="space-y-4">
-                      {codingDriveQuestions.map((qItem: any, idx: number) => {
-                        const qObj = qItem.question || qItem;
-                        const qContent = qObj.content || {};
-                        const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `Coding Problem #${idx + 1}`;
-                        const initialCode = qContent.initialCode || qContent.starterCode || qContent.template || "// Candidate did not submit code for this problem.";
-                        const lang = qContent.language || qObj.language || "python";
+                <div className="space-y-4">
+                  {unifiedItems.map((item: any, idx: number) => {
+                    const qObj = item.questionObj || {};
+                    const qContent = qObj.content || {};
+                    const payload = item.response ? getParsedPayload(item.response) : null;
+                    const lang = payload?.language || qContent.language || qObj.language || "python";
+                    const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || payload?.questionText || payload?.prompt || `Coding Problem #${idx + 1}`;
 
-                        return (
-                          <div key={qItem.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm-minus font-semibold text-ink">
-                                {promptText} ({lang})
-                              </span>
-                              <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border bg-amber-50 text-amber-800 border-amber-300">
-                                No Submission Recorded
-                              </span>
-                            </div>
+                    const candidateRawCode = payload?.sourceCode ?? payload?.code ?? payload?.userCode ?? payload?.solution ?? payload?.submittedCode;
+                    const hasSubmittedCode = typeof candidateRawCode === "string" && candidateRawCode.trim().length > 0;
+                    const isAttended = Boolean(item.response && (hasSubmittedCode || payload?.passedTests !== undefined || payload?.status === "COMPLETED" || payload?.status === "ACCEPTED" || payload?.status === "SUCCESS"));
 
-                            <div className="h-44 border border-line rounded-md overflow-hidden">
-                              <CodeEditor
-                                value={typeof initialCode === "string" ? initialCode : JSON.stringify(initialCode, null, 2)}
-                                language={lang}
-                                readOnly={true}
-                                theme="cd-recruit-dark"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm-minus text-ink-tertiary italic">No coding submissions recorded for this assessment.</p>
-                  )
-                ) : (
-                  codingResponses.map((resp, idx) => {
-                    const payload = getParsedPayload(resp);
-                    const codeText = payload.sourceCode || payload.code || payload.userCode || payload.solution || payload.submittedCode || "// No code submitted";
-                    const lang = payload.language || "python";
-                    const promptText = (resp.question as any)?.prompt || (resp.question as any)?.content?.prompt || payload.questionText || payload.prompt || `Coding Problem #${idx + 1}`;
-                    const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
-                    const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
-                    const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
-                    const isAllPassed = passedCount === totalCount && totalCount > 0;
+                    const codeToDisplay = isAttended
+                      ? (candidateRawCode || "// Submitted with no visible source code.")
+                      : extractCodeSnippet(qContent.initialCode || qContent.starterCode || qContent.template, lang, "// Candidate did not submit code for this problem.");
+
+                    const isAccepted = payload ? (payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true)) : false;
+                    const totalCount = payload?.totalTests || qContent.testCases?.length || (qObj as any).testCases?.length || 1;
+                    const passedCount = payload?.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
+                    const isAllPassed = isAttended && passedCount === totalCount && totalCount > 0;
+
                     return (
-                      <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                      <div key={item.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
                         <div className="flex items-center justify-between">
                           <span className="text-sm-minus font-semibold text-ink">
                             {promptText} ({lang})
                           </span>
-                          <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${isAllPassed ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-amber-50 text-amber-800 border-amber-300"}`}>
-                            Passed {passedCount} / {totalCount} Tests
-                          </span>
+                          {isAttended ? (
+                            <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${isAllPassed
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                : "bg-amber-50 text-amber-800 border-amber-300"
+                              }`}>
+                              Passed {passedCount} / {totalCount} Tests
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border bg-amber-50 text-amber-800 border-amber-300">
+                              No Submission Recorded
+                            </span>
+                          )}
                         </div>
 
                         <div className="h-48 border border-line rounded-md overflow-hidden">
                           <CodeEditor
-                            value={typeof codeText === "string" ? codeText : JSON.stringify(codeText, null, 2)}
+                            value={codeToDisplay}
                             language={lang}
                             readOnly={true}
                             theme="cd-recruit-dark"
                           />
                         </div>
 
-                        {(payload.stdout || payload.output) && (
+                        {payload && (payload.stdout || payload.output) && (
                           <div>
                             <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">Standard Output:</span>
                             <div className="bg-white border border-line p-2.5 rounded font-mono text-xs-plus text-ink">
@@ -701,8 +753,8 @@ function IndividualResultPage() {
                         )}
                       </div>
                     );
-                  })
-                )}
+                  })}
+                </div>
               </div>
             );
           })()}
@@ -716,80 +768,100 @@ function IndividualResultPage() {
             const driveQuestions = (detail as any).questions || (detail as any).drive?.questions || (detail as any).session?.questions || [];
             const debuggingDriveQuestions = driveQuestions.filter((q: any) => isDebuggingItem(q));
 
+            const usedRespKeys = new Set<string>();
+            const unifiedItems = debuggingDriveQuestions.map((qItem: any, idx: number) => {
+              const qId = qItem.id || qItem.questionId || qItem.question?.id;
+              const matchingResp = debuggingResponses.find((r: any) => {
+                const rQId = r.questionId || r.question?.id || r.id;
+                return rQId && qId && rQId === qId;
+              });
+              if (matchingResp) {
+                const k = matchingResp.id || matchingResp.moduleResponseId || qId;
+                usedRespKeys.add(k);
+              }
+              return {
+                id: qId || `debug-drive-${idx}`,
+                questionObj: qItem.question || qItem,
+                response: matchingResp || null,
+                index: idx,
+              };
+            });
+
+            debuggingResponses.forEach((r: any, idx: number) => {
+              const k = r.id || r.moduleResponseId || r.questionId || r.question?.id || `debug-extra-${idx}`;
+              if (!usedRespKeys.has(k)) {
+                unifiedItems.push({
+                  id: k,
+                  questionObj: r.question || r,
+                  response: r,
+                  index: unifiedItems.length,
+                });
+              }
+            });
+
+            if (unifiedItems.length === 0) {
+              return (
+                <div className="space-y-4">
+                  <h3 className="text-md font-semibold text-ink">Debugging Fix Submissions &amp; Test Suite Verification</h3>
+                  <p className="text-sm-minus text-ink-tertiary italic">No debugging challenges assigned or recorded for this assessment.</p>
+                </div>
+              );
+            }
+
             return (
               <div className="space-y-4">
                 <h3 className="text-md font-semibold text-ink">Debugging Fix Submissions &amp; Test Suite Verification</h3>
-                {debuggingResponses.length === 0 ? (
-                  debuggingDriveQuestions.length > 0 ? (
-                    <div className="space-y-4">
-                      {debuggingDriveQuestions.map((qItem: any, idx: number) => {
-                        const qObj = qItem.question || qItem;
-                        const qContent = qObj.content || {};
-                        const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `Debugging Challenge #${idx + 1}`;
-                        const initialCode = qContent.initialCode || qContent.starterCode || qContent.buggyCode || "// Candidate did not submit fix for this debugging challenge.";
-                        const lang = qContent.language || qObj.language || "python";
+                <div className="space-y-4">
+                  {unifiedItems.map((item: any, idx: number) => {
+                    const qObj = item.questionObj || {};
+                    const qContent = qObj.content || {};
+                    const payload = item.response ? getParsedPayload(item.response) : null;
+                    const lang = payload?.language || qContent.language || qObj.language || "python";
+                    const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || payload?.questionText || payload?.prompt || `Debugging Challenge #${idx + 1}`;
 
-                        return (
-                          <div key={qItem.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm-minus font-semibold text-ink">
-                                {promptText} ({lang})
-                              </span>
-                              <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border bg-amber-50 text-amber-800 border-amber-300">
-                                No Submission Recorded
-                              </span>
-                            </div>
+                    const candidateRawCode = payload?.sourceCode ?? payload?.code ?? payload?.userCode ?? payload?.fixedCode ?? payload?.solution;
+                    const hasSubmittedCode = typeof candidateRawCode === "string" && candidateRawCode.trim().length > 0;
+                    const isAttended = Boolean(item.response && (hasSubmittedCode || payload?.passedTests !== undefined || payload?.status === "COMPLETED" || payload?.status === "ACCEPTED" || payload?.status === "SUCCESS"));
 
-                            <div className="h-48 border border-line rounded-md overflow-hidden">
-                              <CodeEditor
-                                value={typeof initialCode === "string" ? initialCode : JSON.stringify(initialCode, null, 2)}
-                                language={lang}
-                                readOnly={true}
-                                theme="cd-recruit-dark"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm-minus text-ink-tertiary italic">No debugging submissions recorded for this assessment.</p>
-                  )
-                ) : (
-                  debuggingResponses.map((resp, idx) => {
-                    const payload = getParsedPayload(resp);
-                    const codeText = payload.sourceCode || payload.code || payload.userCode || payload.fixedCode || "// No fixed code submitted";
-                    const lang = payload.language || "python";
-                    const promptText = (resp.question as any)?.prompt || (resp.question as any)?.content?.prompt || payload.questionText || payload.prompt || `Debugging Challenge #${idx + 1}`;
-                    const isAccepted = payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true);
-                    const totalCount = payload.totalTests || (resp.question as any)?.content?.testCases?.length || (resp.question as any)?.testCases?.length || 1;
-                    const passedCount = payload.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
-                    const isAllPassed = passedCount === totalCount && totalCount > 0;
+                    const codeToDisplay = isAttended
+                      ? (candidateRawCode || "// Submitted fix with no visible source code.")
+                      : extractCodeSnippet(qContent.initialCode || qContent.starterCode || qContent.buggyCode, lang, "// Candidate did not submit fix for this debugging challenge.");
+
+                    const isAccepted = payload ? (payload.isCorrect !== false && (payload.status === "COMPLETED" || payload.status === "ACCEPTED" || payload.status === "SUCCESS" || payload.isCorrect === true)) : false;
+                    const totalCount = payload?.totalTests || qContent.testCases?.length || (qObj as any).testCases?.length || 1;
+                    const passedCount = payload?.passedTests !== undefined ? payload.passedTests : (isAccepted ? totalCount : 0);
+                    const isAllPassed = isAttended && passedCount === totalCount && totalCount > 0;
 
                     return (
-                      <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                      <div key={item.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
                         <div className="flex items-center justify-between">
                           <span className="text-sm-minus font-semibold text-ink">
                             {promptText} ({lang})
                           </span>
-                          <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${isAllPassed
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-300"
-                              : "bg-amber-50 text-amber-800 border-amber-300"
-                            }`}>
-                            Passed {passedCount} / {totalCount} Tests
-                          </span>
+                          {isAttended ? (
+                            <span className={`px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border ${isAllPassed
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                : "bg-amber-50 text-amber-800 border-amber-300"
+                              }`}>
+                              Passed {passedCount} / {totalCount} Tests
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded text-xs-plus font-mono font-bold border bg-amber-50 text-amber-800 border-amber-300">
+                              No Submission Recorded
+                            </span>
+                          )}
                         </div>
 
                         <div className="h-48 border border-line rounded-md overflow-hidden">
                           <CodeEditor
-                            value={typeof codeText === "string" ? codeText : JSON.stringify(codeText, null, 2)}
+                            value={codeToDisplay}
                             language={lang}
                             readOnly={true}
                             theme="cd-recruit-dark"
                           />
                         </div>
 
-                        {(payload.stdout || payload.output) && (
+                        {payload && (payload.stdout || payload.output) && (
                           <div>
                             <span className="text-xs-plus font-mono uppercase text-ink-tertiary block mb-1">Standard Output:</span>
                             <div className="bg-white border border-line p-2.5 rounded font-mono text-xs-plus text-ink">
@@ -799,8 +871,8 @@ function IndividualResultPage() {
                         )}
                       </div>
                     );
-                  })
-                )}
+                  })}
+                </div>
               </div>
             );
           })()}
@@ -823,50 +895,68 @@ function IndividualResultPage() {
               return (qMod === "SQL") && qMod !== "NOSQL";
             });
 
+            const usedRespKeys = new Set<string>();
+            const unifiedItems = sqlDriveQuestions.map((qItem: any, idx: number) => {
+              const qId = qItem.id || qItem.questionId || qItem.question?.id;
+              const matchingResp = sqlResponses.find((r: any) => {
+                const rQId = r.questionId || r.question?.id || r.id;
+                return rQId && qId && rQId === qId;
+              });
+              if (matchingResp) {
+                const k = matchingResp.id || matchingResp.moduleResponseId || qId;
+                usedRespKeys.add(k);
+              }
+              return {
+                id: qId || `sql-drive-${idx}`,
+                questionObj: qItem.question || qItem,
+                response: matchingResp || null,
+                index: idx,
+              };
+            });
+
+            sqlResponses.forEach((r: any, idx: number) => {
+              const k = r.id || r.moduleResponseId || r.questionId || r.question?.id || `sql-extra-${idx}`;
+              if (!usedRespKeys.has(k)) {
+                unifiedItems.push({
+                  id: k,
+                  questionObj: r.question || r,
+                  response: r,
+                  index: unifiedItems.length,
+                });
+              }
+            });
+
+            if (unifiedItems.length === 0) {
+              return (
+                <div className="space-y-4">
+                  <h3 className="text-md font-semibold text-ink">SQL Query Submissions &amp; Execution Results</h3>
+                  <p className="text-sm-minus text-ink-tertiary italic">No SQL queries assigned or recorded for this assessment.</p>
+                </div>
+              );
+            }
+
             return (
               <div className="space-y-4">
                 <h3 className="text-md font-semibold text-ink">SQL Query Submissions &amp; Execution Results</h3>
-                {sqlResponses.length === 0 ? (
-                  sqlDriveQuestions.length > 0 ? (
-                    <div className="space-y-4">
-                      {sqlDriveQuestions.map((qItem: any, idx: number) => {
-                        const qObj = qItem.question || qItem;
-                        const qContent = qObj.content || {};
-                        const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `SQL Problem #${idx + 1}`;
-                        const initialQuery = qContent.initialQuery || qContent.starterCode || qContent.sql || "-- Candidate did not submit SQL query for this problem.";
+                <div className="space-y-4">
+                  {unifiedItems.map((item: any, idx: number) => {
+                    const qObj = item.questionObj || {};
+                    const qContent = qObj.content || {};
+                    const payload = item.response ? getParsedPayload(item.response) : null;
+                    const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || payload?.questionText || payload?.prompt || `SQL Problem #${idx + 1}`;
 
-                        return (
-                          <div key={qItem.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-mono font-semibold text-ink">{promptText}</span>
-                              <span className="px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border bg-amber-50 text-amber-800 border-amber-300">
-                                No Submission Recorded
-                              </span>
-                            </div>
+                    const candidateRawQuery = payload?.query ?? payload?.sqlQuery ?? payload?.sql ?? payload?.code;
+                    const hasSubmittedQuery = typeof candidateRawQuery === "string" && candidateRawQuery.trim().length > 0;
+                    const isAttended = Boolean(item.response && (hasSubmittedQuery || payload?.executionResult !== undefined));
 
-                            <div className="h-44 border border-line rounded-md overflow-hidden">
-                              <CodeEditor
-                                value={typeof initialQuery === "string" ? initialQuery : JSON.stringify(initialQuery, null, 2)}
-                                language="sql"
-                                readOnly={true}
-                                theme="cd-recruit-dark"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm-minus text-ink-tertiary italic">No SQL queries recorded for this assessment.</p>
-                  )
-                ) : (
-                  sqlResponses.map((resp, idx) => {
-                    const payload = getParsedPayload(resp);
-                    const queryText = payload.query || payload.sqlQuery || payload.sql || payload.code || "-- No query submitted";
-                    const execResult = payload.executionResult;
+                    const queryToDisplay = isAttended
+                      ? (candidateRawQuery || "-- Submitted with no visible SQL query.")
+                      : extractCodeSnippet(qContent.initialQuery || qContent.starterCode || qContent.sql, "sql", "-- Candidate did not submit SQL query for this problem.");
+
+                    const execResult = payload?.executionResult;
                     const hasResult = execResult !== undefined;
-                    const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED" || payload.isCorrect;
-                    const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (payload.status || "EXECUTED");
+                    const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED" || payload?.isCorrect;
+                    const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (payload?.status || "EXECUTED");
                     const badgeColor = hasResult
                       ? (isCorrect
                         ? "bg-emerald-50 text-emerald-700 border-emerald-300"
@@ -874,17 +964,23 @@ function IndividualResultPage() {
                       : "bg-brand-subtle text-brand-ink border-brand-border";
 
                     return (
-                      <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                      <div key={item.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-mono font-semibold text-ink">SQL Query #{idx + 1}</span>
-                          <span className={`px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border ${badgeColor}`}>
-                            {statusText}
-                          </span>
+                          <span className="text-xs font-mono font-semibold text-ink">{promptText}</span>
+                          {isAttended ? (
+                            <span className={`px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border ${badgeColor}`}>
+                              {statusText}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border bg-amber-50 text-amber-800 border-amber-300">
+                              No Submission Recorded
+                            </span>
+                          )}
                         </div>
 
                         <div className="h-44 border border-line rounded-md overflow-hidden">
                           <CodeEditor
-                            value={typeof queryText === "string" ? queryText : JSON.stringify(queryText, null, 2)}
+                            value={queryToDisplay}
                             language="sql"
                             readOnly={true}
                             theme="cd-recruit-dark"
@@ -892,8 +988,8 @@ function IndividualResultPage() {
                         </div>
                       </div>
                     );
-                  })
-                )}
+                  })}
+                </div>
               </div>
             );
           })()}
@@ -916,54 +1012,71 @@ function IndividualResultPage() {
               return (qMod === "NOSQL") && qMod !== "SQL";
             });
 
+            const usedRespKeys = new Set<string>();
+            const unifiedItems = nosqlDriveQuestions.map((qItem: any, idx: number) => {
+              const qId = qItem.id || qItem.questionId || qItem.question?.id;
+              const matchingResp = nosqlResponses.find((r: any) => {
+                const rQId = r.questionId || r.question?.id || r.id;
+                return rQId && qId && rQId === qId;
+              });
+              if (matchingResp) {
+                const k = matchingResp.id || matchingResp.moduleResponseId || qId;
+                usedRespKeys.add(k);
+              }
+              return {
+                id: qId || `nosql-drive-${idx}`,
+                questionObj: qItem.question || qItem,
+                response: matchingResp || null,
+                index: idx,
+              };
+            });
+
+            nosqlResponses.forEach((r: any, idx: number) => {
+              const k = r.id || r.moduleResponseId || r.questionId || r.question?.id || `nosql-extra-${idx}`;
+              if (!usedRespKeys.has(k)) {
+                unifiedItems.push({
+                  id: k,
+                  questionObj: r.question || r,
+                  response: r,
+                  index: unifiedItems.length,
+                });
+              }
+            });
+
+            if (unifiedItems.length === 0) {
+              return (
+                <div className="space-y-4">
+                  <h3 className="text-md font-semibold text-ink">NoSQL Query Submissions &amp; Execution Results</h3>
+                  <p className="text-sm-minus text-ink-tertiary italic">No NoSQL queries assigned or recorded for this assessment.</p>
+                </div>
+              );
+            }
+
             return (
               <div className="space-y-4">
                 <h3 className="text-md font-semibold text-ink">NoSQL Query Submissions &amp; Execution Results</h3>
-                {nosqlResponses.length === 0 ? (
-                  nosqlDriveQuestions.length > 0 ? (
-                    <div className="space-y-4">
-                      {nosqlDriveQuestions.map((qItem: any, idx: number) => {
-                        const qObj = qItem.question || qItem;
-                        const qContent = qObj.content || {};
-                        const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || `NoSQL Problem #${idx + 1}`;
-                        const initialQuery = qContent.initialQuery || qContent.starterCode || "// Candidate did not submit NoSQL query for this problem.";
+                <div className="space-y-4">
+                  {unifiedItems.map((item: any, idx: number) => {
+                    const qObj = item.questionObj || {};
+                    const qContent = qObj.content || {};
+                    const payload = item.response ? getParsedPayload(item.response) : null;
+                    const promptText = qObj.prompt || qContent.prompt || qContent.title || qContent.text || qContent.question || payload?.questionText || payload?.prompt || `NoSQL Problem #${idx + 1}`;
 
-                        return (
-                          <div key={qItem.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-mono font-semibold text-ink">{promptText}</span>
-                              <span className="px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border bg-amber-50 text-amber-800 border-amber-300">
-                                No Submission Recorded
-                              </span>
-                            </div>
+                    const op = payload?.operation || {};
+                    const rawQuery = payload?.query || payload?.noSqlQuery;
+                    const hasSubmittedQuery = Boolean(rawQuery || (typeof op === 'string' && op.trim().length > 0) || (typeof op === 'object' && Object.keys(op).length > 0));
+                    const isAttended = Boolean(item.response && (hasSubmittedQuery || payload?.executionResult !== undefined));
 
-                            <div className="h-44 border border-line rounded-md overflow-hidden">
-                              <CodeEditor
-                                value={typeof initialQuery === "string" ? initialQuery : JSON.stringify(initialQuery, null, 2)}
-                                language="javascript"
-                                readOnly={true}
-                                theme="cd-recruit-dark"
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm-minus text-ink-tertiary italic">No NoSQL queries recorded for this assessment.</p>
-                  )
-                ) : (
-                  nosqlResponses.map((resp, idx) => {
-                    const payload = getParsedPayload(resp);
-                    const op = payload.operation || {};
-                    const rawQuery = payload.query || payload.noSqlQuery;
-                    const displayQuery = rawQuery || (typeof op === 'string' ? op : JSON.stringify(op, null, 2));
+                    const candidateDisplayQuery = rawQuery || (typeof op === 'string' ? op : (Object.keys(op).length > 0 ? JSON.stringify(op, null, 2) : ""));
+                    const queryToDisplay = isAttended
+                      ? (candidateDisplayQuery || "// Submitted with no visible NoSQL query.")
+                      : extractCodeSnippet(qContent.initialQuery || qContent.starterCode || qContent.noSqlQuery, "javascript", "// Candidate did not submit NoSQL query for this problem.");
+
                     const displayLanguage = rawQuery ? "javascript" : "json";
-
-                    const execResult = payload.executionResult;
+                    const execResult = payload?.executionResult;
                     const hasResult = execResult !== undefined;
-                    const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED" || payload.isCorrect;
-                    const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (payload.status || "EXECUTED");
+                    const isCorrect = execResult?.passed || execResult?.status === "SUCCESS" || execResult?.status === "PASSED" || payload?.isCorrect;
+                    const statusText = hasResult ? (isCorrect ? "PASSED" : "FAILED") : (payload?.status || "EXECUTED");
                     const badgeColor = hasResult
                       ? (isCorrect
                         ? "bg-emerald-50 text-emerald-700 border-emerald-300"
@@ -971,17 +1084,23 @@ function IndividualResultPage() {
                       : "bg-brand-subtle text-brand-ink border-brand-border";
 
                     return (
-                      <div key={resp.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
+                      <div key={item.id || idx} className="border border-line rounded-md p-4 space-y-3 bg-canvas">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-mono font-semibold text-ink">NoSQL Operation #{idx + 1}</span>
-                          <span className={`px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border ${badgeColor}`}>
-                            {statusText}
-                          </span>
+                          <span className="text-xs font-mono font-semibold text-ink">{promptText}</span>
+                          {isAttended ? (
+                            <span className={`px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border ${badgeColor}`}>
+                              {statusText}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded text-xs-plus font-mono font-semibold border bg-amber-50 text-amber-800 border-amber-300">
+                              No Submission Recorded
+                            </span>
+                          )}
                         </div>
 
                         <div className="h-44 border border-line rounded-md overflow-hidden">
                           <CodeEditor
-                            value={typeof displayQuery === "string" ? displayQuery : JSON.stringify(displayQuery, null, 2)}
+                            value={queryToDisplay}
                             language={displayLanguage}
                             readOnly={true}
                             theme="cd-recruit-dark"
@@ -989,8 +1108,8 @@ function IndividualResultPage() {
                         </div>
                       </div>
                     );
-                  })
-                )}
+                  })}
+                </div>
               </div>
             );
           })()}

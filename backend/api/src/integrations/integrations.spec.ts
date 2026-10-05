@@ -113,19 +113,14 @@ async function runIntegrationsTests() {
   }
 
   // ---------------------------------------------------------------------------
-  // TEST 3: MinioService Presigned URLs & TTL Configuration
+  // TEST 3: MinioService Stream URL Generation
   // ---------------------------------------------------------------------------
   {
-    console.log("\n[TEST 3] Testing MinioService presigned URL generation and TTL handling...");
+    console.log("\n[TEST 3] Testing MinioService stream URL generation...");
 
-    let requestedTtl = 0;
     const mockMinioClient: any = {
       bucketExists: async () => true,
       makeBucket: async () => {},
-      presignedGetObject: async (_bucket: string, _key: string, ttl: number) => {
-        requestedTtl = ttl;
-        return `http://127.0.0.1:9000/cd-recruit-biometric/clip.webm?X-Amz-Expires=${ttl}`;
-      },
     };
 
     const mockConfig: any = {
@@ -144,9 +139,8 @@ async function runIntegrationsTests() {
     (minioService as any).storageHealthy = true;
 
     const url = await minioService.getSignedUrl("cd-recruit-biometric", "evidence/clip.webm");
-    assert.strictEqual(requestedTtl, 600, "Should use configured TTL of 600s");
-    assert(url.includes("X-Amz-Expires=600"), "Presigned URL must reflect requested expiry TTL");
-    pass("MinioService generates presigned URLs respecting evidenceClipUrlTtlSeconds config");
+    assert(url && url.includes("/cd-recruit-biometric/evidence/clip.webm"), "Stream URL must route via proxy with bucket and clean key");
+    pass("MinioService generates stream proxy URLs correctly");
   }
 
   // ---------------------------------------------------------------------------

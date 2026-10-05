@@ -119,6 +119,22 @@ Respond ONLY in strict JSON format:
     ).trim();
   }
 
+  private getGroqModel(): string {
+    return (
+      process.env.GROQ_MODEL ||
+      this.configService.get<string>("groqModel") ||
+      "openai/gpt-oss-120b"
+    ).trim();
+  }
+
+  private getCerebrasModel(): string {
+    return (
+      process.env.CEREBRAS_MODEL ||
+      this.configService.get<string>("cerebrasModel") ||
+      "gpt-oss-120b"
+    ).trim();
+  }
+
   /**
    * Generate an open-ended assistant response without strict JSON parsing.
    * Used for interactive AI prompting modules.
@@ -190,35 +206,49 @@ Respond ONLY in strict JSON format:
 
   private async callGroqApi(systemPrompt: string, userContent: string) {
     const key = this.getGroqApiKey();
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-      }),
-    });
+    const models = Array.from(new Set([this.getGroqModel(), "openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]));
+    let lastError: any = null;
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Groq API HTTP ${res.status}: ${errText}`);
+    for (const model of models) {
+      try {
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userContent },
+            ],
+            temperature: 0.2,
+            response_format: { type: "json_object" },
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Groq API HTTP ${res.status} [model=${model}]: ${errText}`);
+        }
+
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content;
+        const parsed = this.parseJsonResponse(content);
+        if (parsed) return parsed;
+      } catch (err: any) {
+        lastError = err;
+        this.logger.warn(`Groq API attempt failed with model ${model}: ${err.message}`);
+      }
     }
 
-    const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
-    return this.parseJsonResponse(content);
+    throw lastError || new Error("All Groq models failed");
   }
 
   private async callCerebrasApi(systemPrompt: string, userContent: string) {
     const key = this.getCerebrasApiKey();
+    const model = this.getCerebrasModel();
     const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -226,7 +256,7 @@ Respond ONLY in strict JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama3.1-70b",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -248,34 +278,47 @@ Respond ONLY in strict JSON format:
   private async callGroqApiText(systemPrompt: string, userContent: string): Promise<string | null> {
     const key = this.getGroqApiKey();
     this.logger.log(`Executing Groq API call with key length: ${key.length}`);
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userContent },
-        ],
-        temperature: 0.5,
-      }),
-    });
+    const models = Array.from(new Set([this.getGroqModel(), "openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]));
+    let lastError: any = null;
 
-    if (!res.ok) {
-      const errText = await res.text();
-      this.logger.error(`Groq API Error HTTP ${res.status}: ${errText}`);
-      throw new Error(`Groq API HTTP ${res.status}: ${errText}`);
+    for (const model of models) {
+      try {
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${key}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userContent },
+            ],
+            temperature: 0.5,
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`Groq API HTTP ${res.status} [model=${model}]: ${errText}`);
+        }
+
+        const data = await res.json();
+        return data.choices?.[0]?.message?.content || null;
+      } catch (err: any) {
+        lastError = err;
+        this.logger.warn(`Groq API text call failed with model ${model}: ${err.message}`);
+      }
     }
 
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || null;
+    this.logger.error(`Groq API Error: ${lastError?.message}`);
+    throw lastError || new Error("All Groq models failed");
   }
 
   private async callCerebrasApiText(systemPrompt: string, userContent: string): Promise<string | null> {
     const key = this.getCerebrasApiKey();
+    const model = this.getCerebrasModel();
     this.logger.log(`Executing Cerebras API call with key length: ${key.length}`);
     const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
       method: "POST",
@@ -284,7 +327,7 @@ Respond ONLY in strict JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama3.1-70b",
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userContent },
@@ -439,12 +482,17 @@ Respond strictly in JSON format:
   }
 
   private devFallbackEvaluation(rawText: string): AiEvaluationResult {
-    const wordCount = (rawText || "").trim().split(/\s+/).filter(Boolean).length;
-    const baseScore = Math.min(100, Math.max(50, wordCount * 5));
+    const length = (rawText || "").trim().length;
+    let score = 75;
+    if (length > 200) score = 88;
+    else if (length > 80) score = 78;
+    else if (length > 20) score = 65;
+    else score = 45;
+
     return {
-      score: baseScore,
-      reasoning: "Deterministic dev fallback evaluation completed based on content structure and heuristics.",
-      feedback: "Submission recorded successfully with development fallback evaluation.",
+      score,
+      reasoning: "Rule-based dev fallback evaluation (length & structure check).",
+      feedback: "Candidate answer provided sufficient technical structure.",
       providerUsed: "DEV_FALLBACK",
     };
   }

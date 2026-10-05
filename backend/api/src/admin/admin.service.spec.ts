@@ -313,6 +313,35 @@ async function runAdminServiceCharacterizationTests() {
   {
     console.log("\n[TEST 5] Testing AdminService.getSessionDetail data integrity without mock score synthesis...");
 
+    const mockSessionObj = {
+      id: "sess-unscored",
+      candidate: { id: "c-1", name: "Jane Smith", email: "jane@test.com" },
+      roleTemplate: { roleName: "Software Engineer" },
+      drive: { name: "Tech Drive" },
+      status: SessionStatus.IN_PROGRESS,
+      cvMode: false,
+      startedAt: new Date(),
+      submittedAt: null,
+      deadlineAt: new Date(),
+      disconnectCount: 0,
+      moduleResponses: [
+        {
+          id: "mr-1",
+          questionId: "q-1",
+          responsePayload: { text: "answer" },
+          timeSpentSeconds: 45,
+          isDraft: false,
+          lastAutosavedAt: new Date(),
+          question: { id: "q-1", moduleType: "MCQ", tags: [], content: { text: "What is 2+2?" } },
+        },
+      ],
+      integrityFlags: [],
+      proctoringEvents: [],
+      identityCaptures: [],
+      score: null, // Unscored session
+      reviewerDecision: null,
+    };
+
     const mockPrisma: any = {
       session: {
         findUnique: async () => ({
@@ -372,6 +401,7 @@ async function runAdminServiceCharacterizationTests() {
           score: null, // Unscored session
           reviewerDecision: null,
         }),
+      
       },
       proctoringEvent: {
         findMany: async () => [],
