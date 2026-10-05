@@ -394,7 +394,7 @@ export class PriceBookService {
         data: {
           id: newId,
           sku: normalizedSku,
-          poolType: dto.poolType,
+          poolType: dto.poolType as PoolType,
           credits: dto.credits,
           validityDays: dto.validityDays ?? null,
           billingCountry: normalizedCountry,

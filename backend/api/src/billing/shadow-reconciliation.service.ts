@@ -5,8 +5,8 @@ import {
   SessionKind,
   LedgerEntryType,
   PoolStatus,
-  DrivePoolFallthrough,
 } from "@prisma/client";
+import { DrivePoolFallthrough } from "@cd-recruit/shared-types";
 
 export type ShadowDiscrepancyType =
   | "MISSING_SHADOW_ENTRY"

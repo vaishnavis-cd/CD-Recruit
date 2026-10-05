@@ -15,9 +15,8 @@ import {
   LedgerEntryType,
   LedgerReason,
   PoolStatus,
-  DrivePoolFallthrough,
-  HoldReason,
 } from "@prisma/client";
+import { DrivePoolFallthrough, HoldReason } from "@cd-recruit/shared-types";
 
 export interface CreditEnforcementResult {
   outcome: "STARTED" | "HELD" | "ALREADY_PROCESSED" | "WAIVED_NON_LIVE" | "FAILED";
@@ -467,7 +466,7 @@ export class CreditEnforcementService {
       hasActiveDrivePass: !!drivePass,
       drivePassRemaining: dpRemaining,
       drivePassExpiresAt: drivePass?.expiresAt ?? null,
-      fallthroughMode: fallthrough,
+      fallthroughMode: fallthrough as DrivePoolFallthrough,
       activeTalentReserveRemaining: trRemaining,
       queuedPoolCount: queuedCount,
       heldCandidateCount: heldCount,

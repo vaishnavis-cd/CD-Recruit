@@ -49,7 +49,7 @@ const DB_URL = process.env.DATABASE_URL || "postgresql://cdrecruit:cdrecruit123@
 
 async function runPlatformBillingTestSuite() {
   console.log("================================================================================");
-  console.log("STAGE 2.11 — Platform Billing Controllers / API Layer Verification Suite");
+  console.log("STAGE 2.11 â€” Platform Billing Controllers / API Layer Verification Suite");
   console.log("================================================================================");
 
   const prisma = new PrismaClient();
@@ -61,7 +61,7 @@ async function runPlatformBillingTestSuite() {
   let passedTests = 0;
   function pass(testNum: number, name: string) {
     passedTests++;
-    console.log(`✅ TEST [${testNum}]: ${name}`);
+    console.log(`âœ… TEST [${testNum}]: ${name}`);
   }
 
   // Setup services
@@ -162,13 +162,13 @@ async function runPlatformBillingTestSuite() {
   // Fetch baseline accounts
   const acmeAccount = await prisma.billingAccount.findFirst({
     where: { name: { contains: "Acme" } },
-    include: { creditPools: true },
+    include: { pools: true },
   });
   assert(acmeAccount, "Baseline Acme account must exist");
 
   try {
     // -------------------------------------------------------------------------
-    // TEST 1 — API-H2-01: GET /platform/billing/accounts (Paginated List)
+    // TEST 1 â€” API-H2-01: GET /platform/billing/accounts (Paginated List)
     // -------------------------------------------------------------------------
     {
       const res = await billingAccountController.listAccounts({ page: 1, limit: 10 });
@@ -180,7 +180,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 2 — API-H2-02: GET /platform/billing/accounts/:id (Detail)
+    // TEST 2 â€” API-H2-02: GET /platform/billing/accounts/:id (Detail)
     // -------------------------------------------------------------------------
     {
       const res = await billingAccountController.getAccountDetail({ id: acmeAccount.id });
@@ -197,7 +197,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 3 — API-H2-03: GET /platform/billing/accounts/:id/summary (Tenant 360)
+    // TEST 3 â€” API-H2-03: GET /platform/billing/accounts/:id/summary (Tenant 360)
     // -------------------------------------------------------------------------
     {
       const res = await billingAccountController.getAccountSummary({ id: acmeAccount.id });
@@ -209,7 +209,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 4 — API-H2-04: GET /platform/billing/accounts/:id/pools (Account Pools)
+    // TEST 4 â€” API-H2-04: GET /platform/billing/accounts/:id/pools (Account Pools)
     // -------------------------------------------------------------------------
     {
       const res = await billingAccountController.getAccountPools({ id: acmeAccount.id });
@@ -220,10 +220,10 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 5 — API-H2-05: GET /platform/billing/pools/:id (Pool Inspection)
+    // TEST 5 â€” API-H2-05: GET /platform/billing/pools/:id (Pool Inspection)
     // -------------------------------------------------------------------------
     {
-      const poolId = acmeAccount.creditPools[0].id;
+      const poolId = acmeAccount.pools[0].id;
       const res = await creditPoolController.getPoolDetail({ id: poolId });
       assert.equal(res.id, poolId);
       assert.equal(res.billingAccountId, acmeAccount.id);
@@ -233,7 +233,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 6 — API-H2-06: GET /platform/billing/ledger (Ledger Explorer)
+    // TEST 6 â€” API-H2-06: GET /platform/billing/ledger (Ledger Explorer)
     // -------------------------------------------------------------------------
     {
       const res = await ledgerController.getLedgerEntries({
@@ -248,7 +248,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 7 — API-H2-07: GET /platform/billing/ledger/export (Pseudonymous CSV)
+    // TEST 7 â€” API-H2-07: GET /platform/billing/ledger/export (Pseudonymous CSV)
     // -------------------------------------------------------------------------
     {
       let sentContent = "";
@@ -276,7 +276,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 8 — API-H2-08 & API-H2-09: POST / GET /platform/billing/requests
+    // TEST 8 â€” API-H2-08 & API-H2-09: POST / GET /platform/billing/requests
     // -------------------------------------------------------------------------
     let createdRequestId = "";
     {
@@ -308,7 +308,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 9 — API-H2-09: PII Prevention in Manual Request Creation
+    // TEST 9 â€” API-H2-09: PII Prevention in Manual Request Creation
     // -------------------------------------------------------------------------
     {
       const piiDto = {
@@ -327,7 +327,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 10 — API-H2-10: POST /platform/billing/requests/:id/approve (Maker-Checker)
+    // TEST 10 â€” API-H2-10: POST /platform/billing/requests/:id/approve (Maker-Checker)
     // -------------------------------------------------------------------------
     {
       // Submitter with SUPPORT role attempts approval -> Forbidden by role
@@ -364,7 +364,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 11 — API-H2-11: POST /platform/billing/requests/:id/reject
+    // TEST 11 â€” API-H2-11: POST /platform/billing/requests/:id/reject
     // -------------------------------------------------------------------------
     {
       // Create request to reject
@@ -374,7 +374,7 @@ async function runPlatformBillingTestSuite() {
         ticketRef: `REJ-${runId}`,
         reason: "Discretionary credit grant without approved budget reference",
         payload: { credits: 5, source: "GOODWILL" },
-      });:
+      });
       createdRequestIds.push(reqToReject.id);
 
       const rejected = await manualBillingRequestController.rejectRequest(
@@ -388,7 +388,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 12 — API-H2-12: POST /platform/billing/requests/:id/cancel
+    // TEST 12 â€” API-H2-12: POST /platform/billing/requests/:id/cancel
     // -------------------------------------------------------------------------
     let cancelledRequestId = "";
     {
@@ -412,7 +412,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 13 — API-H2-13: POST /platform/billing/requests/:id/retry
+    // TEST 13 â€” API-H2-13: POST /platform/billing/requests/:id/retry
     // -------------------------------------------------------------------------
     {
       // 1. First execute the approved request via retryExecution
@@ -439,7 +439,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 14 — API-H2-14: GET /platform/billing/pricing (Catalog)
+    // TEST 14 â€” API-H2-14: GET /platform/billing/pricing (Catalog)
     // -------------------------------------------------------------------------
     {
       const catalog = await priceBookController.listCatalog({ country: "IN", activeOnly: true });
@@ -450,7 +450,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 15 — API-H2-15: POST /platform/billing/pricing (Publish Version)
+    // TEST 15 â€” API-H2-15: POST /platform/billing/pricing (Publish Version)
     // -------------------------------------------------------------------------
     let publishedPriceEntryId = "";
     {
@@ -474,7 +474,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 16 — API-H2-16 & API-H2-17: POST & GET /platform/billing/payments
+    // TEST 16 â€” API-H2-16 & API-H2-17: POST & GET /platform/billing/payments
     // -------------------------------------------------------------------------
     {
       const poInvoiceDto = {
@@ -506,7 +506,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 17 — API-H2-18: POST /billing/webhooks/:provider (Public Ingress)
+    // TEST 17 â€” API-H2-18: POST /billing/webhooks/:provider (Public Ingress)
     // -------------------------------------------------------------------------
     {
       // Calling public webhook controller directly without platform authentication
@@ -542,7 +542,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 18 — API-H2-19: POST /platform/billing/payments/replay-webhook
+    // TEST 18 â€” API-H2-19: POST /platform/billing/payments/replay-webhook
     // -------------------------------------------------------------------------
     {
       // Replay non-existent eventId throws NotFoundException
@@ -558,13 +558,13 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 19 — API-H2-20: GET /platform/finance/metrics (Finance Dashboard)
+    // TEST 19 â€” API-H2-20: GET /platform/finance/metrics (Finance Dashboard)
     // -------------------------------------------------------------------------
     {
-      const overview = await financeMetricsController.getMetrics(
+      const overview = (await financeMetricsController.getMetrics(
         { user: financeActor },
         { period: undefined },
-      );
+      )) as any;
       assert(overview && overview.revenue, "Must contain revenue breakdown");
       assert(overview.credits, "Must contain credits telemetry");
       assert(overview.risk, "Must contain risk & overdraft exposure");
@@ -573,7 +573,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 20 — API-H2-21: GET /platform/billing/reconciliation/latest
+    // TEST 20 â€” API-H2-21: GET /platform/billing/reconciliation/latest
     // -------------------------------------------------------------------------
     {
       const latest = await reconciliationController.getLatestRun();
@@ -583,7 +583,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 21 — API-H2-22: POST /platform/billing/reconciliation/run
+    // TEST 21 â€” API-H2-22: POST /platform/billing/reconciliation/run
     // -------------------------------------------------------------------------
     {
       const runRes = await reconciliationController.triggerManualAudit({ user: financeActor });
@@ -593,7 +593,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 22 — API-H2-23 & API-H2-24: Incidents & Automated T3 Reversals
+    // TEST 22 â€” API-H2-23 & API-H2-24: Incidents & Automated T3 Reversals
     // -------------------------------------------------------------------------
     {
       const declareDto = {
@@ -617,7 +617,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 23 — RBAC Gate Verification (PlatformRolesGuard)
+    // TEST 23 â€” RBAC Gate Verification (PlatformRolesGuard)
     // -------------------------------------------------------------------------
     {
       // Helper function to mock ExecutionContext for PlatformRolesGuard
@@ -687,7 +687,7 @@ async function runPlatformBillingTestSuite() {
     }
 
     // -------------------------------------------------------------------------
-    // TEST 24 — Candidate PII Safety & Clean Read-Only Invariant
+    // TEST 24 â€” Candidate PII Safety & Clean Read-Only Invariant
     // -------------------------------------------------------------------------
     {
       const overview = await financeMetricsController.getMetrics({ user: financeActor }, {});

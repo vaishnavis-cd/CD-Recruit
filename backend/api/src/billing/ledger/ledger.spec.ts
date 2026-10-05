@@ -27,7 +27,7 @@ async function createPgClient(): Promise<Client> {
 
 async function runLedgerServiceTests() {
   console.log("================================================================================");
-  console.log("Phase 2 — LedgerService Characterization & Financial Invariants Test Suite");
+  console.log("Phase 2 â€” LedgerService Characterization & Financial Invariants Test Suite");
   console.log("================================================================================");
 
   let passedCount = 0;
@@ -36,7 +36,7 @@ async function runLedgerServiceTests() {
   function pass(msg: string) {
     totalCount++;
     passedCount++;
-    console.log(`✅ TEST [${totalCount}]: ${msg}`);
+    console.log(`âœ… TEST [${totalCount}]: ${msg}`);
   }
 
   const prisma = new PrismaClient();
@@ -705,7 +705,7 @@ async function runLedgerServiceTests() {
       include: {
         billingAccount: {
           include: {
-            creditPools: {
+            pools: {
               include: { ledgerEntries: true },
             },
           },
@@ -719,7 +719,7 @@ async function runLedgerServiceTests() {
       assert.strictEqual(org.billingAccount.overdraftLimit, 0);
       assert.strictEqual(org.billingAccount.overdraftUsed, 0);
 
-      const trialPool = org.billingAccount.creditPools.find((p) => p.source === "TRIAL");
+      const trialPool = org.billingAccount.pools.find((p) => p.source === "TRIAL");
       assert.ok(trialPool, `Seeded TRIAL pool must exist for ${org.name}`);
       assert.strictEqual(trialPool.totalCredits, 50);
       assert.strictEqual(trialPool.cachedRemaining, 50);

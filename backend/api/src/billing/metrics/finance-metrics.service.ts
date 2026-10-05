@@ -695,7 +695,7 @@ export class FinanceMetricsService {
     const ba = await this.prisma.billingAccount.findUnique({
       where: { id: billingAccountId },
       include: {
-        creditPools: true,
+        pools: true,
       },
     });
 
@@ -703,7 +703,7 @@ export class FinanceMetricsService {
       throw new NotFoundException(`Billing account ${billingAccountId} not found`);
     }
 
-    const availableCredits = ba.creditPools
+    const availableCredits = ba.pools
       .filter((p) => p.status === "ACTIVE" || p.status === "QUEUED")
       .reduce((sum, p) => sum + p.cachedRemaining, 0);
 
@@ -722,11 +722,11 @@ export class FinanceMetricsService {
     const lifetimeConsumedCredits = Math.abs(Number(lifetimeStats[0]?.consumed || 0));
 
     const poolCounts = {
-      active: ba.creditPools.filter((p) => p.status === "ACTIVE").length,
-      queued: ba.creditPools.filter((p) => p.status === "QUEUED").length,
-      exhausted: ba.creditPools.filter((p) => p.status === "EXHAUSTED" || p.status === "DEPLETED").length,
-      expired: ba.creditPools.filter((p) => p.status === "EXPIRED").length,
-      total: ba.creditPools.length,
+      active: ba.pools.filter((p) => p.status === "ACTIVE").length,
+      queued: ba.pools.filter((p) => p.status === "QUEUED").length,
+      exhausted: ba.pools.filter((p) => p.status === "EXHAUSTED" || (p.status as string) === "DEPLETED").length,
+      expired: ba.pools.filter((p) => p.status === "EXPIRED").length,
+      total: ba.pools.length,
     };
 
     // Account-specific payment metrics

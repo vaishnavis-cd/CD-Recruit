@@ -4,16 +4,18 @@ import { LedgerService } from "./ledger.service";
 import { PoolService } from "./pool.service";
 import { CreditEnforcementService } from "./credit-enforcement.service";
 import {
-  PoolType,
-  PoolStatus,
-  GrantSource,
   LedgerEntryType,
   SessionKind,
   SessionStatus,
-  DrivePoolFallthrough,
-  HoldReason,
   CvMode,
 } from "@prisma/client";
+import {
+  PoolType,
+  PoolStatus,
+  GrantSource,
+  DrivePoolFallthrough,
+  HoldReason,
+} from "@cd-recruit/shared-types";
 import assert from "assert";
 
 function pass(msg: string) {
