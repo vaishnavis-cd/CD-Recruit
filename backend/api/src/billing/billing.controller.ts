@@ -16,7 +16,7 @@ import { RequirePermission } from "../common/decorators/permissions.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
 import { StaffRole, Permission } from "@cd-recruit/shared-types";
 import { CreditEnforcementService } from "./credit-enforcement.service";
-import { LedgerService } from "./ledger.service";
+import { LedgerService } from "./ledger/ledger.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 @Controller("admin/billing")

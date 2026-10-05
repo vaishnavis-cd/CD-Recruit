@@ -186,9 +186,28 @@ export enum ManualRequestStatus {
   CANCELLED = "CANCELLED",
 }
 
+/**
+ * Commercial payment providers.
+ * Governed by schema.prisma line 831.
+ */
+export enum PaymentProvider {
+  MANUAL_INVOICE = "MANUAL_INVOICE",
+  RAZORPAY = "RAZORPAY",
+  STRIPE = "STRIPE",
+}
 
-
-
+/**
+ * Payment transaction lifecycle states.
+ * Governed by Artifact 06 §1.4 and schema.prisma line 834.
+ */
+export enum PaymentStatus {
+  CREATED = "CREATED",
+  CAPTURED = "CAPTURED",
+  FAILED = "FAILED",
+  REFUNDED = "REFUNDED",
+  PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
+  DISPUTED = "DISPUTED",
+}
 
 export enum Permission {
   // Drive Logistics

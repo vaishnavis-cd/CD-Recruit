@@ -1,5 +1,7 @@
-import { PlatformStaffRole } from "@cd-recruit/shared-types";
+import { PlatformStaffRole, LedgerReason } from "@cd-recruit/shared-types";
 import { AuthenticatedPlatformActor } from "../../platform/audit/platform-audit.types";
+
+export { LedgerReason };
 
 /**
  * Approved financial ledger entry types.
@@ -30,25 +32,6 @@ export enum LedgerGrantSource {
   ROLLOVER = "ROLLOVER",
 }
 
-/**
- * Approved financial reason codes for ledger entries (Artifact 02 / 03).
- */
-export enum LedgerReason {
-  PROMOTIONAL_SEED_GRANT = "PROMOTIONAL_SEED_GRANT",
-  PURCHASE_ALLOCATION = "PURCHASE_ALLOCATION",
-  TRIAL_GRANT = "TRIAL_GRANT",
-  ATTEMPT_START = "ATTEMPT_START",
-  PLATFORM_FAULT = "PLATFORM_FAULT",
-  INCIDENT_WINDOW = "INCIDENT_WINDOW",
-  MANUAL_CORRECTION = "MANUAL_CORRECTION",
-  COURTESY_WAIVER = "COURTESY_WAIVER",
-  POOL_EXPIRATION = "POOL_EXPIRATION",
-  OVERDRAFT_SETTLEMENT = "OVERDRAFT_SETTLEMENT",
-  GOODWILL_GRANT = "GOODWILL_GRANT",
-  ADMINISTRATIVE_ADJUSTMENT = "ADMINISTRATIVE_ADJUSTMENT",
-  CANDIDATE_APPEAL = "CANDIDATE_APPEAL",
-}
-
 export type LedgerActor = AuthenticatedPlatformActor | "system";
 
 export interface GrantCreditParams {
@@ -62,7 +45,9 @@ export interface GrantCreditParams {
   paymentId?: string | null;
   requestId?: string | null;
   idempotencyKey: string;
-  actor: LedgerActor;
+  actor?: LedgerActor;
+  actorId?: string;
+  approvedById?: string | null;
   ticketRef?: string | null;
   tx?: any;
 }
@@ -173,3 +158,55 @@ export interface IncidentWindowResultDto {
   createdBy: string;
   createdAt: Date;
 }
+
+export interface RecordEntryParams {
+  billingAccountId: string;
+  organizationId: string;
+  creditPoolId?: string | null;
+  entryType: LedgerEntryType | any;
+  amount: number;
+  sessionId?: string | null;
+  driveId?: string | null;
+  relatedEntryId?: string | null;
+  grantSource?: LedgerGrantSource | string | null;
+  reason: LedgerReason | any;
+  reasonNote?: string | null;
+  paymentId?: string | null;
+  requestId?: string | null;
+  idempotencyKey: string;
+  actorId: string;
+  approvedById?: string | null;
+  shadow?: boolean;
+}
+
+export interface AccountBalanceSummary {
+  billingAccountId: string;
+  totalRemaining: number;
+  activePoolCredits: number;
+  queuedPoolCredits: number;
+  totalAvailableCredits: number;
+  overdraftUsed: number;
+  overdraftLimit: number;
+  overdraftAvailable: number;
+  status: string;
+  activePools: any[];
+  queuedPools: any[];
+}
+
+export interface ReconciliationReport {
+  billingAccountId: string;
+  isBalanced: boolean;
+  poolDiscrepancies: Array<{
+    poolId: string;
+    cachedRemaining: number;
+    ledgerCalculated: number;
+    diff: number;
+  }>;
+  overdraftDiscrepancy: {
+    cachedOverdraftUsed: number;
+    ledgerCalculated: number;
+    diff: number;
+  };
+  reconciledAt: Date;
+}
+

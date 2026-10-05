@@ -7,6 +7,7 @@ import {
   ConflictException,
 } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
+import { Prisma, PoolStatus } from "@prisma/client";
 import { PlatformStaffRole } from "@cd-recruit/shared-types";
 import {
   LedgerEntryType,
@@ -23,6 +24,9 @@ import {
   LedgerQueryFilter,
   DeclareIncidentWindowDto,
   IncidentWindowResultDto,
+  RecordEntryParams,
+  AccountBalanceSummary,
+  ReconciliationReport,
 } from "./ledger.types";
 import { sanitizeAuditData } from "../../platform/audit/platform-audit.util";
 
@@ -36,13 +40,21 @@ export class LedgerService {
    * Authoritatively extracts actor identity for ledger and billing audit.
    * Rejects recruiter staff and unauthenticated client spoofing.
    */
-  private extractActorInfo(actor: LedgerActor): { actorId: string; actorRole: string } {
+  private extractActorInfo(actor?: LedgerActor, actorIdFallback?: string): { actorId: string; actorRole: string } {
+    if (!actor && actorIdFallback) {
+      return { actorId: actorIdFallback, actorRole: "system" };
+    }
+
     if (!actor) {
       throw new BadRequestException("LEDGER_ACTOR_REQUIRED: Actor must be specified for ledger operations");
     }
 
-    if (actor === "system") {
+    if (actor === "system" || (typeof actor === "string" && actor === "system")) {
       return { actorId: "system", actorRole: "system" };
+    }
+
+    if (typeof actor === "string") {
+      return { actorId: actor, actorRole: "system" };
     }
 
     if (typeof actor === "object") {
@@ -129,7 +141,7 @@ export class LedgerService {
       throw new BadRequestException("IDEMPOTENCY_KEY_REQUIRED: An idempotencyKey must be supplied");
     }
 
-    const { actorId, actorRole } = this.extractActorInfo(params.actor);
+    const { actorId, actorRole } = this.extractActorInfo(params.actor, params.actorId);
 
     // Idempotency check: if entry already exists
     const existing = await this.prisma.creditLedgerEntry.findUnique({
@@ -185,6 +197,7 @@ export class LedgerService {
           requestId: params.requestId || null,
           idempotencyKey: params.idempotencyKey,
           actorId,
+          approvedById: params.approvedById || null,
           shadow: false,
         },
       });
@@ -808,7 +821,62 @@ export class LedgerService {
    * - Pool cached_remaining is set to 0.
    * - Pool status transitions to EXPIRED.
    */
-  async expirePoolCredits(params: ExpirePoolCreditsParams): Promise<number> {
+  async expirePoolCredits(
+    paramsOrPoolId: ExpirePoolCreditsParams | string,
+    legacyActorId = "system",
+    legacyClientTx?: Prisma.TransactionClient,
+  ): Promise<any> {
+    if (typeof paramsOrPoolId === "string") {
+      const poolId = paramsOrPoolId;
+      const execute = async (tx: Prisma.TransactionClient) => {
+        const pool = await tx.creditPool.findUnique({
+          where: { id: poolId },
+          include: { billingAccount: { include: { organizations: true } } },
+        });
+        if (!pool) {
+          throw new NotFoundException(`Pool ${poolId} not found`);
+        }
+
+        await this.acquireAccountLock(tx, pool.billingAccountId);
+
+        if (pool.cachedRemaining <= 0) {
+          if (pool.status !== PoolStatus.EXPIRED) {
+            await tx.creditPool.update({
+              where: { id: pool.id },
+              data: { status: PoolStatus.EXPIRED },
+            });
+          }
+          return null;
+        }
+
+        const orgId = pool.billingAccount.organizations[0]?.id || "system";
+        const amountToExpire = -pool.cachedRemaining;
+        const idempotencyKey = `expire:${pool.id}:${Date.now()}`;
+
+        const entry = await this.recordEntry(tx, {
+          billingAccountId: pool.billingAccountId,
+          organizationId: orgId,
+          creditPoolId: pool.id,
+          entryType: LedgerEntryType.EXPIRE,
+          amount: amountToExpire,
+          reason: LedgerReason.POOL_EXPIRED as any,
+          idempotencyKey,
+          actorId: legacyActorId,
+          shadow: false,
+        });
+
+        await tx.creditPool.update({
+          where: { id: pool.id },
+          data: { status: PoolStatus.EXPIRED },
+        });
+
+        return entry;
+      };
+
+      return legacyClientTx ? execute(legacyClientTx) : this.prisma.$transaction(execute);
+    }
+
+    const params = paramsOrPoolId;
     const actorInfo = params.actor ? this.extractActorInfo(params.actor) : { actorId: "system", actorRole: "system" };
     const idempotencyKey =
       params.idempotencyKey || `expire:pool:${params.creditPoolId}:${new Date().toISOString().slice(0, 10)}`;
@@ -1224,4 +1292,479 @@ export class LedgerService {
       createdAt: updatedIncident.createdAt,
     };
   }
+
+  /**
+   * Acquires the canonical PostgreSQL advisory transaction lock on BillingAccount (Rule R4).
+   * Lock order: BillingAccount advisory lock -> Session row -> CreditPool row -> Ledger insert.
+   */
+  async acquireAccountLock(tx: any, billingAccountId: string): Promise<void> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${billingAccountId}::text, 0))`;
+  }
+
+  /**
+   * Low-level atomic entry creator adhering strictly to Rules R1, R2, R4, R5, and database constraints.
+   * If an entry with the idempotencyKey already exists, returns the existing record idempotently.
+   */
+  async recordEntry(
+    tx: any,
+    params: RecordEntryParams,
+  ) {
+    if (!Number.isInteger(params.amount)) {
+      throw new BadRequestException("Credit amounts must be whole integers (Rule R1)");
+    }
+
+    if (params.reasonNote && params.reasonNote.length > 200) {
+      throw new BadRequestException("Reason note must not exceed 200 characters");
+    }
+
+    const existing = await tx.creditLedgerEntry.findUnique({
+      where: { idempotencyKey: params.idempotencyKey },
+    });
+    if (existing) {
+      this.logger.debug(
+        `Idempotent duplicate entry detected for key ${params.idempotencyKey}. Returning existing entry ${existing.id}`,
+      );
+      return existing;
+    }
+
+    this.validateEntryInvariants(params);
+
+    const isShadow = params.shadow ?? false;
+    let balanceAfter: number | null = null;
+
+    if (!isShadow) {
+      if (params.creditPoolId) {
+        const pool = await tx.creditPool.findUnique({
+          where: { id: params.creditPoolId },
+        });
+        if (!pool) {
+          throw new NotFoundException(`CreditPool ${params.creditPoolId} not found`);
+        }
+
+        const newRemaining = pool.cachedRemaining + params.amount;
+        if (newRemaining < 0) {
+          throw new ConflictException(
+            `Insufficient pool balance. Pool ${pool.id} has ${pool.cachedRemaining} remaining, requested ${params.amount}`,
+          );
+        }
+
+        const updatedPool = await tx.creditPool.update({
+          where: { id: pool.id },
+          data: {
+            cachedRemaining: newRemaining,
+            ...(newRemaining === 0 && pool.cachedRemaining > 0
+              ? { status: "EXHAUSTED" }
+              : {}),
+          },
+        });
+        balanceAfter = updatedPool.cachedRemaining;
+      }
+
+      if (params.entryType === LedgerEntryType.OVERDRAFT) {
+        const account = await tx.billingAccount.findUnique({
+          where: { id: params.billingAccountId },
+        });
+        if (!account) {
+          throw new NotFoundException(`BillingAccount ${params.billingAccountId} not found`);
+        }
+        if (account.overdraftUsed + 1 > account.overdraftLimit) {
+          throw new ConflictException(
+            `Overdraft limit reached. Limit: ${account.overdraftLimit}, current: ${account.overdraftUsed}`,
+          );
+        }
+        await tx.billingAccount.update({
+          where: { id: params.billingAccountId },
+          data: { overdraftUsed: { increment: 1 } },
+        });
+      } else if (params.entryType === LedgerEntryType.OVERDRAFT_SETTLE) {
+        const settleAmount = Math.abs(params.amount);
+        await tx.billingAccount.update({
+          where: { id: params.billingAccountId },
+          data: { overdraftUsed: { decrement: settleAmount } },
+        });
+      } else if (params.entryType === LedgerEntryType.REVERSAL && !params.creditPoolId) {
+        await tx.billingAccount.update({
+          where: { id: params.billingAccountId },
+          data: { overdraftUsed: { decrement: 1 } },
+        });
+      }
+    }
+
+    return tx.creditLedgerEntry.create({
+      data: {
+        billingAccountId: params.billingAccountId,
+        organizationId: params.organizationId,
+        creditPoolId: params.creditPoolId ?? null,
+        entryType: params.entryType as any,
+        amount: params.amount,
+        balanceAfter,
+        sessionId: params.sessionId ?? null,
+        driveId: params.driveId ?? null,
+        relatedEntryId: params.relatedEntryId ?? null,
+        grantSource: (params.grantSource as any) ?? null,
+        reason: params.reason as any,
+        reasonNote: params.reasonNote ?? null,
+        paymentId: params.paymentId ?? null,
+        requestId: params.requestId ?? null,
+        idempotencyKey: params.idempotencyKey,
+        actorId: params.actorId,
+        approvedById: params.approvedById ?? null,
+        shadow: isShadow,
+      },
+    });
+  }
+
+  /**
+   * Retrieves real-time account balances and overdraft usage.
+   */
+  async getAccountBalance(billingAccountId: string): Promise<AccountBalanceSummary> {
+    const account = await this.prisma.billingAccount.findUnique({
+      where: { id: billingAccountId },
+      include: {
+        pools: {
+          where: {
+            status: { in: ["ACTIVE", "QUEUED"] as any },
+          },
+        },
+      },
+    });
+    if (!account) {
+      throw new NotFoundException(`BillingAccount ${billingAccountId} not found`);
+    }
+
+    let activePoolCredits = 0;
+    let queuedPoolCredits = 0;
+
+    for (const pool of account.pools) {
+      if (pool.status === "ACTIVE") {
+        activePoolCredits += pool.cachedRemaining;
+      } else if (pool.status === "QUEUED") {
+        queuedPoolCredits += pool.cachedRemaining;
+      }
+    }
+
+    const activePools = account.pools.filter((p) => p.status === "ACTIVE");
+    const queuedPools = account.pools.filter((p) => p.status === "QUEUED");
+    const overdraftAvailable = Math.max(0, account.overdraftLimit - account.overdraftUsed);
+
+    return {
+      billingAccountId: account.id,
+      totalRemaining: activePoolCredits,
+      activePoolCredits,
+      queuedPoolCredits,
+      totalAvailableCredits: activePoolCredits,
+      overdraftUsed: account.overdraftUsed,
+      overdraftLimit: account.overdraftLimit,
+      overdraftAvailable,
+      status: account.status,
+      activePools,
+      queuedPools,
+    };
+  }
+
+  /**
+   * Nightly automated reconciliation replay (Section 9.2).
+   */
+  async reconcileAccount(billingAccountId: string): Promise<ReconciliationReport> {
+    const account = await this.prisma.billingAccount.findUnique({
+      where: { id: billingAccountId },
+      include: {
+        pools: true,
+      },
+    });
+    if (!account) {
+      throw new NotFoundException(`BillingAccount ${billingAccountId} not found`);
+    }
+
+    const poolDiscrepancies: ReconciliationReport["poolDiscrepancies"] = [];
+
+    for (const pool of account.pools) {
+      const aggregate = await this.prisma.creditLedgerEntry.aggregate({
+        where: {
+          creditPoolId: pool.id,
+          shadow: false,
+        },
+        _sum: {
+          amount: true,
+        },
+      });
+
+      const ledgerSum = aggregate._sum.amount ?? 0;
+      const diff = pool.cachedRemaining - ledgerSum;
+
+      if (diff !== 0) {
+        poolDiscrepancies.push({
+          poolId: pool.id,
+          cachedRemaining: pool.cachedRemaining,
+          ledgerCalculated: ledgerSum,
+          diff,
+        });
+      }
+    }
+
+    const overdraftAgg = await this.prisma.creditLedgerEntry.aggregate({
+      where: {
+        billingAccountId: account.id,
+        entryType: LedgerEntryType.OVERDRAFT as any,
+        shadow: false,
+      },
+      _sum: { amount: true },
+    });
+    const settleAgg = await this.prisma.creditLedgerEntry.aggregate({
+      where: {
+        billingAccountId: account.id,
+        entryType: LedgerEntryType.OVERDRAFT_SETTLE as any,
+        shadow: false,
+      },
+      _sum: { amount: true },
+    });
+    const reversalAgg = await this.prisma.creditLedgerEntry.aggregate({
+      where: {
+        billingAccountId: account.id,
+        entryType: LedgerEntryType.REVERSAL as any,
+        creditPoolId: null,
+        shadow: false,
+      },
+      _sum: { amount: true },
+    });
+
+    const overdraftSum = overdraftAgg._sum.amount ?? 0;
+    const settleSum = settleAgg._sum.amount ?? 0;
+    const reversalSum = reversalAgg._sum.amount ?? 0;
+
+    const calculatedOverdraftUsed = -overdraftSum + settleSum - reversalSum;
+    const overdraftDiff = account.overdraftUsed - calculatedOverdraftUsed;
+
+    const isBalanced = poolDiscrepancies.length === 0 && overdraftDiff === 0;
+
+    return {
+      billingAccountId: account.id,
+      isBalanced,
+      poolDiscrepancies,
+      overdraftDiscrepancy: {
+        cachedOverdraftUsed: account.overdraftUsed,
+        ledgerCalculated: calculatedOverdraftUsed,
+        diff: overdraftDiff,
+      },
+      reconciledAt: new Date(),
+    };
+  }
+
+  /**
+   * Acquires a candidate session credit under the BillingAccount lock.
+   * Backward-compatible entrypoint used by legacy recruiter pipeline and tests.
+   */
+  async acquireSessionCredit(
+    params: {
+      billingAccountId: string;
+      organizationId: string;
+      creditPoolId?: string | null;
+      sessionId: string;
+      driveId?: string | null;
+      actorId?: string;
+      shadow?: boolean;
+      useOverdraft?: boolean;
+    },
+    clientTx?: Prisma.TransactionClient,
+  ) {
+    const isShadow = params.shadow ?? false;
+    const actorId = params.actorId || "system";
+    const idempotencyKey = isShadow
+      ? `shadow:acquire:${params.sessionId}`
+      : `acquire:${params.sessionId}`;
+
+    const execute = async (tx: Prisma.TransactionClient) => {
+      await this.acquireAccountLock(tx, params.billingAccountId);
+
+      const entryType = params.useOverdraft
+        ? LedgerEntryType.OVERDRAFT
+        : LedgerEntryType.CONSUME;
+
+      return this.recordEntry(tx, {
+        billingAccountId: params.billingAccountId,
+        organizationId: params.organizationId,
+        creditPoolId: params.useOverdraft ? null : params.creditPoolId,
+        entryType,
+        amount: -1,
+        sessionId: params.sessionId,
+        driveId: params.driveId,
+        reason: params.useOverdraft
+          ? LedgerReason.OVERDRAFT_USED
+          : LedgerReason.ATTEMPT_START,
+        idempotencyKey,
+        actorId,
+        shadow: isShadow,
+      });
+    };
+
+    return clientTx ? execute(clientTx) : this.prisma.$transaction(execute);
+  }
+
+  /**
+   * Records recruiter courtesy reattempt waiver (WAIVE entry, amount = 0).
+   */
+  async waiveSessionCredit(
+    params: {
+      billingAccountId: string;
+      organizationId: string;
+      sessionId: string;
+      driveId?: string | null;
+      reason: LedgerReason;
+      reasonNote?: string;
+      actorId: string;
+      approvedById?: string;
+    },
+    clientTx?: Prisma.TransactionClient,
+  ) {
+    const idempotencyKey = `waive:${params.sessionId}`;
+
+    const execute = async (tx: Prisma.TransactionClient) => {
+      await this.acquireAccountLock(tx, params.billingAccountId);
+
+      return this.recordEntry(tx, {
+        billingAccountId: params.billingAccountId,
+        organizationId: params.organizationId,
+        creditPoolId: null,
+        entryType: LedgerEntryType.WAIVE,
+        amount: 0,
+        sessionId: params.sessionId,
+        driveId: params.driveId,
+        reason: params.reason,
+        reasonNote: params.reasonNote,
+        idempotencyKey,
+        actorId: params.actorId,
+        approvedById: params.approvedById,
+        shadow: false,
+      });
+    };
+
+    return clientTx ? execute(clientTx) : this.prisma.$transaction(execute);
+  }
+
+  /**
+   * Reverses an acquired session credit (Platform fault / approved dispute).
+   * Restores credit to original pool if still ACTIVE; else to active general pool; else to goodwill pool.
+   */
+  async reverseSessionCredit(
+    params: {
+      originalAcquisitionId: string;
+      reason: LedgerReason;
+      reasonNote?: string;
+      actorId: string;
+      approvedById?: string;
+      requestId?: string;
+    },
+    clientTx?: Prisma.TransactionClient,
+  ) {
+    const execute = async (tx: Prisma.TransactionClient) => {
+      const orig = await tx.creditLedgerEntry.findUnique({
+        where: { id: params.originalAcquisitionId },
+      });
+      if (!orig) {
+        throw new NotFoundException(`Original ledger entry ${params.originalAcquisitionId} not found`);
+      }
+      if (orig.entryType !== LedgerEntryType.CONSUME && orig.entryType !== LedgerEntryType.OVERDRAFT) {
+        throw new BadRequestException(`Cannot reverse ledger entry of type ${orig.entryType}`);
+      }
+
+      await this.acquireAccountLock(tx, orig.billingAccountId);
+
+      // Check if already reversed (single reversal partial index)
+      const existingReversal = await tx.creditLedgerEntry.findFirst({
+        where: {
+          relatedEntryId: orig.id,
+          entryType: LedgerEntryType.REVERSAL,
+        },
+      });
+      if (existingReversal) {
+        this.logger.warn(`Acquisition ${orig.id} has already been reversed by entry ${existingReversal.id}`);
+        return existingReversal;
+      }
+
+      let targetPoolId: string | null = null;
+      if (orig.creditPoolId) {
+        // Check if original pool is still ACTIVE and unexpired
+        const origPool = await tx.creditPool.findUnique({
+          where: { id: orig.creditPoolId },
+        });
+        const now = new Date();
+        if (origPool && origPool.status === PoolStatus.ACTIVE && (!origPool.expiresAt || origPool.expiresAt > now)) {
+          targetPoolId = origPool.id;
+        } else {
+          // Find current active general pool for the account
+          const activeGeneral = await tx.creditPool.findFirst({
+            where: {
+              billingAccountId: orig.billingAccountId,
+              driveId: null,
+              status: PoolStatus.ACTIVE,
+              OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+            },
+          });
+          if (activeGeneral) {
+            targetPoolId = activeGeneral.id;
+          }
+        }
+      }
+
+      const idempotencyKey = `reversal:${orig.id}`;
+
+      return this.recordEntry(tx, {
+        billingAccountId: orig.billingAccountId,
+        organizationId: orig.organizationId,
+        creditPoolId: targetPoolId,
+        entryType: LedgerEntryType.REVERSAL,
+        amount: 1,
+        sessionId: orig.sessionId,
+        driveId: orig.driveId,
+        relatedEntryId: orig.id,
+        reason: params.reason,
+        reasonNote: params.reasonNote,
+        requestId: params.requestId,
+        idempotencyKey,
+        actorId: params.actorId,
+        approvedById: params.approvedById,
+        shadow: false,
+      });
+    };
+
+    return clientTx ? execute(clientTx) : this.prisma.$transaction(execute);
+  }
+
+  private validateEntryInvariants(params: RecordEntryParams) {
+    const { entryType, amount, creditPoolId, grantSource, relatedEntryId, paymentId, requestId } = params;
+
+    if ((entryType === LedgerEntryType.GRANT || entryType === LedgerEntryType.REVERSAL) && amount <= 0) {
+      throw new BadRequestException(`${entryType} amount must be positive`);
+    }
+    if ((entryType === LedgerEntryType.CONSUME || entryType === LedgerEntryType.OVERDRAFT) && amount !== -1) {
+      throw new BadRequestException(`${entryType} amount must be exactly -1`);
+    }
+    if ((entryType === LedgerEntryType.OVERDRAFT_SETTLE || entryType === LedgerEntryType.REFUND || entryType === LedgerEntryType.EXPIRE) && amount >= 0) {
+      throw new BadRequestException(`${entryType} amount must be negative`);
+    }
+    if (entryType === LedgerEntryType.WAIVE && amount !== 0) {
+      throw new BadRequestException(`WAIVE amount must be 0`);
+    }
+    if (entryType === LedgerEntryType.ADJUST && amount === 0) {
+      throw new BadRequestException(`ADJUST amount cannot be 0`);
+    }
+
+    if (!creditPoolId && entryType !== LedgerEntryType.OVERDRAFT && entryType !== LedgerEntryType.WAIVE && entryType !== LedgerEntryType.REVERSAL) {
+      throw new BadRequestException(`creditPoolId is required for ${entryType}`);
+    }
+
+    if (entryType === LedgerEntryType.GRANT && !grantSource) {
+      throw new BadRequestException(`grantSource is required for GRANT`);
+    }
+    if (entryType === LedgerEntryType.REVERSAL && !relatedEntryId) {
+      throw new BadRequestException(`relatedEntryId is required for REVERSAL`);
+    }
+    if (entryType === LedgerEntryType.REFUND && !paymentId) {
+      throw new BadRequestException(`paymentId is required for REFUND`);
+    }
+    if (entryType === LedgerEntryType.ADJUST && !requestId) {
+      throw new BadRequestException(`requestId is required for ADJUST`);
+    }
+  }
 }
+

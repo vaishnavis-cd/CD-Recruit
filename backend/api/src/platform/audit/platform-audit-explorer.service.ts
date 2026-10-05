@@ -163,8 +163,17 @@ export class PlatformAuditExplorerService {
       });
     }
 
+    let tenantBillingAccountId: string | null = null;
+    if (query.targetTenantId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: query.targetTenantId },
+        select: { billingAccountId: true },
+      });
+      tenantBillingAccountId = org?.billingAccountId || null;
+    }
+
     if (source === "BILLING" || source === "ALL") {
-      const where = this.buildBillingWhereClause(query, fromDate, toDate, cursor);
+      const where = this.buildBillingWhereClause(query, fromDate, toDate, cursor, tenantBillingAccountId);
       billEvents = await this.prisma.billingAuditEvent.findMany({
         where,
         orderBy: [{ timestamp: "desc" }, { id: "desc" }],
@@ -199,7 +208,7 @@ export class PlatformAuditExplorerService {
       subjectType: e.subjectType,
       subjectId: e.subjectId,
       action: e.action,
-      targetTenantId: e.subjectType === "TENANT" ? e.subjectId : null,
+      targetTenantId: e.subjectType === "TENANT" ? e.subjectId : (query.targetTenantId && e.billingAccountId === tenantBillingAccountId ? query.targetTenantId : null),
       tenantName: null,
       reason: e.reason ? redactEmails(e.reason) : null,
       ticketRef: e.ticketRef,
@@ -278,12 +287,21 @@ export class PlatformAuditExplorerService {
 
     const changes = computeChanges(sanitizedBefore, sanitizedAfter);
 
-    const targetTenantId = source === "PLATFORM"
+    let targetTenantId = source === "PLATFORM"
       ? event.targetTenantId || (event.subjectType === "TENANT" ? event.subjectId : null)
       : (event.subjectType === "TENANT" ? event.subjectId : null);
 
     let tenantName: string | null = null;
-    if (targetTenantId) {
+    if (!targetTenantId && source === "BILLING" && event.billingAccountId) {
+      const org = await this.prisma.organization.findFirst({
+        where: { billingAccountId: event.billingAccountId },
+        select: { id: true, name: true },
+      });
+      if (org) {
+        targetTenantId = org.id;
+        tenantName = org.name;
+      }
+    } else if (targetTenantId) {
       const org = await this.prisma.organization.findUnique({
         where: { id: targetTenantId },
         select: { name: true },
@@ -404,8 +422,17 @@ export class PlatformAuditExplorerService {
       });
     }
 
+    let tenantBillingAccountId: string | null = null;
+    if (query.targetTenantId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: query.targetTenantId },
+        select: { billingAccountId: true },
+      });
+      tenantBillingAccountId = org?.billingAccountId || null;
+    }
+
     if (source === "BILLING" || source === "ALL") {
-      const where = this.buildBillingWhereClause(query, fromDate, toDate, null);
+      const where = this.buildBillingWhereClause(query, fromDate, toDate, null, tenantBillingAccountId);
       billEvents = await this.prisma.billingAuditEvent.findMany({
         where,
         orderBy: [{ timestamp: "desc" }, { id: "desc" }],
@@ -439,7 +466,7 @@ export class PlatformAuditExplorerService {
       subjectType: e.subjectType,
       subjectId: e.subjectId,
       action: e.action,
-      targetTenantId: e.subjectType === "TENANT" ? e.subjectId : null,
+      targetTenantId: e.subjectType === "TENANT" ? e.subjectId : (query.targetTenantId && e.billingAccountId === tenantBillingAccountId ? query.targetTenantId : null),
       tenantName: null as string | null,
       reason: e.reason || null,
       ticketRef: e.ticketRef || null,
@@ -650,6 +677,7 @@ export class PlatformAuditExplorerService {
     fromDate?: Date,
     toDate?: Date,
     cursor?: { timestamp: Date; id: string } | null,
+    tenantBillingAccountId?: string | null,
   ): any {
     const and: any[] = [];
 
@@ -679,10 +707,13 @@ export class PlatformAuditExplorerService {
     if (query.result) and.push({ executionResult: query.result });
 
     if (query.targetTenantId) {
-      and.push({
-        subjectType: "TENANT",
-        subjectId: query.targetTenantId,
-      });
+      const tenantOr: any[] = [
+        { subjectType: "TENANT", subjectId: query.targetTenantId },
+      ];
+      if (tenantBillingAccountId) {
+        tenantOr.push({ billingAccountId: tenantBillingAccountId });
+      }
+      and.push({ OR: tenantOr });
     }
 
     if (query.search) {

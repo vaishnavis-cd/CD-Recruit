@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { LedgerService } from "./ledger.service";
+import { LedgerService } from "./ledger/ledger.service";
 import { PoolService } from "./pool.service";
 import {
   Prisma,
@@ -50,7 +50,7 @@ export class CreditEnforcementService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledgerService: LedgerService,
-    private readonly poolService: PoolService,
+    private readonly poolService?: PoolService,
   ) {}
 
   /**
