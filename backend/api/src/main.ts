@@ -21,10 +21,18 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     // Structured JSON logs — easier to parse in prod; readable in dev
     logger: ["error", "warn", "log", "debug"],
+    rawBody: true,
   });
 
   // Enable large payload body parsing for base64 biometrics / ID proof uploads & high-throughput candidate batches
-  app.use(json({ limit: "50mb" }));
+  app.use(
+    json({
+      limit: "50mb",
+      verify: (req: any, _res: any, buf: Buffer) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
   app.use(urlencoded({ limit: "50mb", extended: true }));
 
   // ── Global prefix ──────────────────────────────────────────────────────

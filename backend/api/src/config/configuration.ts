@@ -85,6 +85,9 @@ export const configuration = () => ({
     }
     return mode as "off" | "shadow" | "enforce";
   })(),
+  // ── Payment Webhooks ──────────────────────────────────────────────────────
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
 });
 
 /** Inferred type — use as the generic parameter for ConfigService. */

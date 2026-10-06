@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, ConflictException, Logger, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
 import { MinioService } from "../integrations/minio/minio.service";
 import { CreateProctoringEventDto, ProctoringEventResponse, ProctoringSummaryResponse, ProctoringEventType, ProctoringUploadStatus } from "./proctoring.types";
 import { SessionStatus } from "@prisma/client";
 import { buildEvidenceKey } from "../common/utils/storage-key.util";
+import { SessionService } from "../session/session.service";
 import * as fs from "fs";
 import * as path from "path";
 import * as crypto from "crypto";
@@ -35,6 +36,7 @@ export class ProctoringService {
     private readonly prisma: PrismaService,
     private readonly storage: MinioService,
     private readonly config: ConfigService,
+    @Optional() private readonly sessionService?: SessionService,
   ) {
     this.bucketBiometric =
       this.config.get<string>("app.minio.bucketBiometric" as any) ??
@@ -224,6 +226,21 @@ export class ProctoringService {
       SessionStatus.AUTO_SUBMITTED,
       SessionStatus.CLOSED,
     ];
+    if (session.status === SessionStatus.NOT_STARTED) {
+      this.logger.log(`[ProctoringService] Session ${session.id} was in NOT_STARTED state during evidence upload. Routing through SessionService.beginSession.`);
+      if (this.sessionService) {
+        await this.sessionService.beginSession(session.id);
+      } else {
+        await this.prisma.session.update({
+          where: { id: session.id },
+          data: {
+            status: SessionStatus.IN_PROGRESS,
+            startedAt: session.startedAt || new Date(),
+          },
+        });
+      }
+      session.status = SessionStatus.IN_PROGRESS;
+    }
     if (!activeStatuses.includes(session.status)) {
       throw new BadRequestException(
         `Upload rejected: session is in ${session.status} state. Uploads only allowed for active assessments.`,

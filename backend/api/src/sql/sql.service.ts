@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger, Optional, OnModuleInit } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger, Optional, OnModuleInit, Inject, forwardRef } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { SqlSandboxService } from "./sql-sandbox.service";
 import { ResultComparatorService } from "./result-comparator.service";
@@ -8,6 +8,7 @@ import { SqlQuestionContentJson } from "./sql.types";
 import { SubmissionType, SqlExecutionStatus, SessionStatus, ModuleType } from "@cd-recruit/shared-types";
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 import { AssessmentEngineRegistry } from "../assessment/assessment-engine-registry.service";
+import { SessionService } from "../session/session.service";
 
 @Injectable()
 export class SqlService implements AssessmentModuleEngine, OnModuleInit {
@@ -20,6 +21,7 @@ export class SqlService implements AssessmentModuleEngine, OnModuleInit {
     private readonly comparatorService: ResultComparatorService,
     private readonly validatorService: SqlValidatorService,
     @Optional() private readonly engineRegistry?: AssessmentEngineRegistry,
+    @Optional() @Inject(forwardRef(() => SessionService)) private readonly sessionService?: SessionService,
   ) {}
 
   onModuleInit() {
@@ -106,6 +108,18 @@ export class SqlService implements AssessmentModuleEngine, OnModuleInit {
     });
     if (!session) {
       throw new NotFoundException("Session not found");
+    }
+    if (session.status === SessionStatus.NOT_STARTED) {
+      if (this.sessionService) {
+        await this.sessionService.beginSession(dto.sessionId);
+      } else {
+        const now = new Date();
+        await this.prisma.session.update({
+          where: { id: dto.sessionId },
+          data: { status: SessionStatus.IN_PROGRESS, startedAt: session.startedAt || now },
+        });
+      }
+      session.status = SessionStatus.IN_PROGRESS;
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
       throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
@@ -231,6 +245,18 @@ export class SqlService implements AssessmentModuleEngine, OnModuleInit {
     });
     if (!session) {
       throw new NotFoundException("Session not found");
+    }
+    if (session.status === SessionStatus.NOT_STARTED) {
+      if (this.sessionService) {
+        await this.sessionService.beginSession(dto.sessionId);
+      } else {
+        const now = new Date();
+        await this.prisma.session.update({
+          where: { id: dto.sessionId },
+          data: { status: SessionStatus.IN_PROGRESS, startedAt: now },
+        });
+      }
+      session.status = SessionStatus.IN_PROGRESS;
     }
     if (session.status !== SessionStatus.IN_PROGRESS && session.status !== SessionStatus.DISCONNECTED) {
       throw new BadRequestException(`Session is not in progress (current status: ${session.status})`);
