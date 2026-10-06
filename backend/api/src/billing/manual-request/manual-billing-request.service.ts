@@ -721,7 +721,7 @@ export class ManualBillingRequestService {
     const requests = (await tx.$queryRawUnsafe(
       `SELECT r.id, r.billing_account_id, r.kind, r.payload, r.reason, r.ticket_ref,
               r.requested_by_id, r.approved_by_id, r.status, r.rejection_reason,
-              r.execution_error, r.decided_at, r.executed_at, r.created_at
+              r.decided_at, r.executed_at, r.created_at
          FROM "billing"."manual_billing_request" r
         WHERE r.id = $1 FOR UPDATE`,
       requestId,
@@ -894,7 +894,6 @@ export class ManualBillingRequestService {
         data: {
           status: ManualRequestStatus.EXECUTED,
           executedAt: now,
-          executionError: null,
         },
       });
 
@@ -923,13 +922,6 @@ export class ManualBillingRequestService {
         `[ManualBillingRequestService] Execution of request ${requestId} failed: ${error.message}`,
         error.stack,
       );
-
-      await tx.manualBillingRequest.update({
-        where: { id: requestId },
-        data: {
-          executionError: error.message || "Unknown execution error",
-        },
-      });
 
       await this.recordBillingAudit(tx, {
         actorId,

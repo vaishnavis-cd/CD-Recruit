@@ -522,7 +522,7 @@ export class FinanceMetricsService {
       `
       SELECT 
         COUNT(DISTINCT session_id)::integer AS consuming_sessions,
-        COUNT(*) FILTER (WHERE entry_type = 'WAIVE' OR reason = 'COURTESY_WAIVE')::integer AS waived_count,
+        COUNT(*) FILTER (WHERE entry_type = 'WAIVE' OR reason = 'COURTESY_WAIVER')::integer AS waived_count,
         COALESCE(SUM(amount) FILTER (WHERE entry_type = 'GRANT'), 0)::integer AS total_granted,
         COALESCE(SUM(amount) FILTER (WHERE entry_type = 'CONSUME'), 0)::integer AS total_consumed
       FROM "billing"."credit_ledger_entry"

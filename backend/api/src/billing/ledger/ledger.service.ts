@@ -908,15 +908,28 @@ export class LedgerService {
       const expiredAmount = pool.cached_remaining;
       const amount = -expiredAmount; // negative integer per chk_ledger_amount_sign
 
+      const isKnownReason = Object.values(LedgerReason).includes(params.reason as any);
+      const entryReason: LedgerReason = isKnownReason
+        ? (params.reason as LedgerReason)
+        : LedgerReason.POOL_EXPIRED;
+      const entryReasonNote = !isKnownReason && typeof params.reason === "string" ? params.reason : undefined;
+
+      const org = await tx.organization.findFirst({
+        where: { billingAccountId: pool.billing_account_id },
+        select: { id: true },
+      });
+      const orgId = org?.id || "00000000-0000-0000-0000-000000000000";
+
       await tx.creditLedgerEntry.create({
         data: {
           billingAccountId: pool.billing_account_id,
-          organizationId: "", // resolved or empty snapshot
+          organizationId: orgId,
           creditPoolId: pool.id,
           entryType: LedgerEntryType.EXPIRE,
           amount,
           balanceAfter: 0,
-          reason: (params.reason || LedgerReason.POOL_EXPIRATION) as any,
+          reason: entryReason,
+          reasonNote: entryReasonNote,
           idempotencyKey,
           actorId: actorInfo.actorId,
           shadow: false,

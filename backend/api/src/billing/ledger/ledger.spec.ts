@@ -82,6 +82,25 @@ async function runLedgerServiceTests() {
   const pg = await createPgClient();
 
   try {
+    // Clean up any leftover test records from previous aborted runs
+    await pg.query("ALTER TABLE billing.session_billing_evidence DISABLE TRIGGER ALL");
+    await pg.query("ALTER TABLE billing.billing_audit_event DISABLE TRIGGER ALL");
+    await pg.query("ALTER TABLE billing.credit_ledger_entry DISABLE TRIGGER ALL");
+    await pg.query("ALTER TABLE billing.credit_pool DISABLE TRIGGER ALL");
+    await pg.query("DELETE FROM public.event_log WHERE session_id LIKE 'sess-bb-int-%' OR session_id LIKE 'sess-test-%'");
+    await pg.query("DELETE FROM billing.session_billing_evidence WHERE session_id LIKE 'sess-bb-int-%' OR session_id LIKE 'sess-test-%'");
+    await pg.query("DELETE FROM billing.billing_audit_event WHERE subject_id LIKE 'pool-ledger-%' OR subject_id LIKE 'ba-ledger-%'");
+    await pg.query("DELETE FROM billing.credit_ledger_entry WHERE billing_account_id LIKE 'ba-ledger-%'");
+    await pg.query("DELETE FROM public.session WHERE organization_id LIKE 'org-ledger-%'");
+    await pg.query("DELETE FROM billing.manual_billing_request WHERE id LIKE 'req-ledger-%'");
+    await pg.query("DELETE FROM billing.credit_pool WHERE billing_account_id LIKE 'ba-ledger-%'");
+    await pg.query("DELETE FROM public.organization WHERE id LIKE 'org-ledger-%'");
+    await pg.query("DELETE FROM billing.billing_account WHERE id LIKE 'ba-ledger-%'");
+    await pg.query("ALTER TABLE billing.credit_pool ENABLE TRIGGER ALL");
+    await pg.query("ALTER TABLE billing.credit_ledger_entry ENABLE TRIGGER ALL");
+    await pg.query("ALTER TABLE billing.billing_audit_event ENABLE TRIGGER ALL");
+    await pg.query("ALTER TABLE billing.session_billing_evidence ENABLE TRIGGER ALL");
+
     // Insert isolated test billing account and organization
     await pg.query(`
       INSERT INTO billing.billing_account (
@@ -368,7 +387,7 @@ async function runLedgerServiceTests() {
     await pg.query(`
       INSERT INTO billing.manual_billing_request (
         id, billing_account_id, kind, status, requested_by_id, approved_by_id, payload, reason, ticket_ref
-      ) VALUES ($1, $2, 'BALANCE_CORRECTION', 'APPROVED', 'requester-uuid', 'approver-uuid', '{}'::jsonb, 'Test correction', 'TICK-ADJ-001');
+      ) VALUES ($1, $2, 'ADJUST', 'APPROVED', 'requester-uuid', 'approver-uuid', '{}'::jsonb, 'Test correction', 'TICK-ADJ-001');
     `, [reqAdjustId, testBaId]);
 
     // TEST 16: Authorized platform FINANCE actor can perform approved adjustment (+5)
@@ -688,20 +707,23 @@ async function runLedgerServiceTests() {
     await pg.query("DELETE FROM public.event_log WHERE session_id LIKE 'sess-bb-int-%' OR session_id LIKE 'sess-test-%'");
     await pg.query("DELETE FROM billing.session_billing_evidence WHERE session_id LIKE 'sess-bb-int-%' OR session_id LIKE 'sess-test-%'");
     await pg.query("DELETE FROM billing.billing_audit_event WHERE subject_id LIKE 'pool-ledger-%' OR subject_id LIKE 'ba-ledger-%'");
-    await pg.query("DELETE FROM billing.credit_ledger_entry WHERE billing_account_id = $1", [testBaId]);
-    await pg.query("DELETE FROM public.session WHERE organization_id = $1", [testOrgId]);
-    await pg.query("DELETE FROM billing.manual_billing_request WHERE id = $1", [reqAdjustId]);
-    await pg.query("DELETE FROM billing.credit_pool WHERE billing_account_id = $1", [testBaId]);
-    await pg.query("DELETE FROM public.organization WHERE id = $1", [testOrgId]);
-    await pg.query("DELETE FROM billing.billing_account WHERE id = $1", [testBaId]);
+    await pg.query("DELETE FROM billing.credit_ledger_entry WHERE billing_account_id LIKE 'ba-ledger-%' OR billing_account_id = $1", [testBaId]);
+    await pg.query("DELETE FROM public.session WHERE organization_id LIKE 'org-ledger-%' OR organization_id = $1", [testOrgId]);
+    await pg.query("DELETE FROM billing.manual_billing_request WHERE id LIKE 'req-ledger-%' OR id = $1", [reqAdjustId]);
+    await pg.query("DELETE FROM billing.credit_pool WHERE billing_account_id LIKE 'ba-ledger-%' OR billing_account_id = $1", [testBaId]);
+    await pg.query("DELETE FROM public.organization WHERE id LIKE 'org-ledger-%' OR id = $1", [testOrgId]);
+    await pg.query("DELETE FROM billing.billing_account WHERE id LIKE 'ba-ledger-%' OR id = $1", [testBaId]);
 
     await pg.query("ALTER TABLE billing.credit_pool ENABLE TRIGGER ALL");
     await pg.query("ALTER TABLE billing.credit_ledger_entry ENABLE TRIGGER ALL");
     await pg.query("ALTER TABLE billing.billing_audit_event ENABLE TRIGGER ALL");
     await pg.query("ALTER TABLE billing.session_billing_evidence ENABLE TRIGGER ALL");
 
-    // TEST 30: Verify baseline database state is completely pristine
+    // TEST 32: Verify baseline database state is completely pristine
     const seededOrgs = await prisma.organization.findMany({
+      where: {
+        id: { notIn: [testOrgId] },
+      },
       include: {
         billingAccount: {
           include: {

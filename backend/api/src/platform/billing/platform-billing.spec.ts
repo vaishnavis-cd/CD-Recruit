@@ -733,7 +733,7 @@ async function runPlatformBillingTestSuite() {
         [supportActor.id, financeActor.id, ownerActor.id],
       ]);
 
-      await pg.query(`UPDATE billing.credit_pool SET cached_remaining = 50 WHERE billing_account_id = $1 AND source = 'PROMOTIONAL_TRIAL'`, [
+      await pg.query(`UPDATE billing.credit_pool SET cached_remaining = 50 WHERE billing_account_id = $1 AND source = 'TRIAL'`, [
         acmeAccount.id,
       ]);
     } catch (cleanupErr) {

@@ -190,8 +190,15 @@ Female
   console.log("================================================================================");
 }
 
-describe('Integrations Subsystem', () => {
-  it('runs all integration characterization tests', async () => {
-    await runIntegrationsTests();
+if (typeof describe !== "undefined") {
+  describe("Integrations Subsystem", () => {
+    it("runs all integration characterization tests", async () => {
+      await runIntegrationsTests();
+    });
   });
-});
+} else {
+  runIntegrationsTests().catch((err) => {
+    console.error("Integrations test failed:", err);
+    process.exit(1);
+  });
+}

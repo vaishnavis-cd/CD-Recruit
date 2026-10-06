@@ -12,8 +12,10 @@ async function main() {
   const sql = fs.readFileSync(migrationFile, 'utf8');
 
   const startIdx = sql.indexOf('CREATE OR REPLACE FUNCTION billing.billing_begin(');
-  const endIdx = sql.indexOf('CREATE OR REPLACE FUNCTION billing.guard_billing_account_mutation()');
-  const fnSql = sql.substring(startIdx, endIdx);
+  if (startIdx === -1) {
+    throw new Error('billing_begin function not found in migration.sql');
+  }
+  const fnSql = sql.substring(startIdx);
 
   console.log('Updating billing_begin function definitions...');
   await client.query(fnSql);

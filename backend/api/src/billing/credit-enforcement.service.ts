@@ -281,12 +281,19 @@ export class CreditEnforcementService {
           shadow: false,
         });
 
+        // Set PostgreSQL session context to authorize legitimate session service transition
+        await tx.$executeRawUnsafe(`SET LOCAL proctora.session_service_ok = 'on'`);
+
+        const durationMinutes = (session as any).roleTemplate?.durationMinutes || 90;
+        const deadlineAt = session.deadlineAt || new Date(now.getTime() + durationMinutes * 60 * 1000);
+
         // Set session status to IN_PROGRESS
         await tx.session.update({
           where: { id: session.id },
           data: {
             status: SessionStatus.IN_PROGRESS,
             startedAt: now,
+            deadlineAt,
             lastHeartbeatAt: now,
             lastActivityAt: now,
             heldAt: null,
@@ -323,11 +330,17 @@ export class CreditEnforcementService {
           shadow: false,
         });
 
+        await tx.$executeRawUnsafe(`SET LOCAL proctora.session_service_ok = 'on'`);
+
+        const durationMinutes = (session as any).roleTemplate?.durationMinutes || 90;
+        const deadlineAt = session.deadlineAt || new Date(now.getTime() + durationMinutes * 60 * 1000);
+
         await tx.session.update({
           where: { id: session.id },
           data: {
             status: SessionStatus.IN_PROGRESS,
             startedAt: now,
+            deadlineAt,
             lastHeartbeatAt: now,
             lastActivityAt: now,
             heldAt: null,
