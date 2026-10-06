@@ -22,6 +22,7 @@ import { MOCK_TENANT_DETAIL } from '@/mocks/mockData';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { MockBadge } from '@/components/common/MockBadge';
+import { TenantBillingTab } from './components/TenantBillingTab';
 
 interface TenantDetail {
   overview: {
@@ -573,22 +574,7 @@ export const TenantDetailPage: React.FC = () => {
 
             {/* Tab 3: Billing & Ledger */}
             {activeTab === 'BILLING' && (
-              <div className="pt-2">
-                {!tenant.billing.connected ? (
-                  <EmptyState
-                    title="Billing Engine Not Connected Yet"
-                    description="Half 2 commercial billing ledger and credit pool synchronization will populate this view once the billing engine service is integrated."
-                    icon={CreditCard}
-                  />
-                ) : (
-                  <div className="glass-panel rounded-2xl p-6 border border-slate-800/90 space-y-4">
-                    <h3 className="text-sm font-bold text-white tracking-tight">Commercial Balance & Credit Pools</h3>
-                    <p className="text-xs text-slate-300 font-mono">
-                      Credits Remaining: {tenant.billing.summary?.creditsRemaining ?? '—'}
-                    </p>
-                  </div>
-                )}
-              </div>
+              <TenantBillingTab tenantId={id || ''} />
             )}
 
             {/* Tab 4: Licensing Tier */}

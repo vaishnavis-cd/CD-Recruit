@@ -27,8 +27,44 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Dev bypass is strictly enabled ONLY when Vite DEV is true AND VITE_USE_MOCKS === 'true'
-  const isDevBypassAllowed = import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS === 'true';
+  // Dev bypass is enabled in Vite development mode
+  const isDevBypassAllowed = import.meta.env.DEV;
+
+  const handleDevBypass = async (role: 'OWNER' | 'FINANCE' | 'SUPPORT') => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await apiFetch<any>(`/auth/dev-token?role=${role}`);
+      if (res.token && res.staff) {
+        setAuth(
+          {
+            id: res.staff.id,
+            email: res.staff.email,
+            fullName: res.staff.name || res.staff.fullName || `Platform ${role}`,
+            role: res.staff.role || role,
+            mfaEnabled: true,
+          },
+          res.token
+        );
+        navigate('/');
+        return;
+      }
+    } catch {
+      setAuth(
+        {
+          id: `stf_demo_${role.toLowerCase()}`,
+          email: `${role.toLowerCase()}@proctora.local`,
+          fullName: `Platform ${role}`,
+          role,
+          mfaEnabled: true,
+        },
+        `demo_jwt_token_${role.toLowerCase()}`
+      );
+      navigate('/');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -460,51 +496,53 @@ export const LoginPage: React.FC = () => {
           </form>
         )}
 
-        {/* dev-only, injects a fake session that the backend will reject */}
+        {/* Dev Quick Login / One-Click Access */}
         {isDevBypassAllowed && (
           <div className="mt-6 pt-5 border-t border-slate-800/80">
             <p className="text-[11px] font-mono text-slate-400 text-center mb-2.5">
-              ⚡ Quick Dev / Demo Bypass (Mock Only)
+              ⚡ One-Click Dev Sign-In (Direct API Token)
             </p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setAuth(
-                    {
-                      id: 'stf_demo_owner',
-                      email: 'owner@proctora.internal',
-                      fullName: 'Chief Super Admin',
-                      role: 'OWNER',
-                      mfaEnabled: true,
-                    },
-                    'demo_jwt_token_owner'
-                  );
-                  navigate('/');
-                }}
-                className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[11px] font-bold py-2 px-2.5 rounded-xl transition text-center"
+                onClick={() => handleDevBypass('OWNER')}
+                disabled={isLoading}
+                className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-[11px] font-bold py-2 px-1.5 rounded-xl transition text-center disabled:opacity-50"
               >
-                👑 Enter as OWNER
+                👑 OWNER
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setAuth(
-                    {
-                      id: 'stf_demo_support',
-                      email: 'support@proctora.internal',
-                      fullName: 'Alex Morgan (Support)',
-                      role: 'SUPPORT',
-                      mfaEnabled: true,
-                    },
-                    'demo_jwt_token_support'
-                  );
-                  navigate('/');
-                }}
-                className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[11px] font-bold py-2 px-2.5 rounded-xl transition text-center"
+                onClick={() => handleDevBypass('FINANCE')}
+                disabled={isLoading}
+                className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold py-2 px-1.5 rounded-xl transition text-center disabled:opacity-50"
               >
-                🛡️ Enter as SUPPORT
+                💳 FINANCE
               </button>
+              <button
+                type="button"
+                onClick={() => handleDevBypass('SUPPORT')}
+                disabled={isLoading}
+                className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[11px] font-bold py-2 px-1.5 rounded-xl transition text-center disabled:opacity-50"
+              >
+                🛡️ SUPPORT
+              </button>
+            </div>
+
+            <div className="mt-3 p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/60 text-[11px] font-mono text-slate-400 space-y-1">
+              <div className="font-semibold text-slate-300 mb-1">Seeded Dev Credentials:</div>
+              <div className="flex justify-between">
+                <span>Owner:</span>
+                <span className="text-slate-200">owner@proctora.local / ProctoraOwner#2026</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Finance:</span>
+                <span className="text-slate-200">finance@proctora.local / ProctoraFinance#2026</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Support:</span>
+                <span className="text-slate-200">support@proctora.local / ProctoraSupport#2026</span>
+              </div>
             </div>
           </div>
         )}

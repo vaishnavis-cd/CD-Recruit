@@ -1,0 +1,123 @@
+import React, { useState } from 'react';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/Dialog';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { Input } from '@/components/ui/Input';
+import { useUpdateAccountStatusMutation } from '@/hooks/billing/useBilling';
+import type { BillingAccountDetail } from '@/lib/api/billing/types';
+
+interface StatusChangeModalProps {
+  account: BillingAccountDetail | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({ account, isOpen, onClose }) => {
+  const [status, setStatus] = useState<string>('ACTIVE');
+  const [reason, setReason] = useState('');
+  const [ticketRef, setTicketRef] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const statusMutation = useUpdateAccountStatusMutation();
+
+  React.useEffect(() => {
+    if (account) {
+      setStatus(account.status);
+    }
+  }, [account]);
+
+  if (!account) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (reason.trim().length < 10) {
+      setError('A formal reason of at least 10 characters is required for regulatory and audit tracking.');
+      return;
+    }
+
+    try {
+      setError(null);
+      await statusMutation.mutateAsync({
+        accountId: account.id,
+        status: status as any,
+        reason: reason.trim(),
+        ticketRef: ticketRef.trim() || undefined,
+      });
+      onClose();
+      setReason('');
+      setTicketRef('');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update account status');
+    }
+  };
+
+  return (
+    <Dialog isOpen={isOpen} onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        <DialogHeader>
+          <DialogTitle>Update Account Operating Status</DialogTitle>
+          <DialogDescription>
+            Modify operational standing for account <span className="font-mono text-indigo-400 font-semibold">{account.id.slice(0, 8)}...</span>.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              Target Status <span className="text-red-400">*</span>
+            </label>
+            <Select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              options={[
+                { value: 'ACTIVE', label: 'ACTIVE (Fully operational, draws credits)' },
+                { value: 'RESTRICTED', label: 'RESTRICTED (Overdraft blocked, reads allowed)' },
+                { value: 'SUSPENDED', label: 'SUSPENDED (All candidate assessments & tests blocked)' },
+              ]}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              Operational Justification <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              placeholder="State the regulatory or operational cause for this status change (min 10 characters)..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition resize-none"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              Support Incident / Ticket ID
+            </label>
+            <Input
+              value={ticketRef}
+              onChange={(e) => setTicketRef(e.target.value)}
+              placeholder="e.g. INC-8291"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} type="button" disabled={statusMutation.isPending}>
+            Cancel
+          </Button>
+          <Button variant="primary" type="submit" isLoading={statusMutation.isPending}>
+            Confirm Status Change
+          </Button>
+        </DialogFooter>
+      </form>
+    </Dialog>
+  );
+};

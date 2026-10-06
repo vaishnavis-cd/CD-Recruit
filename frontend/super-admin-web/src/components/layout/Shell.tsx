@@ -13,9 +13,16 @@ import {
   Lock,
   ExternalLink,
   Columns,
+  DollarSign,
+  CreditCard,
+  Tag,
+  Receipt,
+  Scale,
+  ShieldAlert,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { MfaSetupModal } from '@/components/auth/MfaSetupModal';
+import { usePendingBillingRequests } from '@/hooks/billing/useBilling';
 
 interface ShellProps {
   children: React.ReactNode;
@@ -27,7 +34,15 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
   const { staff, impersonation, stopImpersonation, logout } = useAuthStore();
   const [isMfaModalOpen, setIsMfaModalOpen] = React.useState(false);
 
-  const allNavItems = [
+  // Poll pending maker-checker count for live badge counter
+  const { data: pendingRequests } = usePendingBillingRequests({
+    page: 1,
+    pageSize: 1,
+    status: 'PENDING',
+  });
+  const pendingCount = pendingRequests?.total || 0;
+
+  const platformNavItems = [
     { label: 'Platform Overview', path: '/', icon: LayoutDashboard },
     { label: 'Tenants Directory', path: '/tenants', icon: Building2 },
     { label: 'Pipeline Board', path: '/pipeline', icon: Columns },
@@ -35,9 +50,22 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
     { label: 'Operational Overrides', path: '/overrides', icon: Sliders },
     { label: 'Staff Governance', path: '/staff', icon: ShieldCheck, ownerOnly: true },
     { label: 'Audit Log Explorer', path: '/audit', icon: History },
-  ];
+  ].filter((item) => !item.ownerOnly || staff?.role === 'OWNER');
 
-  const navItems = allNavItems.filter((item) => !item.ownerOnly || staff?.role === 'OWNER');
+  const commerceNavItems = [
+    { label: 'Finance Telemetry', path: '/finance', icon: DollarSign },
+    { label: 'Billing Accounts', path: '/billing/accounts', icon: CreditCard },
+    {
+      label: 'Maker-Checker Queue',
+      path: '/billing/requests',
+      icon: ShieldAlert,
+      badge: pendingCount > 0 ? pendingCount : undefined,
+    },
+    { label: 'Ledger Explorer', path: '/billing/ledger', icon: History },
+    { label: 'Regional Price Book', path: '/billing/pricing', icon: Tag },
+    { label: 'Payments & Invoices', path: '/billing/payments', icon: Receipt },
+    { label: 'Integrity & Invariants', path: '/billing/integrity', icon: Scale },
+  ];
 
   const handleLogout = () => {
     logout();
@@ -82,9 +110,9 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
       <div className="flex flex-1">
         {/* Left Sidebar */}
         <aside className="w-64 bg-slate-950/80 border-r border-slate-800/80 flex flex-col justify-between p-4 shrink-0">
-          <div>
+          <div className="flex-1 flex flex-col min-h-0">
             {/* Logo & Product Badge */}
-            <div className="flex items-center gap-3 px-3 py-4 border-b border-slate-800/60 mb-6">
+            <div className="flex items-center gap-3 px-3 py-4 border-b border-slate-800/60 mb-4 shrink-0">
               <div className="w-9 h-9 rounded-lg bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <ShieldCheck className="w-5 h-5 text-white" />
               </div>
@@ -99,27 +127,71 @@ export const Shell: React.FC<ShellProps> = ({ children }) => {
               </div>
             </div>
 
-            {/* Navigation Links */}
-            <nav className="space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
-                      isActive
-                        ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
+            {/* Scrollable Navigation Groups */}
+            <div className="flex-1 overflow-y-auto space-y-5 pr-1">
+              {/* Group 1: Platform Operations */}
+              <div>
+                <span className="text-[10px] font-mono uppercase font-bold text-slate-500 px-3 mb-1.5 block">
+                  Platform Operations
+                </span>
+                <nav className="space-y-0.5">
+                  {platformNavItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive =
+                      location.pathname === item.path ||
+                      (item.path !== '/' && location.pathname.startsWith(item.path));
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                          isActive
+                            ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                        }`}
+                      >
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
+
+              {/* Group 2: Commerce & Billing */}
+              <div>
+                <span className="text-[10px] font-mono uppercase font-bold text-slate-500 px-3 mb-1.5 block">
+                  Commerce & Billing
+                </span>
+                <nav className="space-y-0.5">
+                  {commerceNavItems.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname.startsWith(item.path);
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                          isActive
+                            ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-sm'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                          <span>{item.label}</span>
+                        </div>
+                        {item.badge !== undefined && (
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
+            </div>
           </div>
 
           {/* Operator Profile & Status */}

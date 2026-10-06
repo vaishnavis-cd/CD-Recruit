@@ -8,7 +8,7 @@ async function main() {
   });
   await client.connect();
 
-  const migrationFile = path.join(__dirname, '../migrations/20260928183000_billing_database_invariants/migration.sql');
+  const migrationFile = path.resolve(process.cwd(), 'prisma/migrations/20260928183000_billing_database_invariants/migration.sql');
   const sql = fs.readFileSync(migrationFile, 'utf8');
 
   const startIdx = sql.indexOf('CREATE OR REPLACE FUNCTION billing.billing_begin(');
@@ -22,6 +22,7 @@ async function main() {
   console.log('Successfully updated billing_begin in database!');
 
   await client.end();
+  process.exit(0);
 }
 
 main().catch(err => {

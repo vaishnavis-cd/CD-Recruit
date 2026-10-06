@@ -22,6 +22,7 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "setup:all": "npm run build:shared && npm run db:migrate && npm run db:seed",
+    "setup:super-admin": "npx tsx backend/prisma/scripts/setup-super-admin.ts",
     "dev:candidate": "npm run build:shared && npm --workspace=frontend/candidate-web run dev",
     "dev:admin": "npm run build:shared && npm --workspace=frontend/admin-web run dev",
     "dev:super-admin": "npm run build:shared && npm --workspace=frontend/super-admin-web run dev",
