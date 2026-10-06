@@ -54,7 +54,7 @@ function LoginPage() {
 
     try {
       await login(email, pw);
-      navigate({ to: "/dashboard", replace: true });
+      window.location.replace("/dashboard");
     } catch (err: any) {
       setError(err.message || "Invalid email or password.");
     } finally {
@@ -219,7 +219,7 @@ function LoginPage() {
             />
           </div>
 
-          <div className="pt-1">
+          <div className="pt-1 space-y-2.5">
             <button
               type="submit"
               disabled={loading}
@@ -228,6 +228,43 @@ function LoginPage() {
               {loading && <Loader2 size={16} className="animate-spin" />}
               <span>{loading ? "Signing in…" : "Sign In"}</span>
             </button>
+
+            <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between gap-2 text-[11px]">
+              <button
+                type="button"
+                onClick={async () => {
+                  setEmail("admin@proctora.com");
+                  setPw("admin123");
+                  setLoading(true);
+                  try {
+                    await login("admin@proctora.com", "admin123");
+                    window.location.replace("/dashboard");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-center transition-colors cursor-pointer"
+              >
+                ⚡ Demo Admin
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setEmail("recruiter@proctora.com");
+                  setPw("admin123");
+                  setLoading(true);
+                  try {
+                    await login("recruiter@proctora.com", "admin123");
+                    window.location.replace("/dashboard");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                className="flex-1 py-1.5 px-2.5 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 text-slate-300 text-center transition-colors cursor-pointer"
+              >
+                ⚡ Demo Recruiter
+              </button>
+            </div>
           </div>
         </form>
       </div>

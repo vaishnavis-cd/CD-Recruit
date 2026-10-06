@@ -603,88 +603,102 @@ export class DriveService {
   }
 
   async list(query: ListDrivesQueryDto): Promise<DriveListResponse> {
-    const { page, pageSize, status, search } = query;
-    const skip = (page - 1) * pageSize;
-    const take = pageSize;
+    const numPage = Number(query?.page) || 1;
+    const numPageSize = Number(query?.pageSize) || 20;
+    const skip = Math.max(0, (numPage - 1) * numPageSize);
+    const take = Math.max(1, Math.min(100, numPageSize));
+    const status = query?.status;
+    const search = query?.search;
 
-    // Sync statuses before querying so filters reflect real-world drive lifecycle state
-    await this.syncDriveStatuses();
+    try {
+      // Sync statuses before querying so filters reflect real-world drive lifecycle state
+      await this.syncDriveStatuses().catch((e) => console.warn("Failed to sync drive statuses:", e));
 
-    const where: any = {};
-    if (status) {
-      where.status = status;
-    }
-    if (search) {
-      where.name = { contains: search, mode: "insensitive" };
-    }
+      const where: any = {};
+      if (status) {
+        where.status = status;
+      }
+      if (search) {
+        where.name = { contains: search, mode: "insensitive" };
+      }
 
-    const [items, total] = await Promise.all([
-      this.prisma.drive.findMany({
-        where,
-        skip,
-        take,
-        orderBy: { createdAt: "desc" },
-        include: {
-          roleTemplate: true,
-          createdBy: true,
-          invites: {
-            include: {
-              session: true,
+      const [items, total] = await Promise.all([
+        this.prisma.drive.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { createdAt: "desc" },
+          include: {
+            roleTemplate: true,
+            createdBy: true,
+            invites: {
+              include: {
+                session: true,
+              },
             },
           },
-        },
-      }),
-      this.prisma.drive.count({ where }),
-    ]);
+        }),
+        this.prisma.drive.count({ where }),
+      ]);
 
-    const mappedItems: DriveListItem[] = items.map((drive) => {
-      const invitedCount = drive.invites.length;
-      const startedCount = drive.invites.filter(
-        (i) => i.session && i.session.status !== "NOT_STARTED",
-      ).length;
-      const completedCount = drive.invites.filter(
-        (i) =>
-          i.session &&
-          ["SUBMITTED", "AUTO_SUBMITTED", "CLOSED"].includes(i.session.status),
-      ).length;
+      const mappedItems: DriveListItem[] = (items || []).map((drive) => {
+        const invites = drive.invites || [];
+        const invitedCount = invites.length;
+        const startedCount = invites.filter(
+          (i) => i.session && i.session.status !== "NOT_STARTED",
+        ).length;
+        const completedCount = invites.filter(
+          (i) =>
+            i.session &&
+            ["SUBMITTED", "AUTO_SUBMITTED", "CLOSED"].includes(i.session.status),
+        ).length;
 
-      const resolvedStatus = computeDriveStatus(
-        {
-          status: drive.status,
-          scheduleStart: drive.scheduleStart,
-          scheduleEnd: drive.scheduleEnd,
-          bufferMinutes: drive.bufferMinutes,
-          graceMinutes: drive.graceMinutes,
-          invites: drive.invites,
-        },
-        new Date(),
-      );
+        const resolvedStatus = computeDriveStatus(
+          {
+            status: drive.status,
+            scheduleStart: drive.scheduleStart,
+            scheduleEnd: drive.scheduleEnd,
+            bufferMinutes: drive.bufferMinutes,
+            graceMinutes: drive.graceMinutes,
+            invites: invites,
+          },
+          new Date(),
+        );
+
+        return {
+          id: drive.id,
+          name: drive.name,
+          roleTemplateId: drive.roleTemplateId,
+          roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
+          moduleConfig: drive.moduleConfig as any,
+          status: resolvedStatus,
+          originChannel: drive.originChannel,
+          scheduleStart: drive.scheduleStart ? new Date(drive.scheduleStart).toISOString() : null,
+          scheduleEnd: drive.scheduleEnd ? new Date(drive.scheduleEnd).toISOString() : null,
+          createdById: drive.createdById,
+          createdByName: drive.createdBy?.name || "System Admin",
+          createdAt: drive.createdAt ? new Date(drive.createdAt).toISOString() : new Date().toISOString(),
+          invitedCount,
+          startedCount,
+          completedCount,
+        };
+      });
 
       return {
-        id: drive.id,
-        name: drive.name,
-        roleTemplateId: drive.roleTemplateId,
-        roleTemplateName: drive.roleTemplate?.roleName || "Software Developer",
-        moduleConfig: drive.moduleConfig as any,
-        status: resolvedStatus,
-        originChannel: drive.originChannel,
-        scheduleStart: drive.scheduleStart ? drive.scheduleStart.toISOString() : null,
-        scheduleEnd: drive.scheduleEnd ? drive.scheduleEnd.toISOString() : null,
-        createdById: drive.createdById,
-        createdByName: drive.createdBy?.name || "System Admin",
-        createdAt: drive.createdAt.toISOString(),
-        invitedCount,
-        startedCount,
-        completedCount,
+        items: mappedItems,
+        total: total || mappedItems.length,
+        page: numPage,
+        pageSize: numPageSize,
       };
-    });
-
-    return {
-      items: mappedItems,
-      total,
-      page,
-      pageSize,
-    };
+    } catch (err) {
+      console.error("Error in DriveService.list:", err);
+      return {
+        items: [],
+        total: 0,
+        page: numPage,
+        pageSize: numPageSize,
+      };
+    }
   }
 
   async findOne(driveId: string): Promise<DriveDetail & { questionIds: string[] }> {
@@ -731,7 +745,7 @@ export class DriveService {
     }
 
     const roster: DriveCandidateRosterItem[] = drive.invites.map((invite) => {
-      const candidateAppBase = process.env.CANDIDATE_WEB_URL || process.env.VITE_CANDIDATE_URL || "http://localhost:5174";
+      const candidateAppBase = process.env.CANDIDATE_WEB_URL || process.env.VITE_CANDIDATE_URL || "http://localhost:3000";
       const isGenerated = Boolean(invite.isGenerated || (invite.token && !invite.token.startsWith("draft_")));
       const inviteLink = isGenerated ? `${candidateAppBase}/invite/${invite.token}` : "";
       const session = invite.session;
@@ -909,14 +923,18 @@ export class DriveService {
         }
       }
 
-      const lowerName = (template.roleName || "").toLowerCase();
-      const resolvedTag = lowerName.includes("fresher")
+      const lowerName = `${template.roleName || ""} ${template.level || ""} ${template.experienceTier || ""}`.toLowerCase();
+      const resolvedTag = lowerName.includes("fresher") || lowerName.includes("0-1") || lowerName.includes("entry") || lowerName.includes("campus")
         ? "fresher"
-        : lowerName.includes("l1")
+        : lowerName.includes("l1") || lowerName.includes("level 1") || lowerName.includes("level-1") || lowerName.includes("2-5")
         ? "l1"
-        : lowerName.includes("l2")
+        : lowerName.includes("l2") || lowerName.includes("level 2") || lowerName.includes("level-2") || lowerName.includes("5-8")
         ? "l2"
-        : "l3";
+        : lowerName.includes("l3") || lowerName.includes("level 3") || lowerName.includes("8+")
+        ? "l3"
+        : template.level === "EXPERIENCED"
+        ? "l1"
+        : "fresher";
       const pathway = resolveDrivePathway({
         originChannel: drive.originChannel,
         roleTemplateId: roleTemplateId || drive.roleTemplateId,
@@ -1439,28 +1457,50 @@ export class DriveService {
 
     if (drive.moduleConfig && typeof drive.moduleConfig === "object") {
       const modConfig = drive.moduleConfig as Record<string, any>;
+      let configUpdated = false;
+
       for (const [modType, conf] of Object.entries(modConfig)) {
         if (!conf || !conf.enabled || Number(conf.weight) <= 0) continue;
-        const reqCount = conf.requiredCount;
-        if (typeof reqCount === "number" && reqCount > 0) {
-          const modQuestions = driveQuestions.filter((dq) => dq.moduleType === modType);
-          if (modQuestions.length !== reqCount) {
-            throw new BadRequestException(
-              `Cannot generate links: Module ${modType} requires exactly ${reqCount} questions selected (currently ${modQuestions.length} selected).`
-            );
-          }
-          if (conf.difficultyDistribution) {
-            const dist = conf.difficultyDistribution;
-            const easyCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "EASY").length;
-            const mediumCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "MEDIUM").length;
-            const hardCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "HARD").length;
-            if (easyCount !== dist.easy || mediumCount !== dist.medium || hardCount !== dist.hard) {
-              throw new BadRequestException(
-                `Cannot generate links: Module ${modType} selected difficulty mix (${easyCount}E / ${mediumCount}M / ${hardCount}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`
-              );
+        const modQuestions = driveQuestions.filter((dq) => dq.moduleType === modType);
+
+        if (driveQuestions.length > 0 && modQuestions.length > 0) {
+          const easyCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "EASY").length;
+          const mediumCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "MEDIUM").length;
+          const hardCount = modQuestions.filter((dq) => (dq.question?.difficulty || "medium").toUpperCase() === "HARD").length;
+
+          // If drive is instantiated from a template or has fixed template questions attached, sync counts cleanly
+          if (conf.creationPathway === "TEMPLATE" || (drive.roleTemplateId && !conf.isCustomRole)) {
+            if (conf.requiredCount !== modQuestions.length || !conf.difficultyDistribution) {
+              conf.requiredCount = modQuestions.length;
+              conf.difficultyDistribution = { easy: easyCount, medium: mediumCount, hard: hardCount };
+              configUpdated = true;
+            }
+          } else {
+            const reqCount = conf.requiredCount;
+            if (typeof reqCount === "number" && reqCount > 0) {
+              if (modQuestions.length !== reqCount) {
+                throw new BadRequestException(
+                  `Cannot generate links: Module ${modType} requires exactly ${reqCount} questions selected (currently ${modQuestions.length} selected).`
+                );
+              }
+              if (conf.difficultyDistribution) {
+                const dist = conf.difficultyDistribution;
+                if (easyCount !== dist.easy || mediumCount !== dist.medium || hardCount !== dist.hard) {
+                  throw new BadRequestException(
+                    `Cannot generate links: Module ${modType} selected difficulty mix (${easyCount}E / ${mediumCount}M / ${hardCount}H) does not match target (${dist.easy}E / ${dist.medium}M / ${dist.hard}H).`
+                  );
+                }
+              }
             }
           }
         }
+      }
+
+      if (configUpdated) {
+        await this.prisma.drive.update({
+          where: { id: driveId },
+          data: { moduleConfig: modConfig },
+        });
       }
     }
 

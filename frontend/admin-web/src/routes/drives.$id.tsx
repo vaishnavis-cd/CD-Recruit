@@ -116,6 +116,52 @@ export function setDynamicCalibrationConfig(
   if (matrix) dynamicTimeMatrix = matrix;
   if (ratios) dynamicSeniorityRatios = ratios;
 }
+ 
+export function resolveSeniorityTag(
+  roleName?: string,
+  level?: string,
+  experienceTier?: string
+): "fresher" | "l1" | "l2" | "l3" {
+  const str = `${roleName || ""} ${level || ""} ${experienceTier || ""}`.toLowerCase();
+  if (str.includes("fresher") || str.includes("0-1") || str.includes("entry") || str.includes("campus")) {
+    return "fresher";
+  }
+  if (
+    str.includes("l1") ||
+    str.includes("level 1") ||
+    str.includes("level-1") ||
+    str.includes("level1") ||
+    str.includes("2-5") ||
+    str.includes("junior") ||
+    str.includes("associate")
+  ) {
+    return "l1";
+  }
+  if (
+    str.includes("l2") ||
+    str.includes("level 2") ||
+    str.includes("level-2") ||
+    str.includes("level2") ||
+    str.includes("5-8") ||
+    str.includes("mid")
+  ) {
+    return "l2";
+  }
+  if (
+    str.includes("l3") ||
+    str.includes("level 3") ||
+    str.includes("level-3") ||
+    str.includes("level3") ||
+    str.includes("8+") ||
+    str.includes("senior") ||
+    str.includes("lead") ||
+    str.includes("principal")
+  ) {
+    return "l3";
+  }
+  if (level === "EXPERIENCED") return "l1";
+  return "fresher";
+}
 
 export function getRequiredQuestionCount(
   moduleType: string,
@@ -1387,12 +1433,7 @@ function DriveDetailPage() {
     }
 
     const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-      lowerName.includes("l1") ? "l1" : (
-        lowerName.includes("l2") ? "l2" : "l3"
-      )
-    );
+    const resolvedTag = resolveSeniorityTag(drive?.roleTemplateName || "");
 
     enabledKeys.forEach((k) => {
       const conf = updated[k];
@@ -1506,12 +1547,7 @@ function DriveDetailPage() {
   const handleAutoBalanceWeights = () => {
     setPinnedWeights({});
     setPinnedDifficulties({});
-    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-      lowerName.includes("l1") ? "l1" : (
-        lowerName.includes("l2") ? "l2" : "l3"
-      )
-    );
+    const resolvedTag = resolveSeniorityTag(drive?.roleTemplateName || "");
     const windowMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
     const aligned = autoAlignModuleConfig(moduleConfig, windowMins, resolvedTag, { forceEqualWeights: true });
     setModuleConfig(aligned);
@@ -1827,12 +1863,7 @@ function DriveDetailPage() {
     }
 
     // CUSTOM_MANUAL:
-    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-      lowerName.includes("l1") ? "l1" : (
-        lowerName.includes("l2") ? "l2" : "l3"
-      )
-    );
+    const resolvedTag = resolveSeniorityTag(drive?.roleTemplateName || "");
     const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
 
     const summaryData = ["MCQ", "SQL", "NOSQL", "CODING", "DEBUGGING", "AI_PROMPTING", "SIMULATION", "TEST_SCENARIOS"]
@@ -1984,12 +2015,7 @@ function DriveDetailPage() {
       return;
     }
 
-    const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-    const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-      lowerName.includes("l1") ? "l1" : (
-        lowerName.includes("l2") ? "l2" : "l3"
-      )
-    );
+    const resolvedTag = resolveSeniorityTag(drive?.roleTemplateName || "");
     const totalDuration = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
     if (isTemplateGoverned && totalDuration < 90) {
       toast.error("Standard role templates require at least a 90-minute assessment window.");
@@ -3144,12 +3170,7 @@ function DriveDetailPage() {
                             [mod.id]: { ...conf, enabled: isNowEnabled },
                           };
                           const winMins = computeTimeWindowMinutes(startHour, startMinute, startAmPm, endHour, endMinute, endAmPm) || 90;
-                          const lowerName = (drive?.roleTemplateName || "").toLowerCase();
-                          const resolvedTag = lowerName.includes("fresher") ? "fresher" : (
-                            lowerName.includes("l1") ? "l1" : (
-                              lowerName.includes("l2") ? "l2" : "l3"
-                            )
-                          );
+                          const resolvedTag = resolveSeniorityTag(drive?.roleTemplateName || "");
                           const aligned = autoAlignModuleConfig(nextConfig, winMins, resolvedTag);
                           setModuleConfig(aligned);
                         }}

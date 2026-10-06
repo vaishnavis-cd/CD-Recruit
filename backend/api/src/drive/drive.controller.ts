@@ -45,7 +45,7 @@ export class DriveController {
   @HttpCode(HttpStatus.CREATED)
   @RequirePermission(Permission.DRIVE_CREATE)
   async create(@Body() dto: CreateDriveDto, @CurrentUser() actor: any) {
-    return this.driveService.create(dto, actor.id);
+    return this.driveService.create(dto, actor?.id || actor?.sub || "system");
   }
 
   @Post("from-template/:roleTemplateId")
@@ -75,7 +75,7 @@ export class DriveController {
     @Body() dto: UpdateDriveDto,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.update(driveId, dto, actor.id);
+    return this.driveService.update(driveId, dto, actor?.id || actor?.sub || "system");
   }
 
   @Post(":driveId/duplicate")
@@ -83,7 +83,7 @@ export class DriveController {
     @Param("driveId", ParseUUIDPipe) driveId: string,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.duplicate(driveId, actor.id);
+    return this.driveService.duplicate(driveId, actor?.id || actor?.sub || "system");
   }
 
   @Post(":driveId/close")
@@ -91,7 +91,7 @@ export class DriveController {
     @Param("driveId", ParseUUIDPipe) driveId: string,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.closeEarly(driveId, actor.id);
+    return this.driveService.closeEarly(driveId, actor?.id || actor?.sub || "system");
   }
 
   @Delete(":driveId")
@@ -99,7 +99,7 @@ export class DriveController {
     @Param("driveId", ParseUUIDPipe) driveId: string,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.delete(driveId, actor.id);
+    return this.driveService.delete(driveId, actor?.id || actor?.sub || "system");
   }
 
   @Patch(":driveId/questions")
@@ -108,7 +108,7 @@ export class DriveController {
     @Body() dto: SaveDriveQuestionsDto,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.saveQuestions(driveId, dto, actor.id);
+    return this.driveService.saveQuestions(driveId, dto, actor?.id || actor?.sub || "system");
   }
 
   @Put(":driveId/questions")
@@ -117,7 +117,7 @@ export class DriveController {
     @Body() dto: SaveDriveQuestionsDto,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.saveQuestions(driveId, dto, actor.id);
+    return this.driveService.saveQuestions(driveId, dto, actor?.id || actor?.sub || "system");
   }
 
   @Get(":driveId/suggest-deficit-questions")
@@ -137,7 +137,7 @@ export class DriveController {
     @Body() dto: AddCandidatesBulkDto,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.addCandidatesBulk(driveId, dto.candidates, actor.id);
+    return this.driveService.addCandidatesBulk(driveId, dto.candidates, actor?.id || actor?.sub || "system");
   }
 
   @Post(":driveId/generate-links")
@@ -146,7 +146,7 @@ export class DriveController {
     @Param("driveId", ParseUUIDPipe) driveId: string,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.generateLinks(driveId, actor.id);
+    return this.driveService.generateLinks(driveId, actor?.id || actor?.sub || "system");
   }
 
   @Delete(":driveId/candidates/:candidateId")
@@ -155,7 +155,7 @@ export class DriveController {
     @Param("candidateId") candidateId: string,
     @CurrentUser() actor: any,
   ) {
-    return this.driveService.removeCandidateFromDrive(driveId, candidateId, actor.id);
+    return this.driveService.removeCandidateFromDrive(driveId, candidateId, actor?.id || actor?.sub || "system");
   }
 
   @Post(":driveId/unlock-editing")

@@ -40,7 +40,7 @@ export default defineConfig({
     },
   },
   server: {
-    host: "0.0.0.0",
+    host: "localhost",
     port: 3000,
     headers: {
       // credentialless allows cross-origin isolation for WASM/SharedArrayBuffer
