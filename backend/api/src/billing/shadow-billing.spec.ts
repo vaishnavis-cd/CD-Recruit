@@ -6,13 +6,12 @@ import { ShadowBillingService } from "./shadow-billing.service";
 import { ShadowReconciliationService } from "./shadow-reconciliation.service";
 import { ShadowTelemetryService } from "./shadow-telemetry.service";
 import {
-  PoolType,
   SessionStatus,
   SessionKind,
-  DrivePoolFallthrough,
   LedgerEntryType,
   CvMode,
 } from "@prisma/client";
+import { DrivePoolFallthrough, PoolType } from "@cd-recruit/shared-types";
 import assert from "node:assert";
 
 async function runShadowBillingTests() {

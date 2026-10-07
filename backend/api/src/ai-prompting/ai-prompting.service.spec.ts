@@ -215,7 +215,8 @@ async function runAiPromptingCharacterizationTests() {
   console.log("================================================================================");
 }
 
-runAiPromptingCharacterizationTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('AiPromptingService Subsystem', () => {
+  it('runs all AI prompting characterization tests', async () => {
+    await runAiPromptingCharacterizationTests();
+  });
 });

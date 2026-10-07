@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../prisma/prisma.module";
-import { LedgerService } from "./ledger.service";
+import { LedgerModule } from "./ledger/ledger.module";
 import { PoolService } from "./pool.service";
 import { MakerCheckerService } from "./maker-checker.service";
 import { ShadowBillingService } from "./shadow-billing.service";
@@ -11,10 +11,9 @@ import { CreditEnforcementService } from "./credit-enforcement.service";
 import { BillingController } from "./billing.controller";
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, LedgerModule],
   controllers: [BillingController],
   providers: [
-    LedgerService,
     PoolService,
     MakerCheckerService,
     ShadowBillingService,
@@ -23,7 +22,7 @@ import { BillingController } from "./billing.controller";
     CreditEnforcementService,
   ],
   exports: [
-    LedgerService,
+    LedgerModule,
     PoolService,
     MakerCheckerService,
     ShadowBillingService,

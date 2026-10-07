@@ -48,7 +48,7 @@ function generateStripeSignature(rawBody: Buffer, secret = STRIPE_TEST_SECRET, t
 
 async function runPaymentWebhookServiceTests() {
   console.log("================================================================================");
-  console.log("PHASE 2.8 — PaymentWebhookService Comprehensive Verification Suite");
+  console.log("PHASE 2.8 â€” PaymentWebhookService Comprehensive Verification Suite");
   console.log("================================================================================");
 
   const prisma = new PrismaClient();
@@ -93,7 +93,7 @@ async function runPaymentWebhookServiceTests() {
   let passedTests = 0;
   function pass(testNum: number, name: string) {
     passedTests++;
-    console.log(`✅ TEST [${testNum}]: ${name}`);
+    console.log(`âœ… TEST [${testNum}]: ${name}`);
   }
 
   const runId = Date.now().toString();
@@ -167,7 +167,7 @@ async function runPaymentWebhookServiceTests() {
 
   try {
     // --------------------------------------------------------------------------
-    // Test 1: Signature Verification — Razorpay valid & invalid
+    // Test 1: Signature Verification â€” Razorpay valid & invalid
     // --------------------------------------------------------------------------
     const testPayloadRzp = Buffer.from(JSON.stringify({ event: "payment.captured", id: "evt_rzp_1" }));
     const validRzpSig = generateRazorpaySignature(testPayloadRzp);
@@ -177,7 +177,7 @@ async function runPaymentWebhookServiceTests() {
     pass(1, "Razorpay HMAC-SHA256 signature verification accepts valid and rejects invalid signatures");
 
     // --------------------------------------------------------------------------
-    // Test 2: Signature Verification — Stripe valid, invalid, and expired timestamp
+    // Test 2: Signature Verification â€” Stripe valid, invalid, and expired timestamp
     // --------------------------------------------------------------------------
     const testPayloadStripe = Buffer.from(JSON.stringify({ type: "payment_intent.succeeded", id: "evt_stripe_1" }));
     const validStripeSig = generateStripeSignature(testPayloadStripe);
@@ -238,7 +238,7 @@ async function runPaymentWebhookServiceTests() {
     pass(5, "Missing signature header immediately rejected with UnauthorizedException");
 
     // --------------------------------------------------------------------------
-    // Test 6: Ingest Valid Webhook — Inbox Persistence & PENDING State
+    // Test 6: Ingest Valid Webhook â€” Inbox Persistence & PENDING State
     // --------------------------------------------------------------------------
     const ba1 = await createTestAccount("IN", "INR");
     const price1 = await createTestPrice("IN", "INR", 2000);
@@ -299,7 +299,7 @@ async function runPaymentWebhookServiceTests() {
     pass(6, "Valid webhook persisted to billing.payment_event inbox in PENDING state");
 
     // --------------------------------------------------------------------------
-    // Test 7: Worker Execution — Payment Capture, Pool Minting, Ledger Grant
+    // Test 7: Worker Execution â€” Payment Capture, Pool Minting, Ledger Grant
     // --------------------------------------------------------------------------
     await webhookService.processWebhookEventJob(ingestRes1.inboxId!);
 
@@ -557,7 +557,7 @@ async function runPaymentWebhookServiceTests() {
     pass(12, "Test G: Unsupported webhook event type acknowledged and marked PROCESSED with zero credit side effects");
 
     // --------------------------------------------------------------------------
-    // Test 13 (Test H): Payment Dispute Handling — Pool Suspended, Invariant Preserved
+    // Test 13 (Test H): Payment Dispute Handling â€” Pool Suspended, Invariant Preserved
     // --------------------------------------------------------------------------
     // Uses capturedPayment from Test 7 (rzpPaymentId1)
     const disputeEvent = {
@@ -770,21 +770,21 @@ async function runPaymentWebhookServiceTests() {
           providerPaymentId: stripePi4,
         },
       },
-      include: { creditPools: true, ledgerEntries: true },
+      include: { pools: true, ledgerEntries: true },
     });
 
     assert.ok(autoCreatedPayment, "Payment must be auto-created from metadata");
     assert.strictEqual(autoCreatedPayment!.status, PaymentStatus.CAPTURED);
     assert.strictEqual(autoCreatedPayment!.quantityCredits, 20);
-    assert.strictEqual(autoCreatedPayment!.creditPools.length, 1);
+    assert.strictEqual(autoCreatedPayment!.pools.length, 1);
     assert.strictEqual(autoCreatedPayment!.ledgerEntries.length, 1);
     assert.strictEqual(autoCreatedPayment!.ledgerEntries[0].amount, 20);
     testPaymentIds.push(autoCreatedPayment!.id);
-    testPoolIds.push(autoCreatedPayment!.creditPools[0].id);
+    testPoolIds.push(autoCreatedPayment!.pools[0].id);
     pass(18, "Metadata-driven webhook capture safely creates Payment, CreditPool, and Ledger grant on the fly");
 
     // --------------------------------------------------------------------------
-    // Test 19: Security Audit — Secrets and Signatures Never Persisted to Audit
+    // Test 19: Security Audit â€” Secrets and Signatures Never Persisted to Audit
     // --------------------------------------------------------------------------
     const allAudits = await prisma.billingAuditEvent.findMany({
       where: { subjectType: "PAYMENT_EVENT" },

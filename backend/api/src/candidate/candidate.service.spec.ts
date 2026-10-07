@@ -211,7 +211,8 @@ async function runCandidateServiceTests() {
   console.log("================================================================================");
 }
 
-runCandidateServiceTests().catch((err) => {
-  console.error("Test execution failed:", err);
-  process.exit(1);
+describe('CandidateService Subsystem', () => {
+  it('runs all candidate service characterization tests', async () => {
+    await runCandidateServiceTests();
+  });
 });

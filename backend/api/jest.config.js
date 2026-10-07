@@ -3,9 +3,16 @@ module.exports = {
   rootDir: 'src',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.ts$': 'ts-jest',
   },
+
   collectCoverageFrom: ['**/*.(t|j)s'],
   coverageDirectory: '../coverage',
   testEnvironment: 'node',
+  setupFiles: ['<rootDir>/../test-setup.ts'],
+  maxWorkers: 1,
+  moduleNameMapper: {
+    '^@app/(.*)$': '<rootDir>/$1',
+  },
 };
+

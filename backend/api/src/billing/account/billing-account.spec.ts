@@ -130,7 +130,7 @@ async function runBillingAccountServiceTests() {
     assert.strictEqual(result2.organizationId, org1Id);
 
     const totalAccountsForOrg = await prisma.billingAccount.count({
-      where: { organization: { id: org1Id } },
+      where: { organizations: { some: { id: org1Id } } },
     });
     assert.strictEqual(totalAccountsForOrg, 1, "Exactly one billing account must exist for the organization");
     pass("Calling creation again does not create a second account (idempotent replay)");

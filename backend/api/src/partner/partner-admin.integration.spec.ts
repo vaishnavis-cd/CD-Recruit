@@ -117,11 +117,12 @@ async function runIntegrationVerification() {
   console.log("\n🎉 ALL PARTNER INTEGRATION & HIT TRACKING TESTS PASSED!");
 }
 
-runIntegrationVerification()
-  .catch((err) => {
-    console.error("❌ Test failed:", err);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
+describe('PartnerAdmin Integration', () => {
+  it('runs all partner integration and hit tracking tests', async () => {
+    try {
+      await runIntegrationVerification();
+    } finally {
+      await prisma.$disconnect();
+    }
   });
+});

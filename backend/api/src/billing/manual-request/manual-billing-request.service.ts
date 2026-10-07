@@ -34,7 +34,7 @@ export class ManualBillingRequestService {
     private readonly ledgerService: LedgerService,
     private readonly creditPoolService: CreditPoolService,
     private readonly billingAccountService: BillingAccountService,
-  ) {}
+  ) { }
 
   /**
    * Authoritatively extracts actor identity for manual billing workflows.
@@ -173,7 +173,7 @@ export class ManualBillingRequestService {
       );
     }
 
-    // Reason validation (min 10 chars per Artifact 02 §5.2)
+    // Reason validation (min 10 chars per Artifact 02 Ã‚Â§5.2)
     if (!dto.reason || typeof dto.reason !== "string" || dto.reason.trim().length < 10) {
       throw new BadRequestException(
         "INVALID_REASON: A descriptive business reason of at least 10 characters is mandatory",
@@ -196,7 +196,7 @@ export class ManualBillingRequestService {
     // Verify target BillingAccount exists
     const account = await this.prisma.billingAccount.findUnique({
       where: { id: dto.billingAccountId },
-      include: { organization: true },
+      include: { organizations: true },
     });
     if (!account) {
       throw new NotFoundException(`BILLING_ACCOUNT_NOT_FOUND: Billing account '${dto.billingAccountId}' not found`);
@@ -216,7 +216,7 @@ export class ManualBillingRequestService {
       const created = await tx.manualBillingRequest.create({
         data: {
           billingAccountId: account.id,
-          kind: dto.kind as any,
+          kind: dto.kind as ManualRequestKind,
           payload: dto.payload,
           reason,
           ticketRef,
@@ -721,7 +721,7 @@ export class ManualBillingRequestService {
     const requests = (await tx.$queryRawUnsafe(
       `SELECT r.id, r.billing_account_id, r.kind, r.payload, r.reason, r.ticket_ref,
               r.requested_by_id, r.approved_by_id, r.status, r.rejection_reason,
-              r.execution_error, r.decided_at, r.executed_at, r.created_at
+              r.decided_at, r.executed_at, r.created_at
          FROM "billing"."manual_billing_request" r
         WHERE r.id = $1 FOR UPDATE`,
       requestId,
@@ -894,7 +894,6 @@ export class ManualBillingRequestService {
         data: {
           status: ManualRequestStatus.EXECUTED,
           executedAt: now,
-          executionError: null,
         },
       });
 
@@ -923,13 +922,6 @@ export class ManualBillingRequestService {
         `[ManualBillingRequestService] Execution of request ${requestId} failed: ${error.message}`,
         error.stack,
       );
-
-      await tx.manualBillingRequest.update({
-        where: { id: requestId },
-        data: {
-          executionError: error.message || "Unknown execution error",
-        },
-      });
 
       await this.recordBillingAudit(tx, {
         actorId,

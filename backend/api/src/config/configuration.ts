@@ -54,7 +54,9 @@ export const configuration = () => ({
 
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   groqApiKey: process.env.GROQ_API_KEY ?? "",
+  groqModel: process.env.GROQ_MODEL ?? "openai/gpt-oss-120b",
   cerebrasApiKey: process.env.CEREBRAS_API_KEY ?? "",
+  cerebrasModel: process.env.CEREBRAS_MODEL ?? "gpt-oss-120b",
 
   // ── MinIO ─────────────────────────────────────────────────────────────────
   minio: {

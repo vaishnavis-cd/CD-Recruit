@@ -28,7 +28,7 @@ import { AdminService } from "./admin.service";
 import { InviteService } from "./invite.service";
 import { DashboardService } from "./dashboard.service";
 import { CreditEnforcementService } from "../billing/credit-enforcement.service";
-import { LedgerService } from "../billing/ledger.service";
+import { LedgerService } from "../billing/ledger/ledger.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   ListSessionsQueryDto,

@@ -24,7 +24,7 @@ const DB_URL =
 
 async function runTrialGrantServiceTests() {
   console.log("================================================================================");
-  console.log("Phase 2 — TrialGrantService Comprehensive Verification & Hardening Suite");
+  console.log("Phase 2 â€” TrialGrantService Comprehensive Verification & Hardening Suite");
   console.log("================================================================================");
 
   const pg = new Client({ connectionString: DB_URL });
@@ -42,7 +42,7 @@ async function runTrialGrantServiceTests() {
   function pass(testName: string) {
     totalCount++;
     passedCount++;
-    console.log(`✅ TEST [${totalCount}]: ${testName}`);
+    console.log(`âœ… TEST [${totalCount}]: ${testName}`);
   }
 
   // Tracking test entities for clean teardown
@@ -427,7 +427,7 @@ async function runTrialGrantServiceTests() {
       include: {
         billingAccount: {
           include: {
-            creditPools: {
+            pools: {
               include: { ledgerEntries: true },
             },
           },
@@ -440,7 +440,7 @@ async function runTrialGrantServiceTests() {
       assert.strictEqual(org.billingAccount!.overdraftLimit, 0);
       assert.strictEqual(org.billingAccount!.overdraftUsed, 0);
 
-      const trialPool = org.billingAccount!.creditPools.find((p) => p.source === "TRIAL");
+      const trialPool = org.billingAccount!.pools.find((p) => p.source === "TRIAL");
       assert.ok(trialPool, `Baseline TRIAL pool must exist for ${org.name}`);
       assert.strictEqual(trialPool.totalCredits, 50, "Baseline seed totalCredits must remain 50");
       assert.strictEqual(trialPool.cachedRemaining, 50, "Baseline seed cachedRemaining must remain 50");

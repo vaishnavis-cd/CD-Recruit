@@ -5,6 +5,7 @@
   "workspaces": [
     "frontend/candidate-web",
     "frontend/admin-web",
+    "frontend/super-admin-web",
     "backend/api",
     "packages/shared-types",
     "packages/design-tokens"
@@ -22,10 +23,12 @@
     "setup:all": "npm run build:shared && npm run db:migrate && npm run db:seed",
     "ports:free": "node scripts/free-ports.js",
     "predev:candidate": "node scripts/free-ports.js 3000",
+    "setup:super-admin": "npx tsx backend/prisma/scripts/setup-super-admin.ts",
     "dev:candidate": "npm run build:shared && npm --workspace=frontend/candidate-web run dev",
     "predev:admin": "node scripts/free-ports.js 5173",
     "dev:admin": "npm run build:shared && npm --workspace=frontend/admin-web run dev",
     "predev:api": "node scripts/free-ports.js 3001",
+    "dev:super-admin": "npm run build:shared && npm --workspace=frontend/super-admin-web run dev",
     "dev:api": "npm run build:shared && npm --workspace=backend/api run start:dev",
     "build": "npm --workspaces run build",
     "lint": "npm --workspaces run lint",

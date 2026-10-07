@@ -8,9 +8,8 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "lint": "eslint src --ext .ts",
-    "test": "jest",
+    "test": "node --max-old-space-size=4096 ../../node_modules/jest/bin/jest.js --runInBand",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate deploy",
     "prisma:push": "prisma db push --schema=../prisma/schema.prisma --skip-generate --accept-data-loss",
     "prisma:seed": "prisma db seed",
     "seed:candidate": "ts-node scripts/seed-candidate-dev.ts",
@@ -36,6 +35,7 @@
     "@prisma/client": "^5.22.0",
     "@types/opossum": "^8.1.9",
     "@types/pg": "^8.20.4",
+    "@types/qrcode": "^1.5.6",
     "bson": "^7.3.2",
     "bullmq": "^5.34.6",
     "class-transformer": "^0.5.1",
@@ -53,6 +53,7 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.22.0",
+    "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.35.3",
@@ -69,31 +70,12 @@
     "@types/node": "^22.15.30",
     "@types/passport-jwt": "^4.0.1",
     "jest": "^30.4.2",
+    "jest-cli": "^30.4.2",
     "prisma": "^5.22.0",
     "ts-jest": "^29.4.12",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.23.1",
     "typescript": "^5.8.3"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.ts$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node",
-    "moduleNameMapper": {
-      "^@app/(.*)$": "<rootDir>/$1"
-    }
   }
 }

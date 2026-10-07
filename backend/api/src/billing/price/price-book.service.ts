@@ -26,7 +26,7 @@ import {
 export class PriceBookService {
   private readonly logger = new Logger(PriceBookService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   /**
    * Validates and extracts actor info.
@@ -394,7 +394,7 @@ export class PriceBookService {
         data: {
           id: newId,
           sku: normalizedSku,
-          poolType: dto.poolType as any,
+          poolType: dto.poolType as PoolType,
           credits: dto.credits,
           validityDays: dto.validityDays ?? null,
           billingCountry: normalizedCountry,
@@ -416,14 +416,14 @@ export class PriceBookService {
           action: "PRICE_VERSION_PUBLISHED",
           before: priorVersion
             ? {
-                id: priorVersion.id,
-                version: priorVersion.version,
-                unitPriceMinor: priorVersion.unit_price_minor,
-                credits: priorVersion.credits,
-                currency: priorVersion.currency,
-                effectiveFrom: priorVersion.effective_from,
-                effectiveTo: effectiveFromDate,
-              }
+              id: priorVersion.id,
+              version: priorVersion.version,
+              unitPriceMinor: priorVersion.unit_price_minor,
+              credits: priorVersion.credits,
+              currency: priorVersion.currency,
+              effectiveFrom: priorVersion.effective_from,
+              effectiveTo: effectiveFromDate,
+            }
             : null,
           after: {
             id: newId,

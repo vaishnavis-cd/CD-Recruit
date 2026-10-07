@@ -168,7 +168,7 @@ export class CreditPoolService {
     // Resolve target BillingAccount
     const account = await client.billingAccount.findUnique({
       where: { id: params.billingAccountId },
-      include: { organization: true },
+      include: { organizations: true },
     });
 
     if (!account) {
@@ -257,7 +257,7 @@ export class CreditPoolService {
             queueOrder = 0;
 
             if (params.source === PoolGrantSource.TRIAL) {
-              // Floating clock starts immediately for trial grant policy (Artifact 07 §2.2)
+              // Floating clock starts immediately for trial grant policy (Artifact 07 Â§2.2)
               const validityDays = params.validityDays || 30;
               clockStartedAt = now;
               expiresAt = params.expiresAt
@@ -327,7 +327,7 @@ export class CreditPoolService {
 
       // 4. Create initial GRANT ledger entry (guarantees ledger sum == cachedRemaining)
       const idempotencyKey = `grant:pool:${poolId}`;
-      const orgId = account.organization?.id || "";
+      const orgId = account.organizations[0]?.id || "";
 
       await tx.creditLedgerEntry.create({
         data: {

@@ -9,10 +9,26 @@ import { PlatformStaffRole } from "@cd-recruit/shared-types";
 import {
   RecordPlatformAuditEventInput,
   PlatformAuditEventRecord,
-  AuthenticatedPlatformActor,
   PlatformAuditActor,
 } from "./platform-audit.types";
 import { sanitizeAuditData } from "./platform-audit.util";
+
+export interface RecordAuditEventDto {
+  actorId: string;
+  actorRole: string;
+  subjectType: string; // e.g. 'STAFF' | 'TENANT' | 'OVERRIDE' | 'IMPERSONATION' | 'ACCOUNT' | 'POOL' | 'REQUEST' | 'PRICE' | 'PAYMENT'
+  subjectId: string;
+  action: string; // e.g. 'LOGIN_SUCCESS'
+  before?: Record<string, any>;
+  after?: Record<string, any>;
+  reason?: string;
+  ticketRef?: string;
+  requestId?: string;
+  ipAddress?: string;
+  targetTenantId?: string;
+  executionResult?: string;
+  impersonationContext?: Record<string, any>;
+}
 
 @Injectable()
 export class PlatformAuditService {
@@ -21,9 +37,50 @@ export class PlatformAuditService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Authoritative, injectable audit writer.
+   * - Append-only to platform.platform_audit_event (no update/delete methods exist).
+   * - Strips/redacts sensitive keys (passwords, hashes, tokens, secrets).
+   * - Never throws into the caller (fire-and-forget safe).
+   */
+  async record(event: RecordAuditEventDto): Promise<void> {
+    try {
+      const sanitizedBefore = event.before ? sanitizeAuditData(event.before) : undefined;
+      const sanitizedAfter = event.after ? sanitizeAuditData(event.after) : undefined;
+      const sanitizedImpersonation = event.impersonationContext
+        ? sanitizeAuditData(event.impersonationContext)
+        : undefined;
+      const targetTenantId =
+        event.targetTenantId ||
+        (event.subjectType === "TENANT" ? event.subjectId : undefined);
+
+      await this.prisma.systemAuditEvent.create({
+        data: {
+          actorId: event.actorId || "system",
+          actorRole: event.actorRole || "SYSTEM",
+          subjectType: event.subjectType,
+          subjectId: event.subjectId,
+          action: event.action,
+          before: sanitizedBefore as any,
+          after: sanitizedAfter as any,
+          reason: event.reason,
+          ticketRef: event.ticketRef,
+          requestId: event.requestId,
+          impersonationContext: sanitizedImpersonation as any,
+          executionResult: event.executionResult || "SUCCESS",
+          targetTenantId: targetTenantId || null,
+        },
+      });
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to record platform audit event [${event.action}]: ${err?.message || err}`,
+        err?.stack,
+      );
+    }
+  }
+
+
+  /**
    * Validates that the actor is an authentic PlatformStaff identity or 'system'.
-   * Structurally prevents recruiter Staff (public.staff) or arbitrary client IDs
-   * from acting as platform audit actors.
    */
   private extractActorInfo(actor: PlatformAuditActor): { actorId: string; actorRole: string } {
     if (!actor) {
@@ -35,7 +92,6 @@ export class PlatformAuditService {
     }
 
     if (typeof actor === "object") {
-      // Reject recruiter identities
       if ((actor as any).isPlatformStaff !== true) {
         throw new ForbiddenException(
           "RECRUITER_IDENTITY_CANNOT_BE_PLATFORM_ACTOR: Only authenticated PlatformStaff can generate platform audit events",
@@ -63,10 +119,7 @@ export class PlatformAuditService {
   }
 
   /**
-   * Authoritatively records an immutable platform audit event.
-   *
-   * @param input Audit event parameters
-   * @param tx Optional Prisma transaction client to couple audit with business mutations
+   * Legacy / transactional helper for platform event recording.
    */
   async recordEvent(
     input: RecordPlatformAuditEventInput,
@@ -86,7 +139,6 @@ export class PlatformAuditService {
       throw new BadRequestException("AUDIT_SUBJECT_ID_REQUIRED: Subject ID must be specified");
     }
 
-    // Sanitize before and after snapshots (strips passwords, hashes, tokens, secrets)
     const sanitizedBefore = input.before ? sanitizeAuditData(input.before) : null;
     const sanitizedAfter = input.after ? sanitizeAuditData(input.after) : null;
     const sanitizedImpersonation = input.impersonationContext
@@ -114,10 +166,6 @@ export class PlatformAuditService {
         },
       });
 
-      this.logger.log(
-        `[PlatformAudit] Recorded: action=${event.action} subject=${event.subjectType}:${event.subjectId} actor=${event.actorRole}:${event.actorId} reqId=${event.requestId || "none"}`,
-      );
-
       return {
         id: event.id,
         timestamp: event.timestamp,
@@ -126,58 +174,108 @@ export class PlatformAuditService {
         subjectType: event.subjectType,
         subjectId: event.subjectId,
         action: event.action,
-        before: event.before as any,
-        after: event.after as any,
+        before: event.before as Record<string, any> | null,
+        after: event.after as Record<string, any> | null,
         reason: event.reason,
         ticketRef: event.ticketRef,
         impersonationContext: event.impersonationContext as any,
         requestId: event.requestId,
         executionResult: event.executionResult,
       };
-    } catch (err: any) {
-      this.logger.error(`[PlatformAudit] Persistence failure: ${err.message}`, err.stack);
-      // Invariant: NEVER silently swallow audit failures
-      throw err;
+    } catch (error) {
+      this.logger.error(
+        `Failed to persist audit event [${input.action}] for subject ${input.subjectType}:${input.subjectId}: ${error.message}`,
+        error.stack,
+      );
+      throw error;
     }
   }
 
   /**
-   * Read-only audit query helper for Platform Ops inspection.
+   * Protected read-only audit log retrieval.
    */
-  async findEvents(query: {
+  async findEvents(params?: {
+    limit?: number;
     subjectType?: string;
     subjectId?: string;
     actorId?: string;
-    limit?: number;
-    offset?: number;
   }): Promise<PlatformAuditEventRecord[]> {
     const where: any = {};
-    if (query.subjectType) where.subjectType = query.subjectType;
-    if (query.subjectId) where.subjectId = query.subjectId;
-    if (query.actorId) where.actorId = query.actorId;
+    if (params?.subjectType) where.subjectType = params.subjectType;
+    if (params?.subjectId) where.subjectId = params.subjectId;
+    if (params?.actorId) where.actorId = params.actorId;
 
     const events = await this.prisma.platformAuditEvent.findMany({
       where,
       orderBy: { timestamp: "desc" },
-      take: query.limit || 50,
-      skip: query.offset || 0,
+      take: params?.limit || 50,
     });
 
-    return events.map((event) => ({
-      id: event.id,
-      timestamp: event.timestamp,
-      actorId: event.actorId,
-      actorRole: event.actorRole,
-      subjectType: event.subjectType,
-      subjectId: event.subjectId,
-      action: event.action,
-      before: event.before as any,
-      after: event.after as any,
-      reason: event.reason,
-      ticketRef: event.ticketRef,
-      impersonationContext: event.impersonationContext as any,
-      requestId: event.requestId,
-      executionResult: event.executionResult,
+    return events.map((e) => ({
+      id: e.id,
+      timestamp: e.timestamp,
+      actorId: e.actorId,
+      actorRole: e.actorRole,
+      subjectType: e.subjectType,
+      subjectId: e.subjectId,
+      action: e.action,
+      before: e.before as Record<string, any> | null,
+      after: e.after as Record<string, any> | null,
+      reason: e.reason,
+      ticketRef: e.ticketRef,
+      impersonationContext: e.impersonationContext as any,
+      requestId: e.requestId,
+      executionResult: e.executionResult,
     }));
   }
+
+  /**
+   * Protected read-only tenant audit log retrieval.
+   */
+  async findTenantEvents(
+    tenantId: string,
+    params?: { page?: number; pageSize?: number },
+  ): Promise<{ items: PlatformAuditEventRecord[]; total: number; page: number; pageSize: number }> {
+    const page = Math.max(1, params?.page || 1);
+    const pageSize = Math.min(100, Math.max(1, params?.pageSize || 20));
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+
+    const where: any = {
+      OR: [
+        { targetTenantId: tenantId },
+        { subjectType: "TENANT", subjectId: tenantId },
+      ],
+    };
+
+    const [total, events] = await this.prisma.$transaction([
+      this.prisma.systemAuditEvent.count({ where }),
+      this.prisma.systemAuditEvent.findMany({
+        where,
+        orderBy: { timestamp: "desc" },
+        skip,
+        take,
+      }),
+    ]);
+
+    const items = events.map((e) => ({
+      id: e.id,
+      timestamp: e.timestamp,
+      actorId: e.actorId,
+      actorRole: e.actorRole,
+      subjectType: e.subjectType,
+      subjectId: e.subjectId,
+      action: e.action,
+      before: e.before as Record<string, any> | null,
+      after: e.after as Record<string, any> | null,
+      reason: e.reason,
+      ticketRef: e.ticketRef,
+      impersonationContext: e.impersonationContext as any,
+      requestId: e.requestId,
+      executionResult: e.executionResult,
+    }));
+
+    return { items, total, page, pageSize };
+  }
 }
+

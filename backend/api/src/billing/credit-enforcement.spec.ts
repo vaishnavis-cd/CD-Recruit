@@ -4,16 +4,18 @@ import { LedgerService } from "./ledger.service";
 import { PoolService } from "./pool.service";
 import { CreditEnforcementService } from "./credit-enforcement.service";
 import {
-  PoolType,
-  PoolStatus,
-  GrantSource,
   LedgerEntryType,
   SessionKind,
   SessionStatus,
-  DrivePoolFallthrough,
-  HoldReason,
   CvMode,
 } from "@prisma/client";
+import {
+  PoolType,
+  PoolStatus,
+  GrantSource,
+  DrivePoolFallthrough,
+  HoldReason,
+} from "@cd-recruit/shared-types";
 import assert from "assert";
 
 function pass(msg: string) {
@@ -431,13 +433,13 @@ async function runEnforcementTests() {
     // ---------------------------------------------------------------------------
     // TEST 8: Trigger Safety Check
     // ---------------------------------------------------------------------------
-    console.log("\n[TEST 8] Verifying database enforcement trigger is NOT active during Phase 3 prep...");
+    console.log("\n[TEST 8] Verifying database enforcement trigger is protecting session state...");
 
     const triggers = await prisma.$queryRawUnsafe<any[]>(
       `SELECT trigger_name FROM information_schema.triggers WHERE trigger_name = 'trg_guard_session_start'`,
     );
-    assert.strictEqual(triggers.length, 0, "trg_guard_session_start trigger must remain disabled until cutover");
-    pass("Database enforcement trigger trg_guard_session_start confirmed inactive");
+    assert.ok(triggers.length >= 1, "trg_guard_session_start trigger must be active protecting invariants");
+    pass("Database enforcement trigger trg_guard_session_start confirmed active");
 
     console.log("\n================================================================================");
     console.log("Phase 3 Credit Enforcement Test Suite: 8/8 Tests PASSED (100%)");

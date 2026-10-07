@@ -60,7 +60,7 @@ async function runFinanceMetricsTests() {
     role: PlatformStaffRole.FINANCE,
     platformRole: PlatformStaffRole.FINANCE,
     email: `finance.metrics-${runId}@proctora.platform`,
-    isPlatformStaff: true,
+    isPlatformStaff: true as const,
   };
 
   const recruiterActor = {

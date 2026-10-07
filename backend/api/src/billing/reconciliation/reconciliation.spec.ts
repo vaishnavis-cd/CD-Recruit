@@ -24,7 +24,7 @@ const DB_URL =
 
 async function runReconciliationTests() {
   console.log("================================================================================");
-  console.log("STAGE 2.9 — ReconciliationService Architecture-Gated Verification Suite");
+  console.log("STAGE 2.9 â€” ReconciliationService Architecture-Gated Verification Suite");
   console.log("================================================================================");
 
   const prisma = new PrismaClient();
@@ -154,7 +154,7 @@ async function runReconciliationTests() {
     assert.strictEqual(results[ReconciliationCheckName.PAYMENT_PROOF].status, ReconciliationRunStatus.PASSED);
     assert.strictEqual(results[ReconciliationCheckName.AUDIT_WORM_VERIFICATION].status, ReconciliationRunStatus.PASSED);
 
-    pass(1, "Test A — Clean baseline passes all 7 checks against pristine seed data with zero drift");
+    pass(1, "Test A â€” Clean baseline passes all 7 checks against pristine seed data with zero drift");
 
     // ========================================================================
     // TEST B: Cached Balance Mismatch Detection (No Automatic Financial Repair)
@@ -185,10 +185,10 @@ async function runReconciliationTests() {
     assert.strictEqual(findingB.expectedValue, 10, "Expected balance from ledger is 10");
     assert.strictEqual(findingB.observedValue, 5, "Observed cached balance is 5");
 
-    // CRITICAL: Verify READ-ONLY guarantee — no auto-repair occurred!
+    // CRITICAL: Verify READ-ONLY guarantee â€” no auto-repair occurred!
     const poolBAfter = await prisma.creditPool.findUnique({ where: { id: poolBId } });
     assert.strictEqual(poolBAfter?.cachedRemaining, 5, "Reconciliation MUST NOT auto-repair cached balance");
-    pass(2, "Test B — Cached balance mismatch detected; financial state preserved without auto-repair");
+    pass(2, "Test B â€” Cached balance mismatch detected; financial state preserved without auto-repair");
 
     // Clean up test B pool
     await executeWithTriggersDisabled(async () => {
@@ -213,7 +213,7 @@ async function runReconciliationTests() {
     // Verify read-only: no auto-reset of overdraft
     const baCAfter = await prisma.billingAccount.findUnique({ where: { id: baC } });
     assert.strictEqual(baCAfter?.overdraftUsed, 15, "Reconciliation MUST NOT mutate overdraft counter");
-    pass(3, "Test C — Overdraft violation detected per ADR-004; values preserved read-only");
+    pass(3, "Test C â€” Overdraft violation detected per ADR-004; values preserved read-only");
 
     // Clean up test C
     await pg.query(`DELETE FROM public.organization WHERE billing_account_id = $1`, [baC]);
@@ -293,7 +293,7 @@ async function runReconciliationTests() {
       assert.strictEqual((f.metadata as any)?.candidateName, undefined, "Metadata MUST NOT contain candidate name");
       assert.strictEqual((f.metadata as any)?.candidateEmail, undefined, "Metadata MUST NOT contain candidate email");
     }
-    pass(4, "Test D — 1:1 Session-acquisition invariant violations detected (Cases A & B) with strict PII-blind diagnostics");
+    pass(4, "Test D â€” 1:1 Session-acquisition invariant violations detected (Cases A & B) with strict PII-blind diagnostics");
 
     // Clean up test D fixtures and restore partial unique index
     await executeWithTriggersDisabled(async () => {
@@ -336,7 +336,7 @@ async function runReconciliationTests() {
     const poolEAfter = await prisma.creditPool.findUnique({ where: { id: poolEId } });
     assert.strictEqual(poolEAfter?.status, "ACTIVE", "Reconciliation MUST NOT mutate pool status");
     assert.strictEqual(poolEAfter?.cachedRemaining, 25, "Reconciliation MUST NOT drain expired credits");
-    pass(5, "Test E — Expired pool with remaining balance detected as EXPIRED_UNPROCESSED without mutating state");
+    pass(5, "Test E â€” Expired pool with remaining balance detected as EXPIRED_UNPROCESSED without mutating state");
 
     // Clean up test E
     await executeWithTriggersDisabled(async () => {
@@ -376,7 +376,7 @@ async function runReconciliationTests() {
     const poolF1After = await prisma.creditPool.findUnique({ where: { id: poolF1 } });
     const poolF2After = await prisma.creditPool.findUnique({ where: { id: poolF2 } });
     assert.ok(poolF1After && poolF2After, "Reconciliation MUST NOT delete or modify violating topology records");
-    pass(6, "Test F — Topology invariant violation detected (multiple active general pools per account)");
+    pass(6, "Test F â€” Topology invariant violation detected (multiple active general pools per account)");
 
     // Clean up test F and restore index
     await executeWithTriggersDisabled(async () => {
@@ -387,7 +387,7 @@ async function runReconciliationTests() {
     });
 
     // ========================================================================
-    // TEST G: Payment Proof Failure — Missing Opening GRANT
+    // TEST G: Payment Proof Failure â€” Missing Opening GRANT
     // ========================================================================
     const { baId: baG, orgId: orgG } = await createTestAccount("nopool");
     const pbeG = await priceBookService.publishNewVersion(financePaymentActor, {
@@ -425,7 +425,7 @@ async function runReconciliationTests() {
     assert.ok(checkG.details.paymentsWithMissingGrant >= 1, "Must record missing grant");
     const findingG = checkG.findings.find((f) => f.entityId === payGId);
     assert.ok(findingG, "Must report finding for payment G");
-    pass(7, "Test G — Payment Proof failure detected for captured payment missing opening ledger GRANT");
+    pass(7, "Test G â€” Payment Proof failure detected for captured payment missing opening ledger GRANT");
 
     // Clean up test G
     await executeWithTriggersDisabled(async () => {
@@ -436,7 +436,7 @@ async function runReconciliationTests() {
     });
 
     // ========================================================================
-    // TEST H: Payment Proof Failure — Amount Incoherence (Math Mismatch)
+    // TEST H: Payment Proof Failure â€” Amount Incoherence (Math Mismatch)
     // ========================================================================
     const { baId: baH, orgId: orgH } = await createTestAccount("math");
     const pbeH = await priceBookService.publishNewVersion(financePaymentActor, {
@@ -463,7 +463,7 @@ async function runReconciliationTests() {
     const checkH = await reconciliationService.runPaymentProofCheck();
     assert.strictEqual(checkH.status, ReconciliationRunStatus.FAILED, "Payment proof must fail on math mismatch");
     assert.ok(checkH.details.paymentsWithMathDiscrepancy >= 1, "Must flag mathematical discrepancy");
-    pass(8, "Test H — Payment Proof mathematical incoherence detected (qty * unitPrice != amount)");
+    pass(8, "Test H â€” Payment Proof mathematical incoherence detected (qty * unitPrice != amount)");
 
     // Clean up test H
     await executeWithTriggersDisabled(async () => {
@@ -491,7 +491,7 @@ async function runReconciliationTests() {
     const dbRun1 = await prisma.reconciliationRun.findUnique({ where: { id: concurrentRun1.id } });
     const dbRun2 = await prisma.reconciliationRun.findUnique({ where: { id: concurrentRun2.id } });
     assert.ok(dbRun1 && dbRun2, "Both reconciliation runs must be persisted in database");
-    pass(9, "Test I — Concurrent reconciliation runs execute in parallel with deterministic snapshot isolation");
+    pass(9, "Test I â€” Concurrent reconciliation runs execute in parallel with deterministic snapshot isolation");
 
     // ========================================================================
     // TEST J: Reconciliation During Concurrent Payment Capture
@@ -535,7 +535,7 @@ async function runReconciliationTests() {
     assert.strictEqual(poolJ?.cachedRemaining, 10);
     assert.ok(reconResult.id, "Reconciliation run completed successfully during payment capture");
     assert.strictEqual(reconResult.driftDetected, false, "Zero financial drift during concurrent capture");
-    pass(10, "Test J — Reconciliation during payment capture completed with zero corruption and consistent snapshot");
+    pass(10, "Test J â€” Reconciliation during payment capture completed with zero corruption and consistent snapshot");
 
     // Clean up test J
     await executeWithTriggersDisabled(async () => {
@@ -557,18 +557,18 @@ async function runReconciliationTests() {
       auditWormResult.details.wormCapabilityGapReport.includes("MinIO WORM object lock export"),
       "Must honestly document export capability gap",
     );
-    pass(11, "Test K — Immutability triggers active, audit coverage verified, and WORM capability gap honestly reported");
+    pass(11, "Test K â€” Immutability triggers active, audit coverage verified, and WORM capability gap honestly reported");
 
     // ========================================================================
     // TEST L: Seed Baseline Integrity (Acme & Globex Pristine)
     // ========================================================================
     const acmeBa = await prisma.billingAccount.findFirst({
       where: { name: { contains: "Acme" } },
-      include: { creditPools: true },
+      include: { pools: true },
     });
     const globexBa = await prisma.billingAccount.findFirst({
       where: { name: { contains: "Globex" } },
-      include: { creditPools: true },
+      include: { pools: true },
     });
 
     assert.ok(acmeBa, "Acme baseline account must exist");
@@ -578,11 +578,11 @@ async function runReconciliationTests() {
     assert.strictEqual(globexBa.overdraftLimit, 0, "Globex overdraft_limit must be 0");
     assert.strictEqual(globexBa.overdraftUsed, 0, "Globex overdraft_used must be 0");
 
-    const acmeTotalCredits = acmeBa.creditPools.reduce((sum, p) => sum + p.cachedRemaining, 0);
-    const globexTotalCredits = globexBa.creditPools.reduce((sum, p) => sum + p.cachedRemaining, 0);
+    const acmeTotalCredits = acmeBa.pools.reduce((sum, p) => sum + p.cachedRemaining, 0);
+    const globexTotalCredits = globexBa.pools.reduce((sum, p) => sum + p.cachedRemaining, 0);
     assert.strictEqual(acmeTotalCredits, 50, "Acme baseline balance must remain pristine at 50 credits");
     assert.strictEqual(globexTotalCredits, 50, "Globex baseline balance must remain pristine at 50 credits");
-    pass(12, "Test L — Seed baseline accounts Acme and Globex remain pristine with 50 credits and 0 overdraft");
+    pass(12, "Test L â€” Seed baseline accounts Acme and Globex remain pristine with 50 credits and 0 overdraft");
 
     // ========================================================================
     // TEST M: getLatestRun() API Contract
@@ -591,7 +591,7 @@ async function runReconciliationTests() {
     assert.ok(latestRun !== null, "getLatestRun() must return the most recent run");
     assert.ok(latestRun.id, "latestRun must have valid ID");
     assert.ok(latestRun.checkResults[ReconciliationCheckName.POOL_INTEGRITY], "latestRun must contain check results");
-    pass(13, "Test M — getLatestRun() retrieves latest audit report with all 7 check breakdowns");
+    pass(13, "Test M â€” getLatestRun() retrieves latest audit report with all 7 check breakdowns");
 
     console.log("================================================================================");
     console.log(`ALL ${passedTests} / 13 TESTS PASSED FOR ReconciliationService!`);

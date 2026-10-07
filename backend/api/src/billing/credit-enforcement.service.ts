@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
-import { LedgerService } from "./ledger.service";
+import { LedgerService } from "./ledger/ledger.service";
 import { PoolService } from "./pool.service";
 import {
   Prisma,
@@ -15,9 +15,8 @@ import {
   LedgerEntryType,
   LedgerReason,
   PoolStatus,
-  DrivePoolFallthrough,
 } from "@prisma/client";
-import { HoldReason } from "@cd-recruit/shared-types";
+import { DrivePoolFallthrough, HoldReason } from "@cd-recruit/shared-types";
 
 export interface CreditEnforcementResult {
   outcome: "STARTED" | "HELD" | "ALREADY_PROCESSED" | "WAIVED_NON_LIVE" | "FAILED";
@@ -51,8 +50,8 @@ export class CreditEnforcementService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledgerService: LedgerService,
-    private readonly poolService: PoolService,
-  ) {}
+    private readonly poolService?: PoolService,
+  ) { }
 
   /**
    * Authoritative Phase 3 Session Credit Enforcement Gateway.
@@ -282,12 +281,19 @@ export class CreditEnforcementService {
           shadow: false,
         });
 
+        // Set PostgreSQL session context to authorize legitimate session service transition
+        await tx.$executeRawUnsafe(`SET LOCAL proctora.session_service_ok = 'on'`);
+
+        const durationMinutes = (session as any).roleTemplate?.durationMinutes || 90;
+        const deadlineAt = session.deadlineAt || new Date(now.getTime() + durationMinutes * 60 * 1000);
+
         // Set session status to IN_PROGRESS
         await tx.session.update({
           where: { id: session.id },
           data: {
             status: SessionStatus.IN_PROGRESS,
             startedAt: now,
+            deadlineAt,
             lastHeartbeatAt: now,
             lastActivityAt: now,
             heldAt: null,
@@ -324,11 +330,17 @@ export class CreditEnforcementService {
           shadow: false,
         });
 
+        await tx.$executeRawUnsafe(`SET LOCAL proctora.session_service_ok = 'on'`);
+
+        const durationMinutes = (session as any).roleTemplate?.durationMinutes || 90;
+        const deadlineAt = session.deadlineAt || new Date(now.getTime() + durationMinutes * 60 * 1000);
+
         await tx.session.update({
           where: { id: session.id },
           data: {
             status: SessionStatus.IN_PROGRESS,
             startedAt: now,
+            deadlineAt,
             lastHeartbeatAt: now,
             lastActivityAt: now,
             heldAt: null,
@@ -467,7 +479,7 @@ export class CreditEnforcementService {
       hasActiveDrivePass: !!drivePass,
       drivePassRemaining: dpRemaining,
       drivePassExpiresAt: drivePass?.expiresAt ?? null,
-      fallthroughMode: fallthrough,
+      fallthroughMode: fallthrough as DrivePoolFallthrough,
       activeTalentReserveRemaining: trRemaining,
       queuedPoolCount: queuedCount,
       heldCandidateCount: heldCount,

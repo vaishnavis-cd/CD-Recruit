@@ -49,7 +49,7 @@ export class TrialGrantService {
   }
 
   /**
-   * Primary service contract required by Half 1 onboarding flow (Step 4) per Artifact 07 §2.2.
+   * Primary service contract required by Half 1 onboarding flow (Step 4) per Artifact 07 Â§2.2.
    * Atomically provisions a policy-bound onboarding trial grant:
    * - Exactly 25 credits
    * - 30 days validity
@@ -285,7 +285,7 @@ export class TrialGrantService {
     const account = await this.prisma.billingAccount.findUnique({
       where: { id: billingAccountId },
       include: {
-        creditPools: {
+        pools: {
           where: { source: PoolGrantSource.TRIAL },
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -299,7 +299,7 @@ export class TrialGrantService {
       );
     }
 
-    const trialPool = account.creditPools[0] || null;
+    const trialPool = account.pools[0] || null;
 
     return {
       hasReceivedTrial: account.trialGrantedAt !== null,

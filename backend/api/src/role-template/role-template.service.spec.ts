@@ -271,7 +271,8 @@ async function runRoleTemplateSubsystemTests() {
   console.log("================================================================================");
 }
 
-runRoleTemplateSubsystemTests().catch((err) => {
-  console.error("❌ RoleTemplate subsystem tests failed:", err);
-  process.exit(1);
+describe('RoleTemplate Subsystem', () => {
+  it('runs all role template subsystem characterization tests', async () => {
+    await runRoleTemplateSubsystemTests();
+  });
 });

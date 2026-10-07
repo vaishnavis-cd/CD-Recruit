@@ -352,9 +352,9 @@ BEGIN
 
   -- Step 5: Initialize Session Billing Evidence
   INSERT INTO "billing"."session_billing_evidence" (
-    session_id, billing_account_id, drive_id, kind, started_at, created_at
+    session_id, billing_account_id, drive_id, kind, started_at, event_count, modules_reached, created_at
   ) VALUES (
-    p_session_id, v_acct_id, v_session.drive_id, v_session.kind, clock_timestamp(), clock_timestamp()
+    p_session_id, v_acct_id, v_session.drive_id, v_session.kind::"billing"."SessionKind", clock_timestamp(), 0, 0, clock_timestamp()
   ) ON CONFLICT (session_id) DO NOTHING;
 
   RETURN QUERY SELECT 'STARTED'::text, v_pool_id, v_rem;
