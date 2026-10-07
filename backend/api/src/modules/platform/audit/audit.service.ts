@@ -25,8 +25,7 @@ export class AuditService {
           reason: dto.reason || null,
           ticketRef: dto.ticketRef || null,
           requestId: dto.requestId || null,
-          ipAddress: dto.ipAddress || null,
-          userAgent: dto.userAgent || null,
+          impersonationContext: (dto.ipAddress || dto.userAgent) ? { ipAddress: dto.ipAddress, userAgent: dto.userAgent } : undefined,
         },
       });
     } catch (err: any) {
@@ -54,16 +53,6 @@ export class AuditService {
         take: limit,
         skip: offset,
         orderBy: { createdAt: 'desc' },
-        include: {
-          actor: {
-            select: {
-              id: true,
-              fullName: true,
-              email: true,
-              role: true,
-            },
-          },
-        },
       }),
       this.prisma.platformAuditEvent.count({ where }),
     ]);

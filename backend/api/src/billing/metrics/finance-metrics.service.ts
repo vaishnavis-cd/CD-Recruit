@@ -724,7 +724,7 @@ export class FinanceMetricsService {
     const poolCounts = {
       active: ba.creditPools.filter((p) => p.status === "ACTIVE").length,
       queued: ba.creditPools.filter((p) => p.status === "QUEUED").length,
-      exhausted: ba.creditPools.filter((p) => p.status === "EXHAUSTED" || p.status === "DEPLETED").length,
+      exhausted: ba.creditPools.filter((p) => p.status === "EXHAUSTED" || (p.status as string) === "DEPLETED").length,
       expired: ba.creditPools.filter((p) => p.status === "EXPIRED").length,
       total: ba.creditPools.length,
     };

@@ -156,7 +156,7 @@ export class PlatformAuditService {
     if (query.subjectId) where.subjectId = query.subjectId;
     if (query.actorId) where.actorId = query.actorId;
 
-    const events = await this.prisma.systemAuditEvent.findMany({
+    const events = await this.prisma.platformAuditEvent.findMany({
       where,
       orderBy: { timestamp: "desc" },
       take: query.limit || 50,

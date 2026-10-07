@@ -433,7 +433,7 @@ export class PaymentService {
         const existing = await tx.payment.findUnique({
           where: {
             provider_providerPaymentId: {
-              provider: dto.provider,
+              provider: dto.provider as any,
               providerPaymentId: dto.providerPaymentId.trim(),
             },
           },
@@ -449,10 +449,10 @@ export class PaymentService {
           data: {
             id: paymentId,
             billingAccountId: dto.billingAccountId,
-            provider: dto.provider,
+            provider: dto.provider as any,
             providerPaymentId: dto.providerPaymentId.trim(),
             providerOrderId: dto.providerOrderId?.trim() || null,
-            status,
+            status: status as any,
             priceBookEntryId: priceEntry.id,
             quantityCredits: dto.quantityCredits,
             unitPriceMinor: priceEntry.unitPriceMinor,
@@ -539,7 +539,7 @@ export class PaymentService {
         const existing = await this.prisma.payment.findUnique({
           where: {
             provider_providerPaymentId: {
-              provider: dto.provider,
+              provider: dto.provider as any,
               providerPaymentId: dto.providerPaymentId.trim(),
             },
           },

@@ -121,12 +121,12 @@ export class MakerCheckerService {
       const payload = request.payload as Record<string, any>;
       const account = await tx.billingAccount.findUnique({
         where: { id: request.billingAccountId },
-        include: { organizations: true },
+        include: { organization: true },
       });
       if (!account) {
         throw new NotFoundException(`BillingAccount ${request.billingAccountId} not found`);
       }
-      const organizationId = account.organizations[0]?.id || "system";
+      const organizationId = account.organization?.id || "system";
 
       let beforeState: any = null;
       let afterState: any = null;

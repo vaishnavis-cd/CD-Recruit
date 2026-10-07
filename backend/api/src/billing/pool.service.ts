@@ -56,12 +56,12 @@ export class PoolService {
 
       const account = await tx.billingAccount.findUnique({
         where: { id: dto.billingAccountId },
-        include: { organizations: true },
+        include: { organization: true },
       });
       if (!account) {
         throw new NotFoundException(`BillingAccount ${dto.billingAccountId} not found`);
       }
-      const organizationId = account.organizations[0]?.id || "system";
+      const organizationId = account.organization?.id || "system";
 
       let status = PoolStatus.QUEUED;
       let expiresAt: Date | null = null;

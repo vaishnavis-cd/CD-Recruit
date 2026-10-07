@@ -6,6 +6,7 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
+  output          = "../../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -57,6 +58,8 @@ enum StaffRole {
   REVIEWER
   RECRUITER
   BILLING_ADMIN
+
+  @@schema("public")
 }
 
 enum LedgerEntryType {
@@ -69,6 +72,8 @@ enum LedgerEntryType {
   REFUND             // -n   unused credits removed because cash was refunded to customer
   EXPIRE             // -n   remaining unconsumed credits expired at deadline
   ADJUST             // +-n  manual correction (strictly maker-checker)
+
+  @@schema("public")
 }
 
 enum GrantSource {
@@ -79,6 +84,8 @@ enum GrantSource {
   GOODWILL
   MIGRATION
   ROLLOVER
+
+  @@schema("public")
 }
 
 enum LedgerReason {
@@ -99,12 +106,16 @@ enum LedgerReason {
   GOODWILL
   MIGRATION_SEED
   MANUAL_CORRECTION
+
+  @@schema("public")
 }
 
 enum PoolType {
   DRIVE_PASS
   TALENT_RESERVE
   ENTERPRISE
+
+  @@schema("public")
 }
 
 enum PoolStatus {
@@ -114,29 +125,39 @@ enum PoolStatus {
   EXHAUSTED          // 0 cached_remaining credits
   EXPIRED            // Validity deadline reached
   CANCELLED          // Refunded or administratively closed
+
+  @@schema("public")
 }
 
 enum SessionKind {
   LIVE               // Real candidate attempt (BILLABLE)
   PREVIEW            // Recruiter previewing questions (FREE, watermarked, no grading)
   SANDBOX            // Automated QA, k6 load scripts, dev runs (FREE, rejected in prod)
+
+  @@schema("public")
 }
 
 enum BillingAccountStatus {
   ACTIVE
   RESTRICTED         // Overdraft aged > 14 days; cannot schedule drives or invite
   SUSPENDED          // Payment dispute / fraud lock
+
+  @@schema("public")
 }
 
 enum DrivePoolFallthrough {
   ALLOW              // Exhausted Drive Pass falls through to Talent Reserve
   HOLD               // Exhausted Drive Pass puts candidate into polite HOLD screen
+
+  @@schema("public")
 }
 
 enum PaymentProvider {
   RAZORPAY
   STRIPE
   MANUAL_INVOICE
+
+  @@schema("public")
 }
 
 enum PaymentStatus {
@@ -146,6 +167,8 @@ enum PaymentStatus {
   REFUNDED
   PARTIALLY_REFUNDED
   DISPUTED
+
+  @@schema("public")
 }
 
 enum ManualRequestKind {
@@ -156,6 +179,8 @@ enum ManualRequestKind {
   OVERDRAFT_LIMIT
   ACCOUNT_STATUS
   BILLING_COUNTRY
+
+  @@schema("public")
 }
 
 enum ManualRequestStatus {
@@ -164,6 +189,8 @@ enum ManualRequestStatus {
   REJECTED
   EXECUTED
   CANCELLED
+
+  @@schema("public")
 }
 
 enum SessionEndReason {
@@ -172,6 +199,8 @@ enum SessionEndReason {
   ABANDONED
   CANDIDATE_LEFT
   PLATFORM_FAULT
+
+  @@schema("public")
 }
 
 enum HoldReason {
@@ -356,7 +385,7 @@ model Drive {
   slotDistribution Json?     @map("slot_distribution")
   originChannel  OriginChannel @default(DIRECT) @map("origin_channel")
   isEditingUnlocked Boolean   @default(false) @map("is_editing_unlocked")
-  fallthrough    String        @default("ALLOW") @db.VarChar(16)
+  fallthrough    DrivePoolFallthrough @default(ALLOW) @map("fallthrough")
 
   organization   Organization?   @relation(fields: [organizationId], references: [id])
   roleTemplate   RoleTemplate    @relation(fields: [roleTemplateId], references: [id])
@@ -939,7 +968,6 @@ model PlatformStaff {
   overridesApproved  OverrideAction[]       @relation("ApprovedOverrides")
   impersonations     ImpersonationSession[]
   draftsCreated      OnboardingDraft[]
-  incidentsDeclared  IncidentWindow[]
 
   @@map("platform_staff")
   @@schema("platform")
@@ -949,20 +977,20 @@ model PlatformStaff {
 // ==========================================
 
 model BillingAccount {
-  id              String    @id @default(uuid())
-  name            String    @db.VarChar(255)
-  legalEntityName String?   @map("legal_entity_name") @db.VarChar(255)
-  billingCountry  String    @default("IN") @map("billing_country") @db.VarChar(2)
-  currency        String    @default("INR") @db.VarChar(3)
-  taxId           String?   @map("tax_id") @db.VarChar(64)
-  status          String    @default("ACTIVE") @db.VarChar(32)
-  overdraftLimit  Int       @default(0) @map("overdraft_limit")
-  overdraftUsed   Int       @default(0) @map("overdraft_used")
-  hasPaidPurchase Boolean   @default(false) @map("has_paid_purchase")
-  trialDomain     String?   @unique @map("trial_domain") @db.VarChar(255)
-  trialGrantedAt  DateTime? @map("trial_granted_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @default(now()) @map("updated_at")
+  id              String               @id @default(uuid())
+  name            String               @db.VarChar(255)
+  legalEntityName String?              @map("legal_entity_name") @db.VarChar(255)
+  billingCountry  String               @default("IN") @map("billing_country") @db.VarChar(2)
+  currency        String               @default("INR") @db.VarChar(3)
+  taxId           String?              @map("tax_id") @db.VarChar(64)
+  status          BillingAccountStatus @default(ACTIVE)
+  overdraftLimit  Int                  @default(0) @map("overdraft_limit")
+  overdraftUsed   Int                  @default(0) @map("overdraft_used")
+  hasPaidPurchase Boolean              @default(false) @map("has_paid_purchase")
+  trialDomain     String?              @unique @map("trial_domain") @db.VarChar(255)
+  trialGrantedAt  DateTime?            @map("trial_granted_at")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @default(now()) @map("updated_at")
 
   organization          Organization?
   creditPools           CreditPool[]
@@ -976,29 +1004,29 @@ model BillingAccount {
 }
 
 model CreditPool {
-  id              String    @id @default(uuid())
-  billingAccountId String   @map("billing_account_id")
-  driveId         String?   @map("drive_id")
-  poolType        String    @map("pool_type") @db.VarChar(32)
-  name            String    @db.VarChar(255)
-  source          String    @db.VarChar(32)
-  totalCredits    Int       @map("total_credits")
-  cachedRemaining Int       @map("cached_remaining")
-  validityDays    Int?      @map("validity_days")
-  maxWaitDays     Int       @default(365) @map("max_wait_days")
-  queueOrder      Int?      @map("queue_order")
-  status          String    @default("QUEUED") @db.VarChar(32)
-  purchasedAt     DateTime  @default(now()) @map("purchased_at")
-  clockStartedAt  DateTime? @map("clock_started_at")
-  activatedAt     DateTime? @map("activated_at")
-  expiresAt       DateTime? @map("expires_at")
-  unitPriceMinor  Int?      @map("unit_price_minor")
-  currency        String?   @db.VarChar(3)
-  paymentId       String?   @map("payment_id")
-  termsVersion    String?   @map("terms_version") @db.VarChar(32)
-  termsAcceptedBy String?   @map("terms_accepted_by") @db.VarChar(255)
-  termsAcceptedAt DateTime? @map("terms_accepted_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  id              String      @id @default(uuid())
+  billingAccountId String     @map("billing_account_id")
+  driveId         String?     @map("drive_id")
+  poolType        PoolType    @map("pool_type")
+  name            String      @db.VarChar(255)
+  source          GrantSource @map("source")
+  totalCredits    Int         @map("total_credits")
+  cachedRemaining Int         @map("cached_remaining")
+  validityDays    Int?        @map("validity_days")
+  maxWaitDays     Int         @default(365) @map("max_wait_days")
+  queueOrder      Int?        @map("queue_order")
+  status          PoolStatus  @default(QUEUED)
+  purchasedAt     DateTime    @default(now()) @map("purchased_at")
+  clockStartedAt  DateTime?   @map("clock_started_at")
+  activatedAt     DateTime?   @map("activated_at")
+  expiresAt       DateTime?   @map("expires_at")
+  unitPriceMinor  Int?        @map("unit_price_minor")
+  currency        String?     @db.VarChar(3)
+  paymentId       String?     @map("payment_id")
+  termsVersion    String?     @map("terms_version") @db.VarChar(32)
+  termsAcceptedBy String?     @map("terms_accepted_by") @db.VarChar(255)
+  termsAcceptedAt DateTime?   @map("terms_accepted_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
 
   billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
   payment        Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
@@ -1011,26 +1039,26 @@ model CreditPool {
 }
 
 model CreditLedgerEntry {
-  id               String    @id @default(uuid())
-  billingAccountId String    @map("billing_account_id")
-  organizationId   String    @map("organization_id")
-  creditPoolId     String?   @map("credit_pool_id")
-  entryType        String    @map("entry_type") @db.VarChar(32)
+  id               String          @id @default(uuid())
+  billingAccountId String          @map("billing_account_id")
+  organizationId   String          @map("organization_id")
+  creditPoolId     String?         @map("credit_pool_id")
+  entryType        LedgerEntryType @map("entry_type")
   amount           Int
-  balanceAfter     Int?      @map("balance_after")
-  sessionId        String?   @map("session_id")
-  driveId          String?   @map("drive_id")
-  relatedEntryId   String?   @map("related_entry_id")
-  grantSource      String?   @map("grant_source") @db.VarChar(32)
-  reason           String    @db.VarChar(64)
-  reasonNote       String?   @map("reason_note") @db.VarChar(200)
-  paymentId        String?   @map("payment_id")
-  requestId        String?   @map("request_id")
-  idempotencyKey   String    @unique @map("idempotency_key") @db.VarChar(128)
-  actorId          String    @map("actor_id") @db.VarChar(128)
-  approvedById     String?   @map("approved_by_id") @db.VarChar(128)
-  shadow           Boolean   @default(false)
-  createdAt        DateTime  @default(now()) @map("created_at")
+  balanceAfter     Int?            @map("balance_after")
+  sessionId        String?         @map("session_id")
+  driveId          String?         @map("drive_id")
+  relatedEntryId   String?         @map("related_entry_id")
+  grantSource      GrantSource?    @map("grant_source")
+  reason           LedgerReason    @map("reason")
+  reasonNote       String?         @map("reason_note") @db.VarChar(200)
+  paymentId        String?         @map("payment_id")
+  requestId        String?         @map("request_id")
+  idempotencyKey   String          @unique @map("idempotency_key") @db.VarChar(128)
+  actorId          String          @map("actor_id") @db.VarChar(128)
+  approvedById     String?         @map("approved_by_id") @db.VarChar(128)
+  shadow           Boolean         @default(false)
+  createdAt        DateTime        @default(now()) @map("created_at")
 
   billingAccount BillingAccount        @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
   creditPool     CreditPool?           @relation(fields: [creditPoolId], references: [id], onDelete: Restrict)
@@ -1048,21 +1076,21 @@ model CreditLedgerEntry {
 }
 
 model Payment {
-  id                String    @id @default(uuid())
-  billingAccountId  String    @map("billing_account_id")
-  provider          String    @db.VarChar(32)
-  providerPaymentId String    @map("provider_payment_id") @db.VarChar(128)
-  providerOrderId   String?   @map("provider_order_id") @db.VarChar(128)
-  status            String    @db.VarChar(32)
-  priceBookEntryId  String    @map("price_book_entry_id")
-  quantityCredits   Int       @map("quantity_credits")
-  unitPriceMinor    Int       @map("unit_price_minor")
-  amountMinor       Int       @map("amount_minor")
-  taxMinor          Int?      @map("tax_minor")
-  currency          String    @db.VarChar(3)
-  invoiceNumber     String?   @map("invoice_number") @db.VarChar(64)
-  capturedAt        DateTime? @map("captured_at")
-  createdAt         DateTime  @default(now()) @map("created_at")
+  id                String          @id @default(uuid())
+  billingAccountId  String          @map("billing_account_id")
+  provider          PaymentProvider @map("provider")
+  providerPaymentId String          @map("provider_payment_id") @db.VarChar(128)
+  providerOrderId   String?         @map("provider_order_id") @db.VarChar(128)
+  status            PaymentStatus   @map("status")
+  priceBookEntryId  String          @map("price_book_entry_id")
+  quantityCredits   Int             @map("quantity_credits")
+  unitPriceMinor    Int             @map("unit_price_minor")
+  amountMinor       Int             @map("amount_minor")
+  taxMinor          Int?            @map("tax_minor")
+  currency          String          @db.VarChar(3)
+  invoiceNumber     String?         @map("invoice_number") @db.VarChar(64)
+  capturedAt        DateTime?       @map("captured_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
 
   billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
   priceBookEntry PriceBookEntry      @relation(fields: [priceBookEntryId], references: [id], onDelete: Restrict)
@@ -1076,20 +1104,20 @@ model Payment {
 }
 
 model ManualBillingRequest {
-  id               String    @id @default(uuid())
-  billingAccountId String    @map("billing_account_id")
-  kind             String    @db.VarChar(32)
+  id               String              @id @default(uuid())
+  billingAccountId String              @map("billing_account_id")
+  kind             ManualRequestKind   @map("kind")
   payload          Json
   reason           String
-  ticketRef        String    @map("ticket_ref") @db.VarChar(64)
-  requestedById    String    @map("requested_by_id") @db.VarChar(128)
-  approvedById     String?   @map("approved_by_id") @db.VarChar(128)
-  status           String    @default("PENDING") @db.VarChar(32)
-  rejectionReason  String?   @map("rejection_reason")
-  executionError   String?   @map("execution_error")
-  decidedAt        DateTime? @map("decided_at")
-  executedAt       DateTime? @map("executed_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
+  ticketRef        String              @map("ticket_ref") @db.VarChar(64)
+  requestedById    String              @map("requested_by_id") @db.VarChar(128)
+  approvedById     String?             @map("approved_by_id") @db.VarChar(128)
+  status           ManualRequestStatus @default(PENDING) @map("status")
+  rejectionReason  String?             @map("rejection_reason")
+  executionError   String?             @map("execution_error")
+  decidedAt        DateTime?           @map("decided_at")
+  executedAt       DateTime?           @map("executed_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
 
   billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
   ledgerEntries  CreditLedgerEntry[]
@@ -1103,7 +1131,7 @@ model ManualBillingRequest {
 model PriceBookEntry {
   id             String    @id @default(uuid())
   sku            String    @db.VarChar(64)
-  poolType       String    @map("pool_type") @db.VarChar(32)
+  poolType       PoolType  @map("pool_type")
   credits        Int
   validityDays   Int?      @map("validity_days")
   billingCountry String    @map("billing_country") @db.VarChar(2)
@@ -1122,9 +1150,10 @@ model PriceBookEntry {
 
 model BillingAuditEvent {
   id                   String   @id @default(uuid())
+  billingAccountId     String?  @map("billing_account_id")
   timestamp            DateTime @default(now())
   actorId              String   @map("actor_id") @db.VarChar(128)
-  actorRole            String   @map("actor_role") @db.VarChar(32)
+  actorRole            String?  @default("SYSTEM") @map("actor_role") @db.VarChar(32)
   subjectType          String   @map("subject_type") @db.VarChar(32)
   subjectId            String   @map("subject_id")
   action               String   @db.VarChar(64)
@@ -1134,8 +1163,10 @@ model BillingAuditEvent {
   ticketRef            String?  @map("ticket_ref") @db.VarChar(64)
   impersonationContext Json?    @map("impersonation_context")
   requestId            String?  @map("request_id")
-  executionResult      String   @map("execution_result") @db.VarChar(16)
+  approvedById         String?  @map("approved_by_id")
+  executionResult      String?  @default("SUCCESS") @map("execution_result") @db.VarChar(16)
 
+  @@index([billingAccountId, timestamp])
   @@index([subjectType, subjectId])
   @@index([timestamp])
   @@map("billing_audit_event")
@@ -1143,20 +1174,20 @@ model BillingAuditEvent {
 }
 
 model SessionBillingEvidence {
-  sessionId              String    @id @map("session_id")
-  billingAccountId       String    @map("billing_account_id")
-  driveId                String?   @map("drive_id")
-  kind                   String?   @db.VarChar(16)
-  startedAt              DateTime? @map("started_at")
-  firstContentRenderedAt DateTime? @map("first_content_rendered_at")
-  lastHeartbeatAt        DateTime? @map("last_heartbeat_at")
-  endedAt                DateTime? @map("ended_at")
-  endReason              String?   @map("end_reason") @db.VarChar(32)
-  eventCount             Int       @default(0) @map("event_count")
-  modulesReached         Int       @default(0) @map("modules_reached")
-  cvMode                 String?   @map("cv_mode") @db.VarChar(32)
-  infraFlags             Json?     @map("infra_flags")
-  createdAt              DateTime  @default(now()) @map("created_at")
+  sessionId              String            @id @map("session_id")
+  billingAccountId       String            @map("billing_account_id")
+  driveId                String?           @map("drive_id")
+  kind                   SessionKind?      @map("kind")
+  startedAt              DateTime?         @map("started_at")
+  firstContentRenderedAt DateTime?         @map("first_content_rendered_at")
+  lastHeartbeatAt        DateTime?         @map("last_heartbeat_at")
+  endedAt                DateTime?         @map("ended_at")
+  endReason              SessionEndReason? @map("end_reason")
+  eventCount             Int               @default(0) @map("event_count")
+  modulesReached         Int               @default(0) @map("modules_reached")
+  cvMode                 CvMode?           @map("cv_mode")
+  infraFlags             Json?             @map("infra_flags")
+  createdAt              DateTime          @default(now()) @map("created_at")
 
   @@index([billingAccountId])
   @@index([driveId])
@@ -1195,8 +1226,6 @@ model ReconciliationRun {
   @@map("reconciliation_run")
   @@schema("billing")
 }
-
-
 
 model TenantProfile {
   id             String @id @default(uuid())
@@ -1286,21 +1315,24 @@ model ImpersonationSession {
   @@schema("platform")
 }
 
-model SystemAuditEvent {
+model PlatformAuditEvent {
   id                   String   @id @default(uuid())
   timestamp            DateTime @default(now())
   actorId              String   @map("actor_id") @db.VarChar(128)
-  actorRole            String   @map("actor_role") @db.VarChar(32)
+  actorRole            String?  @default("SYSTEM") @map("actor_role") @db.VarChar(32)
   subjectType          String   @map("subject_type") @db.VarChar(32)
   subjectId            String   @map("subject_id")
   action               String   @db.VarChar(64)
   before               Json?
   after                Json?
+  beforeState          Json?    @map("before_state")
+  afterState           Json?    @map("after_state")
   reason               String?
   ticketRef            String?  @map("ticket_ref") @db.VarChar(64)
   impersonationContext Json?    @map("impersonation_context")
   requestId            String?  @map("request_id")
-  executionResult      String   @map("execution_result") @db.VarChar(16)
+  executionResult      String?  @default("SUCCESS") @map("execution_result") @db.VarChar(16)
+  createdAt            DateTime @default(now()) @map("created_at")
 
   @@index([subjectType, subjectId])
   @@index([timestamp])
@@ -1326,214 +1358,19 @@ model OnboardingDraft {
 }
 
 model IncidentWindow {
-  id                   String            @id @default(uuid())
-  title                String
-  description          String
-  scopeType            IncidentScopeType @map("scope_type")
-  targetOrganizationId String?           @map("target_organization_id")
+  id             String    @id @default(uuid())
+  title          String    @db.VarChar(255)
+  reason         String
+  ticketRef      String    @map("ticket_ref") @db.VarChar(64)
+  startedAt      DateTime  @map("started_at")
+  endedAt        DateTime? @map("ended_at")
+  affectedDrives String[]  @map("affected_drives")
+  reversalStatus String    @default("PENDING") @map("reversal_status") @db.VarChar(32)
+  createdBy      String    @map("created_by") @db.VarChar(128)
+  createdAt      DateTime  @default(now()) @map("created_at")
 
-  startedAt         DateTime       @map("started_at")
-  endedAt           DateTime?      @map("ended_at")
-  declaredByStaffId String         @map("declared_by_staff_id")
-  ticketRef         String         @map("ticket_ref")
-  status            IncidentStatus @default(ACTIVE)
-
-  createdAt DateTime @default(now()) @map("created_at")
-
-  declaredBy PlatformStaff @relation(fields: [declaredByStaffId], references: [id])
-
-  @@index([status, startedAt])
   @@map("incident_window")
   @@schema("platform")
 }
 
-/// The payer entity. 1:1 with Organization by default; decouples payer from tenant orgs.
-/// Holds overdraft balances and tax/country pricing anchor.
-model BillingAccount {
-  id               String               @id @default(uuid())
-  name             String
-  legalEntityName  String?              @map("legal_entity_name")
-  billingCountry   String               @map("billing_country") // From legal entity + tax ID, NOT IP.
-  currency         String               @default("INR")
-  taxId            String?              @map("tax_id")          // e.g. GSTIN / EIN
-  status           BillingAccountStatus @default(ACTIVE)
-  overdraftLimit   Int                  @default(0) @map("overdraft_limit") // Absolute ceiling; 0 = disabled
-  overdraftUsed    Int                  @default(0) @map("overdraft_used")  // Fast cache of debt
-  hasPaidPurchase  Boolean              @default(false) @map("has_paid_purchase")
-  trialDomain      String?              @unique @map("trial_domain")       // 1 trial per verified domain
-  trialGrantedAt   DateTime?            @map("trial_granted_at")
-  createdAt        DateTime             @default(now()) @map("created_at")
-
-  organizations    Organization[]
-  pools            CreditPool[]
-  ledgerEntries    CreditLedgerEntry[]
-  payments         Payment[]
-
-  @@map("billing_account")
-}
-
-model CreditPool {
-  id               String      @id @default(uuid())
-  billingAccountId String      @map("billing_account_id")
-  driveId          String?     @map("drive_id")         // DRIVE_PASS only. Plain UUID snapshot. Immutable.
-  poolType         PoolType    @map("pool_type")
-  name             String
-  source           GrantSource
-  totalCredits     Int         @map("total_credits")     // Initial opening credits. Immutable.
-  cachedRemaining  Int         @map("cached_remaining")  // Fast read cache; CHECK (cached_remaining >= 0)
-  validityDays     Int?        @map("validity_days")
-  maxWaitDays      Int         @default(365) @map("max_wait_days")
-  queueOrder       Int?        @map("queue_order")       // Order for promotion; assigned under account lock
-  status           PoolStatus  @default(QUEUED)
-  purchasedAt      DateTime    @default(now()) @map("purchased_at")
-  clockStartedAt   DateTime?   @map("clock_started_at")  // First draw OR purchasedAt + maxWaitDays
-  activatedAt      DateTime?   @map("activated_at")      // Promoted to ACTIVE
-  expiresAt        DateTime?   @map("expires_at")        // Hard deadline calculated at clock start
-  unitPriceMinor   Int?        @map("unit_price_minor")  // Minor currency units (paise/cents) at purchase
-  currency         String?
-  paymentId        String?     @map("payment_id")
-  termsVersion     String?     @map("terms_version")
-  termsAcceptedBy  String?     @map("terms_accepted_by")
-  termsAcceptedAt  DateTime?   @map("terms_accepted_at")
-  createdAt        DateTime    @default(now()) @map("created_at")
-
-  billingAccount   BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
-  payment          Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  ledgerEntries    CreditLedgerEntry[]
-
-  @@index([billingAccountId, status])
-  @@index([driveId])
-  @@map("credit_pool")
-}
-
-model CreditLedgerEntry {
-  id               String          @id @default(uuid())
-  billingAccountId String          @map("billing_account_id")
-  organizationId   String          @map("organization_id")  // Plain UUID snapshot (R5)
-  creditPoolId     String?         @map("credit_pool_id")   // Null for OVERDRAFT, WAIVE, REVERSAL of overdraft
-  entryType        LedgerEntryType @map("entry_type")
-  amount           Int                                      // Signed: CONSUME=-1, GRANT=+n, WAIVE=0
-  balanceAfter     Int?            @map("balance_after")    // Pool balance after entry (null for overdraft)
-  sessionId        String?         @map("session_id")       // Plain UUID snapshot (R5)
-  driveId          String?         @map("drive_id")         // Plain UUID snapshot (R5)
-  relatedEntryId   String?         @map("related_entry_id") // Links REVERSAL -> original acquisition
-  grantSource      GrantSource?    @map("grant_source")     // GRANT entries only
-  reason           LedgerReason
-  reasonNote       String?         @map("reason_note")      // Max 200 chars, validated non-PII
-  paymentId        String?         @map("payment_id")
-  requestId        String?         @map("request_id")       // ManualBillingRequest ID for maker-checker
-  idempotencyKey   String          @unique @map("idempotency_key") // acquire:{sessionId}, grant:pay:{id}, etc.
-  actorId          String          @map("actor_id")         // Staff ID or 'system'
-  approvedById     String?         @map("approved_by_id")   // Approver ID for maker-checker
-  shadow           Boolean         @default(false)          // Phase 2 shadow rows; excluded from balances
-  createdAt        DateTime        @default(now()) @map("created_at")
-
-  billingAccount   BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
-  creditPool       CreditPool?         @relation(fields: [creditPoolId], references: [id], onDelete: Restrict)
-  payment          Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  relatedEntry     CreditLedgerEntry?  @relation("EntryRelation", fields: [relatedEntryId], references: [id], onDelete: Restrict)
-  relatedBy        CreditLedgerEntry[] @relation("EntryRelation")
-
-  @@index([billingAccountId, createdAt])
-  @@index([creditPoolId, createdAt])
-  @@index([sessionId])
-  @@index([driveId, entryType])
-  @@map("credit_ledger_entry")
-}
-
-model Payment {
-  id                 String          @id @default(uuid())
-  billingAccountId   String          @map("billing_account_id")
-  provider           PaymentProvider
-  providerPaymentId  String          @map("provider_payment_id")
-  providerOrderId    String?         @map("provider_order_id")
-  status             PaymentStatus
-  priceBookEntryId   String          @map("price_book_entry_id")
-  quantityCredits    Int             @map("quantity_credits")
-  unitPriceMinor     Int             @map("unit_price_minor")
-  amountMinor        Int             @map("amount_minor")     // Total charged including taxes
-  taxMinor           Int?            @map("tax_minor")
-  currency           String
-  invoiceNumber      String?         @map("invoice_number")
-  capturedAt         DateTime?       @map("captured_at")
-  createdAt          DateTime        @default(now()) @map("created_at")
-
-  billingAccount     BillingAccount  @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
-  pools              CreditPool[]
-  ledgerEntries      CreditLedgerEntry[]
-
-  @@unique([provider, providerPaymentId])
-  @@map("payment")
-}
-
-model PriceBookEntry {
-  id             String    @id @default(uuid())
-  sku            String
-  poolType       PoolType  @map("pool_type")
-  credits        Int
-  validityDays   Int?      @map("validity_days")
-  billingCountry String    @map("billing_country")
-  currency       String
-  unitPriceMinor Int       @map("unit_price_minor")
-  version        Int
-  effectiveFrom  DateTime  @map("effective_from")
-  effectiveTo    DateTime? @map("effective_to")
-
-  @@unique([sku, billingCountry, version])
-  @@map("price_book_entry")
-}
-
-model ManualBillingRequest {
-  id               String              @id @default(uuid())
-  billingAccountId String              @map("billing_account_id")
-  kind             ManualRequestKind
-  payload          Json                // Validated JSON payload per kind (strictly non-PII)
-  reason           String
-  ticketRef        String              @map("ticket_ref")
-  requestedById    String              @map("requested_by_id")
-  approvedById     String?             @map("approved_by_id")
-  status           ManualRequestStatus @default(PENDING)
-  decidedAt        DateTime?           @map("decided_at")
-  executedAt       DateTime?           @map("executed_at")
-  createdAt        DateTime            @default(now()) @map("created_at")
-
-  @@map("manual_billing_request")
-}
-
-model BillingAuditEvent {
-  id               String   @id @default(uuid())
-  billingAccountId String   @map("billing_account_id")
-  subjectType      String   @map("subject_type") // POOL | ACCOUNT | PRICE | REQUEST
-  subjectId        String   @map("subject_id")
-  action           String
-  before           Json?
-  after            Json?
-  actorId          String?  @map("actor_id")
-  approvedById     String?  @map("approved_by_id")
-  requestId        String?  @map("request_id")
-  createdAt        DateTime @default(now()) @map("created_at")
-
-  @@index([billingAccountId, createdAt])
-  @@map("billing_audit_event")
-}
-
-model SessionBillingEvidence {
-  sessionId              String            @id @map("session_id")
-  billingAccountId       String            @map("billing_account_id")
-  driveId                String?           @map("drive_id")
-  kind                   SessionKind
-  startedAt              DateTime          @map("started_at")
-  firstContentRenderedAt DateTime?         @map("first_content_rendered_at")
-  lastHeartbeatAt        DateTime?         @map("last_heartbeat_at")
-  endedAt                DateTime?         @map("ended_at")
-  endReason              SessionEndReason? @map("end_reason")
-  eventCount             Int               @map("event_count")
-  modulesReached         Int               @map("modules_reached")
-  cvMode                 String?           @map("cv_mode")
-  tutorialMode           String?           @map("tutorial_mode")
-  infraFlags             Json?             @map("infra_flags")
-  createdAt              DateTime          @default(now()) @map("created_at")
-
-  @@map("session_billing_evidence")
-}
 

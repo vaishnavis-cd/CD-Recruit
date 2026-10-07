@@ -216,7 +216,7 @@ export class ManualBillingRequestService {
       const created = await tx.manualBillingRequest.create({
         data: {
           billingAccountId: account.id,
-          kind: dto.kind,
+          kind: dto.kind as any,
           payload: dto.payload,
           reason,
           ticketRef,

@@ -16,8 +16,8 @@ import {
   LedgerReason,
   PoolStatus,
   DrivePoolFallthrough,
-  HoldReason,
 } from "@prisma/client";
+import { HoldReason } from "@cd-recruit/shared-types";
 
 export interface CreditEnforcementResult {
   outcome: "STARTED" | "HELD" | "ALREADY_PROCESSED" | "WAIVED_NON_LIVE" | "FAILED";

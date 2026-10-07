@@ -440,7 +440,7 @@ export class LedgerService {
     const execute = async (tx: Prisma.TransactionClient) => {
       const pool = await tx.creditPool.findUnique({
         where: { id: poolId },
-        include: { billingAccount: { include: { organizations: true } } },
+        include: { billingAccount: { include: { organization: true } } },
       });
       if (!pool) {
         throw new NotFoundException(`Pool ${poolId} not found`);
@@ -459,7 +459,7 @@ export class LedgerService {
         return null;
       }
 
-      const orgId = pool.billingAccount.organizations[0]?.id || "system";
+      const orgId = pool.billingAccount.organization?.id || "system";
       const amountToExpire = -pool.cachedRemaining;
       const idempotencyKey = `expire:${pool.id}:${Date.now()}`;
 
@@ -493,7 +493,7 @@ export class LedgerService {
     const account = await this.prisma.billingAccount.findUnique({
       where: { id: billingAccountId },
       include: {
-        pools: {
+        creditPools: {
           where: {
             status: { in: [PoolStatus.ACTIVE, PoolStatus.QUEUED] },
           },
@@ -507,7 +507,7 @@ export class LedgerService {
     let activePoolCredits = 0;
     let queuedPoolCredits = 0;
 
-    for (const pool of account.pools) {
+    for (const pool of account.creditPools) {
       if (pool.status === PoolStatus.ACTIVE) {
         activePoolCredits += pool.cachedRemaining;
       } else if (pool.status === PoolStatus.QUEUED) {
@@ -515,8 +515,8 @@ export class LedgerService {
       }
     }
 
-    const activePools = account.pools.filter((p) => p.status === PoolStatus.ACTIVE);
-    const queuedPools = account.pools.filter((p) => p.status === PoolStatus.QUEUED);
+    const activePools = account.creditPools.filter((p) => p.status === PoolStatus.ACTIVE);
+    const queuedPools = account.creditPools.filter((p) => p.status === PoolStatus.QUEUED);
     const overdraftAvailable = Math.max(0, account.overdraftLimit - account.overdraftUsed);
 
     return {
@@ -542,7 +542,7 @@ export class LedgerService {
     const account = await this.prisma.billingAccount.findUnique({
       where: { id: billingAccountId },
       include: {
-        pools: true,
+        creditPools: true,
       },
     });
     if (!account) {
@@ -551,7 +551,7 @@ export class LedgerService {
 
     const poolDiscrepancies: ReconciliationReport["poolDiscrepancies"] = [];
 
-    for (const pool of account.pools) {
+    for (const pool of account.creditPools) {
       // Replay non-shadow entries for this pool
       const aggregate = await this.prisma.creditLedgerEntry.aggregate({
         where: {
