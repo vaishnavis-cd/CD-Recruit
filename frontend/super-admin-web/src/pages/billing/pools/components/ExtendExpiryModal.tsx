@@ -37,13 +37,24 @@ export const ExtendExpiryModal: React.FC<ExtendExpiryModalProps> = ({ pool, isOp
       return;
     }
 
+    const trimmedTicket = ticketRef.trim();
+    if (!trimmedTicket) {
+      setError('Ticket or contract reference (e.g. DEAL-402, AMEND-2026) is mandatory for maker-checker tracking.');
+      return;
+    }
+    if (!/^[A-Za-z0-9_-]{3,64}$/.test(trimmedTicket)) {
+      setError('Ticket Reference must be 3-64 alphanumeric characters, underscores, or dashes (e.g. DEAL-402).');
+      return;
+    }
+
     try {
       setError(null);
       await extendMutation.mutateAsync({
         poolId: pool.id,
+        billingAccountId: pool.billingAccountId,
         newExpiryDate: new Date(newExpiryDate).toISOString(),
         reason: reason.trim(),
-        ticketRef: ticketRef.trim() || undefined,
+        ticketRef: trimmedTicket,
       });
       onClose();
       setNewExpiryDate('');
@@ -60,21 +71,20 @@ export const ExtendExpiryModal: React.FC<ExtendExpiryModalProps> = ({ pool, isOp
         <DialogHeader>
           <DialogTitle>Extend Pool Expiration Window</DialogTitle>
           <DialogDescription>
-            Submit an expiration extension for bucket <span className="font-mono text-indigo-400 font-semibold">{pool.id.slice(0, 8)}...</span>.
-            Under maker-checker governance, adjustments require dual authorization before applying.
+            Submit an expiration extension request for bucket <span className="font-mono text-[#2f68ff] font-semibold">{pool.id.slice(0, 8)}...</span> into the Maker-Checker queue.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
+            <div className="p-3 bg-[#fef3f2] border border-[#fecdca] rounded-xl text-xs text-[#f04438]">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              New Expiration Cutoff (UTC) <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              New Expiration Cutoff (UTC) <span className="text-[#f04438]">*</span>
             </label>
             <Input
               type="datetime-local"
@@ -85,37 +95,45 @@ export const ExtendExpiryModal: React.FC<ExtendExpiryModalProps> = ({ pool, isOp
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Business Justification <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Ticket or Contract Reference <span className="text-[#f04438]">*</span>
+            </label>
+            <Input
+              value={ticketRef}
+              onChange={(e) => setTicketRef(e.target.value)}
+              placeholder="e.g. DEAL-402 or AMEND-2026"
+              required
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Must be 3-64 alphanumeric characters, underscores, or dashes.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Business Justification <span className="text-[#f04438]">*</span>
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
               placeholder="State reason for customer grace extension or contractual amendment (min 10 characters)..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition resize-none"
+              className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white transition resize-none"
               required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Support Incident / Contract Amendment Ref
-            </label>
-            <Input
-              value={ticketRef}
-              onChange={(e) => setTicketRef(e.target.value)}
-              placeholder="e.g. CR-9012"
             />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} type="button" disabled={extendMutation.isPending}>
+          <Button variant="secondary" onClick={onClose} type="button" disabled={extendMutation.isPending}>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" isLoading={extendMutation.isPending}>
-            Submit Extension
+          <Button
+            type="submit"
+            variant="primary"
+            loading={extendMutation.isPending}
+          >
+            Submit for Approval
           </Button>
         </DialogFooter>
       </form>

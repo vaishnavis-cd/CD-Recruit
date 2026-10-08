@@ -22,12 +22,12 @@ export const IntegrityConsolePage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-indigo-400" />
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+              <ShieldAlert className="w-6 h-6 text-[#2f68ff]" />
               Integrity, Reconciliation & Incident Console
             </h1>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             Real-time invariant monitoring, shadow-mode comparison trackers, and proactive incident remediation.
           </p>
         </div>

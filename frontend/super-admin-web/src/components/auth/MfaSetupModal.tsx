@@ -93,35 +93,35 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose })
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-slate-950 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white border border-[#e8ecf4] rounded-2xl max-w-lg w-full p-6 shadow-2xl relative text-[#0d1424]">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-900 transition"
+          className="absolute top-4 right-4 text-[#94a3b8] hover:text-[#0d1424] p-1.5 rounded-lg hover:bg-[#f1f5f9] transition cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <ShieldCheck className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-[#eff6ff] text-[#2f68ff] flex items-center justify-center shadow-xs">
+            <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">Two-Factor Authentication (2FA)</h3>
-            <p className="text-xs text-slate-400">Microsoft Authenticator / Google Authenticator</p>
+            <h3 className="text-base font-bold text-[#0d1424]">Two-Factor Authentication (2FA)</h3>
+            <p className="text-xs text-[#64748b]">Microsoft Authenticator / Google Authenticator</p>
           </div>
         </div>
 
         {error && (
-          <div className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-red-300">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400 mt-0.5" />
+          <div className="mb-4 bg-rose-50 border border-rose-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-rose-800">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="mb-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-300">
-            <Check className="w-4 h-4 shrink-0 text-emerald-400 mt-0.5" />
+          <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-800">
+            <Check className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
             <span>{success}</span>
           </div>
         )}
@@ -129,13 +129,13 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose })
         {/* State 1: MFA is already enabled */}
         {staff?.mfaEnabled && (
           <div className="space-y-4">
-            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700">
                 <Check className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-emerald-300">2FA is Enforced & Active</p>
-                <p className="text-[11px] text-slate-400">Your staff account is protected by RFC 6238 TOTP.</p>
+                <p className="text-xs font-bold text-emerald-900">2FA is Enforced & Active</p>
+                <p className="text-[11px] text-[#64748b]">Your staff account is protected by RFC 6238 TOTP.</p>
               </div>
             </div>
 
@@ -143,7 +143,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose })
               <button
                 type="button"
                 onClick={onClose}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-4 py-2 rounded-xl transition"
+                className="bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#0d1424] text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer"
               >
                 Close
               </button>
@@ -156,43 +156,43 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose })
           <div>
             {loading ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-                <p className="text-xs text-slate-400">Generating secure TOTP secret...</p>
+                <Loader2 className="w-8 h-8 text-[#2f68ff] animate-spin" />
+                <p className="text-xs text-[#64748b]">Generating secure TOTP secret...</p>
               </div>
             ) : (
               <form onSubmit={handleConfirmMfa} className="space-y-5">
-                <div className="bg-slate-900/80 border border-slate-800/80 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4">
+                <div className="bg-[#f8fafc] border border-[#e8ecf4] rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4">
                   {qrCodeUrl ? (
-                    <div className="bg-white p-2 rounded-xl shrink-0 shadow-md">
+                    <div className="bg-white p-2 rounded-xl shrink-0 shadow-sm border border-[#e8ecf4]">
                       <img src={qrCodeUrl} alt="2FA QR Code" className="w-32 h-32" />
                     </div>
                   ) : (
-                    <div className="w-32 h-32 bg-slate-800 rounded-xl flex items-center justify-center text-slate-600">
+                    <div className="w-32 h-32 bg-[#eff0f3] rounded-xl flex items-center justify-center text-[#94a3b8]">
                       <QrCode className="w-12 h-12" />
                     </div>
                   )}
 
                   <div className="space-y-2 text-left min-w-0 flex-1">
-                    <p className="text-xs text-slate-300 font-medium">
+                    <p className="text-xs text-[#0d1424] font-medium">
                       1. Open <strong>Microsoft Authenticator</strong>.
                     </p>
-                    <p className="text-xs text-slate-300 font-medium">
+                    <p className="text-xs text-[#0d1424] font-medium">
                       2. Tap <strong>+</strong> &rarr; <strong>Other account</strong> &rarr; <strong>Scan QR code</strong>.
                     </p>
 
                     <div className="pt-1">
-                      <span className="text-[10px] text-slate-500 uppercase font-mono block mb-1">
+                      <span className="text-[10px] text-[#94a3b8] uppercase font-mono block mb-1">
                         Manual Entry Key:
                       </span>
-                      <div className="flex items-center gap-2 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800">
-                        <code className="text-[11px] font-mono text-indigo-300 truncate">{secretKey}</code>
+                      <div className="flex items-center gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-[#e2e8f0]">
+                        <code className="text-[11px] font-mono text-[#2f68ff] font-semibold truncate">{secretKey}</code>
                         <button
                           type="button"
                           onClick={handleCopySecret}
-                          className="text-slate-400 hover:text-slate-200 p-1 rounded hover:bg-slate-800 transition shrink-0"
+                          className="text-[#64748b] hover:text-[#0d1424] p-1 rounded hover:bg-[#f1f5f9] transition shrink-0 cursor-pointer"
                           title="Copy Secret"
                         >
-                          {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                          {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </div>
@@ -200,7 +200,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose })
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  <label className="block text-xs font-semibold text-[#0d1424] mb-1.5">
                     3. Enter the 6-digit code shown in Microsoft Authenticator:
                   </label>
                   <input
@@ -210,7 +210,7 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose })
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                     placeholder="e.g. 492019"
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-center text-lg font-mono tracking-widest text-indigo-300 placeholder-slate-700 focus:outline-none focus:border-indigo-500 transition"
+                    className="w-full bg-white border border-[#e2e8f0] rounded-xl px-4 py-2.5 text-center text-lg font-mono tracking-widest text-[#2f68ff] placeholder-[#cbd5e1] focus:outline-none focus:border-[#2f68ff] focus:ring-2 focus:ring-[#2f68ff]/10 transition shadow-2xs font-bold"
                   />
                 </div>
 
@@ -218,14 +218,14 @@ export const MfaSetupModal: React.FC<MfaSetupModalProps> = ({ isOpen, onClose })
                   <button
                     type="button"
                     onClick={onClose}
-                    className="bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-semibold px-4 py-2.5 rounded-xl transition"
+                    className="bg-white border border-[#e2e8f0] hover:bg-[#f8fafc] text-[#64748b] hover:text-[#0d1424] text-xs font-semibold px-4 py-2.5 rounded-xl transition cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={submitting || code.length !== 6}
-                    className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-2 shadow-lg shadow-indigo-500/25"
+                    className="bg-[#2f68ff] hover:bg-[#1e50ff] disabled:opacity-50 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition flex items-center gap-2 shadow-xs cursor-pointer"
                   >
                     {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                     Verify & Activate 2FA

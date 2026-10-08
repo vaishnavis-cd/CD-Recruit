@@ -19,20 +19,20 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         <select
           ref={ref}
           className={cn(
-            'w-full appearance-none bg-slate-950/80 border border-slate-800 rounded-lg pl-3 pr-8 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/70 focus:ring-1 focus:ring-indigo-500/30 transition-all font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed',
+            'w-full appearance-none bg-white border border-[#e2e8f0] rounded-xl pl-3 pr-8 py-2 text-xs text-[#0d1424] focus:outline-none focus:border-[#2f68ff] focus:ring-2 focus:ring-[#2f68ff]/10 transition-all font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs',
             className
           )}
           {...props}
         >
           {options
             ? options.map((opt) => (
-                <option key={opt.value} value={opt.value} className="bg-slate-900 text-slate-200">
+                <option key={opt.value} value={opt.value} className="bg-white text-[#0d1424]">
                   {opt.label}
                 </option>
               ))
             : children}
         </select>
-        <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+        <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8] pointer-events-none" />
       </div>
     );
   }

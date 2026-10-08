@@ -25,6 +25,7 @@ import { IntegrityConsolePage } from '@/pages/billing/integrity/IntegrityConsole
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
+import { LightGradientBackground } from '@/components/common/LightGradientBackground';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,7 +51,21 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
 export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <Toaster position="top-right" theme="dark" richColors />
+      <LightGradientBackground />
+      <Toaster
+        position="top-center"
+        duration={4000}
+        toastOptions={{
+          style: { fontFamily: 'var(--font-sans, "Instrument Sans", sans-serif)' },
+          classNames: {
+            toast: "!bg-white !text-[#0b0b0d] !border !border-[#e8ecf4] !shadow-xl !rounded-xl !text-xs !font-medium flex items-center gap-2",
+            success: "!border-emerald-200 !bg-emerald-50 !text-emerald-800",
+            error: "!border-rose-200 !bg-rose-50 !text-rose-800",
+            warning: "!border-amber-200 !bg-amber-50 !text-amber-800",
+            info: "!border-blue-200 !bg-blue-50 !text-blue-800",
+          },
+        }}
+      />
       <BrowserRouter>
         <Routes>
         <Route path="/login" element={<LoginPage />} />

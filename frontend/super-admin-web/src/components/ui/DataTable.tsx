@@ -71,11 +71,11 @@ export function DataTable<T extends { id?: string | number } = any>({
       : React.Children.count(children) === 0;
 
   return (
-    <div className={cn('glass-panel rounded-2xl border border-slate-800/80 overflow-hidden shadow-xl flex flex-col', className)}>
+    <div className={cn('bg-white rounded-2xl border border-[#e8ecf4] overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col', className)}>
       <div className="overflow-x-auto w-full">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
-            <tr className="bg-slate-950/80 border-b border-slate-800 text-slate-400 uppercase tracking-wider font-mono text-[10px]">
+            <tr className="bg-[#f8fafc] border-b border-[#e8ecf4] text-[#64748b] uppercase tracking-wider text-[11px] font-semibold">
               {columns
                 ? columns.map((col) => (
                     <th key={col.key} className={cn('py-3.5 px-4 font-semibold whitespace-nowrap', col.headerClassName)}>
@@ -89,7 +89,7 @@ export function DataTable<T extends { id?: string | number } = any>({
                   ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 font-medium">
+          <tbody className="divide-y divide-[#f1f5f9] font-medium">
             {isBusy ? (
               Array.from({ length: 6 }).map((_, idx) => (
                 <tr key={`skeleton-${idx}`}>
@@ -110,10 +110,10 @@ export function DataTable<T extends { id?: string | number } = any>({
               data.map((item, idx) => (
                 <tr
                   key={item.id ? String(item.id) : `row-${idx}`}
-                  className="hover:bg-slate-900/50 transition-colors duration-150"
+                  className="hover:bg-[#f8fafc]/80 transition-colors duration-150"
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className={cn('py-3.5 px-4 text-slate-200', col.className)}>
+                    <td key={col.key} className={cn('py-3.5 px-4 text-[#0d1424]', col.className)}>
                       {col.render ? col.render(item) : (item as any)[col.key] ?? '—'}
                     </td>
                   ))}
@@ -128,11 +128,11 @@ export function DataTable<T extends { id?: string | number } = any>({
 
       {/* Pagination Bar */}
       {typeof total === 'number' && typeof page === 'number' && typeof pageSize === 'number' && total > 0 && (
-        <div className="p-3.5 px-4 bg-slate-950/60 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+        <div className="p-3.5 px-4 bg-[#f8fafc] border-t border-[#e8ecf4] flex items-center justify-between text-xs text-[#64748b]">
           <div className="font-mono text-[11px]">
-            Showing <span className="font-bold text-slate-200">{(page - 1) * pageSize + 1}</span> to{' '}
-            <span className="font-bold text-slate-200">{Math.min(page * pageSize, total)}</span> of{' '}
-            <span className="font-bold text-slate-200">{total}</span>
+            Showing <span className="font-bold text-[#0d1424]">{(page - 1) * pageSize + 1}</span> to{' '}
+            <span className="font-bold text-[#0d1424]">{Math.min(page * pageSize, total)}</span> of{' '}
+            <span className="font-bold text-[#0d1424]">{total}</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -140,19 +140,19 @@ export function DataTable<T extends { id?: string | number } = any>({
               type="button"
               disabled={page <= 1}
               onClick={() => onPageChange?.(page - 1)}
-              className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+              className="p-1.5 rounded-lg border border-[#e2e8f0] bg-white text-[#0d1424] hover:bg-[#f1f5f9] disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer shadow-2xs"
               title="Previous Page"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="font-mono text-[11px] px-2 text-slate-300">
+            <span className="font-mono text-[11px] px-2 text-[#0d1424]">
               Page {page} of {totalPages}
             </span>
             <button
               type="button"
               disabled={page >= totalPages}
               onClick={() => onPageChange?.(page + 1)}
-              className="p-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer"
+              className="p-1.5 rounded-lg border border-[#e2e8f0] bg-white text-[#0d1424] hover:bg-[#f1f5f9] disabled:opacity-30 disabled:pointer-events-none transition cursor-pointer shadow-2xs"
               title="Next Page"
             >
               <ChevronRight className="w-4 h-4" />

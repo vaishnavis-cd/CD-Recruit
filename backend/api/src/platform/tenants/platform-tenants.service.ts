@@ -261,8 +261,10 @@ export class PlatformTenantsService {
         slug: true,
         createdAt: true,
         appealWindowDaysOverride: true,
+        billingAccountId: true,
         billingAccount: {
           select: {
+            id: true,
             trialDomain: true,
           },
         },
@@ -380,10 +382,11 @@ export class PlatformTenantsService {
       this.billingSummaryProvider.getFunnelFacts([id]),
     ]);
 
-    const billingSection =
-      billingCredits === null
-        ? { connected: false }
-        : { connected: true, summary: { creditsRemaining: billingCredits } };
+    const billingSection = {
+      connected: !!org.billingAccountId,
+      billingAccountId: org.billingAccountId || null,
+      summary: billingCredits !== null ? { creditsRemaining: billingCredits } : undefined,
+    };
 
     const funnelResult = deriveFunnelStage({
       status,

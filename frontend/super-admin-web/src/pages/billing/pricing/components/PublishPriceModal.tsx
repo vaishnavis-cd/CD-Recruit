@@ -73,15 +73,15 @@ export const PublishPriceModal: React.FC<PublishPriceModalProps> = ({
 
         <div className="space-y-4 py-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-600">
               {error}
             </div>
           )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Currency <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Currency <span className="text-rose-500">*</span>
               </label>
               <Select
                 value={currency}
@@ -95,8 +95,8 @@ export const PublishPriceModal: React.FC<PublishPriceModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Tier / SKU <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Tier / SKU <span className="text-rose-500">*</span>
               </label>
               <Select
                 value={tierName}
@@ -113,8 +113,8 @@ export const PublishPriceModal: React.FC<PublishPriceModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Rate Per Unit ({currency}) <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Rate Per Unit ({currency}) <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="number"
@@ -127,8 +127,8 @@ export const PublishPriceModal: React.FC<PublishPriceModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Effective Date <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Effective Date <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="date"
@@ -140,7 +140,7 @@ export const PublishPriceModal: React.FC<PublishPriceModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
               Revision Notes / Indexation Justification
             </label>
             <Input

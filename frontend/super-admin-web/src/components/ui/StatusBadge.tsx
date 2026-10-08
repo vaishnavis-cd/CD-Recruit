@@ -27,10 +27,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'PASSED':
       case 'PROMOTIONAL_SEED_GRANT':
         return {
-          bg: 'bg-emerald-500/10',
-          text: 'text-emerald-400',
-          border: 'border-emerald-500/30',
-          dotBg: 'bg-emerald-400',
+          bg: 'bg-[#ecfdf3]',
+          text: 'text-[#12b76a]',
+          border: 'border-[#a6f4c5]',
+          dotBg: 'bg-[#12b76a]',
         };
 
       // Amber / Warning / Pending
@@ -40,10 +40,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'REPLAY_QUEUED':
       case 'TRIAL':
         return {
-          bg: 'bg-amber-500/10',
-          text: 'text-amber-400',
-          border: 'border-amber-500/30',
-          dotBg: 'bg-amber-400',
+          bg: 'bg-[#fffbeb]',
+          text: 'text-[#d97706]',
+          border: 'border-[#fde68a]',
+          dotBg: 'bg-[#d97706]',
           pulse: normalized === 'PENDING',
         };
 
@@ -55,10 +55,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'DRIFT_DETECTED':
       case 'DISPUTED':
         return {
-          bg: 'bg-rose-500/10',
-          text: 'text-rose-400',
-          border: 'border-rose-500/30',
-          dotBg: 'bg-rose-400',
+          bg: 'bg-[#fef3f2]',
+          text: 'text-[#f04438]',
+          border: 'border-[#fecdca]',
+          dotBg: 'bg-[#f04438]',
         };
 
       // Indigo / Purple / Informational
@@ -69,10 +69,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'GOODWILL':
       case 'REFUND':
         return {
-          bg: 'bg-indigo-500/10',
-          text: 'text-indigo-400',
-          border: 'border-indigo-500/30',
-          dotBg: 'bg-indigo-400',
+          bg: 'bg-[#f5f3ff]',
+          text: 'text-[#7c3aed]',
+          border: 'border-[#ddd6fe]',
+          dotBg: 'bg-[#7c3aed]',
         };
 
       // Blue / Reversals / Tech
@@ -80,10 +80,10 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'COURTESY_WAIVER':
       case 'PURCHASE':
         return {
-          bg: 'bg-cyan-500/10',
-          text: 'text-cyan-400',
-          border: 'border-cyan-500/30',
-          dotBg: 'bg-cyan-400',
+          bg: 'bg-[#eff6ff]',
+          text: 'text-[#2f68ff]',
+          border: 'border-[#bfdbfe]',
+          dotBg: 'bg-[#2f68ff]',
         };
 
       // Neutral / Muted / Default
@@ -93,9 +93,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'OFFBOARDED':
       default:
         return {
-          bg: 'bg-slate-800/60',
-          text: 'text-slate-300',
-          border: 'border-slate-700/60',
+          bg: 'bg-[#f1f5f9]',
+          text: 'text-[#64748b]',
+          border: 'border-[#e2e8f0]',
           dotBg: 'bg-slate-400',
         };
     }
@@ -106,7 +106,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-mono text-[10px] font-semibold border tracking-wide uppercase',
+        'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-[10px] font-semibold border tracking-wide uppercase transition-colors',
         palette.bg,
         palette.text,
         palette.border,

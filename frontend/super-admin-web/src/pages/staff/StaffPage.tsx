@@ -4,21 +4,20 @@ import {
   UserPlus,
   Search,
   Filter,
-  MoreHorizontal,
   RefreshCw,
   Loader2,
   Lock,
-  KeyRound,
-  UserX,
-  UserCheck,
   ShieldAlert,
   AlertCircle,
   Clock,
   CheckCircle2,
+  X,
 } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { ErrorState } from '@/components/common/ErrorState';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Button } from '@/components/ui/Button';
 
 interface StaffMember {
   id: string;
@@ -232,13 +231,13 @@ export const StaffPage: React.FC = () => {
   if (!isOwner) {
     return (
       <div className="py-24 flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl bg-[#fef3f2] border border-[#fecdca] text-[#f04438] flex items-center justify-center shadow-xs">
           <ShieldAlert className="w-7 h-7" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">Access Restricted</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Platform Staff Governance and role administration requires the <strong>OWNER</strong> role. Your current account role is <span className="font-mono text-indigo-400">{currentActor?.role || 'SUPPORT'}</span>.
+          <h2 className="text-lg font-bold text-slate-900">Access Restricted</h2>
+          <p className="text-xs text-slate-500 mt-1">
+            Platform Staff Governance and role administration requires the <strong>OWNER</strong> role. Your current account role is <span className="font-mono text-[#2f68ff]">{currentActor?.role || 'SUPPORT'}</span>.
           </p>
         </div>
       </div>
@@ -246,71 +245,76 @@ export const StaffPage: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Staff Management & Governance</h1>
-            <span className="text-[10px] font-mono bg-purple-500/10 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded font-bold">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Staff Management & Governance</h1>
+            <span className="text-[10px] font-mono bg-[#f5f3ff] text-[#7c3aed] border border-[#ddd6fe] px-2 py-0.5 rounded-lg font-bold">
               OWNER EXCLUSIVE
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Manage administrative platform operators, roles, 2FA credentials, and session lifecycles.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={fetchStaff}
             disabled={loading}
-            className="bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-800 flex items-center gap-2 transition"
+            icon={RefreshCw}
+            className={loading ? '[&_svg]:animate-spin' : ''}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
-          </button>
-          <button
+            Refresh
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => {
               setFormError(null);
               setIsAddModalOpen(true);
             }}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-lg shadow-indigo-500/20 transition flex items-center gap-1.5"
+            icon={UserPlus}
           >
-            <UserPlus className="w-3.5 h-3.5" /> + Add Staff Member
-          </button>
+            Add Staff Member
+          </Button>
         </div>
       </div>
 
       {feedbackSuccess && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 flex items-center gap-2.5 text-xs text-emerald-300">
-          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+        <div className="bg-[#ecfdf3] border border-[#a6f4c5] rounded-xl p-3 flex items-center gap-2.5 text-xs text-[#12b76a]">
+          <CheckCircle2 className="w-4 h-4 shrink-0 text-[#12b76a]" />
           <span>{feedbackSuccess}</span>
         </div>
       )}
 
       {/* Filter Bar */}
-      <div className="glass-panel p-4 rounded-2xl border border-slate-800/80 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white p-4 rounded-2xl border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1 min-w-[280px]">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search by staff name or email..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl pl-9 pr-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
             />
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Filter className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
             <span>Role:</span>
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+              className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
             >
               <option value="">All Roles</option>
               <option value="OWNER">OWNER</option>
@@ -319,12 +323,12 @@ export const StaffPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
             <span>Status:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+              className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
             >
               <option value="">All Statuses</option>
               <option value="ACTIVE">ACTIVE</option>
@@ -337,8 +341,8 @@ export const StaffPage: React.FC = () => {
       {/* Loading & Error States */}
       {loading && !staffList.length && (
         <div className="py-20 flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-          <p className="text-xs text-slate-400">Loading platform staff directory...</p>
+          <Loader2 className="w-8 h-8 text-[#2f68ff] animate-spin" />
+          <p className="text-xs text-slate-500">Loading platform staff directory...</p>
         </div>
       )}
 
@@ -353,11 +357,11 @@ export const StaffPage: React.FC = () => {
 
       {/* Staff Table */}
       {!loading && !error && (
-        <div className="glass-panel rounded-2xl border border-slate-800/90 overflow-hidden shadow-2xl">
+        <div className="bg-white rounded-2xl border border-[#e8ecf4] overflow-hidden shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/50 text-slate-400 font-semibold">
+                <tr className="border-b border-[#e8ecf4] bg-[#f8fafc] text-slate-500 font-semibold uppercase font-mono text-[10px]">
                   <th className="py-3.5 px-4">Staff Member</th>
                   <th className="py-3.5 px-4">Platform Role</th>
                   <th className="py-3.5 px-4">Account Status</th>
@@ -367,42 +371,34 @@ export const StaffPage: React.FC = () => {
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-[#e8ecf4]">
                 {staffList.length > 0 ? (
                   staffList.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-900/40 transition">
+                    <tr key={s.id} className="hover:bg-[#f8fafc]/70 transition">
                       <td className="py-3.5 px-4">
-                        <div className="font-bold text-slate-200">{s.fullName}</div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">{s.email}</div>
+                        <div className="font-bold text-slate-900">{s.fullName}</div>
+                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">{s.email}</div>
                       </td>
                       <td className="py-3.5 px-4">
                         <span
                           className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${
                             s.role === 'OWNER'
-                              ? 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+                              ? 'bg-[#f5f3ff] text-[#7c3aed] border-[#ddd6fe]'
                               : s.role === 'FINANCE'
-                              ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                              : 'bg-blue-500/10 text-blue-300 border-blue-500/30'
+                              ? 'bg-[#ecfdf3] text-[#12b76a] border-[#a6f4c5]'
+                              : 'bg-[#eff6ff] text-[#2f68ff] border-[#bfdbfe]'
                           }`}
                         >
                           {s.role}
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span
-                          className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold border ${
-                            s.status === 'ACTIVE'
-                              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                              : 'bg-red-500/10 text-red-400 border-red-500/20'
-                          }`}
-                        >
-                          {s.status}
-                        </span>
+                        <StatusBadge status={s.status} dot />
                       </td>
                       <td className="py-3.5 px-4">
                         <span
                           className={`text-[11px] font-medium flex items-center gap-1 ${
-                            s.mfaEnabled ? 'text-emerald-400' : 'text-amber-400'
+                            s.mfaEnabled ? 'text-[#12b76a]' : 'text-[#d97706]'
                           }`}
                         >
                           <Lock className="w-3 h-3" />
@@ -411,24 +407,24 @@ export const StaffPage: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4">
                         {s.mustChangePassword ? (
-                          <span className="text-[10px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-medium">
+                          <span className="text-[10px] font-mono bg-[#fffbeb] text-[#b54708] border border-[#fde68a] px-1.5 py-0.5 rounded font-medium">
                             Must Change
                           </span>
                         ) : (
-                          <span className="text-slate-500 text-[11px]">Normal</span>
+                          <span className="text-slate-400 text-[11px]">Normal</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-400 text-[11px]">
+                      <td className="py-3.5 px-4 text-slate-500 text-[11px]">
                         {s.lastLoginAt ? (
                           <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3 text-slate-500" />
+                            <Clock className="w-3 h-3 text-slate-400" />
                             {new Date(s.lastLoginAt).toLocaleDateString()}{' '}
-                            <span className="text-slate-500 font-mono">
+                            <span className="text-slate-400 font-mono">
                               {new Date(s.lastLoginAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
                         ) : (
-                          <span className="text-slate-500 italic">Never</span>
+                          <span className="text-slate-400 italic">Never</span>
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-right">
@@ -441,7 +437,7 @@ export const StaffPage: React.FC = () => {
                               setFormError(null);
                               setActiveAction({ type: 'ROLE', target: s });
                             }}
-                            className="bg-slate-900 hover:bg-slate-800 text-slate-300 px-2 py-1 rounded text-[11px] font-semibold border border-slate-800 transition"
+                            className="bg-white hover:bg-slate-50 text-slate-700 border border-[#e2e8f0] px-2 py-1 rounded-lg text-[11px] font-semibold transition shadow-xs"
                             title="Change Role"
                           >
                             Role
@@ -454,7 +450,7 @@ export const StaffPage: React.FC = () => {
                                 setFormError(null);
                                 setActiveAction({ type: 'DEACTIVATE', target: s });
                               }}
-                              className="bg-red-500/10 hover:bg-red-500/20 text-red-300 px-2 py-1 rounded text-[11px] font-semibold border border-red-500/30 transition"
+                              className="bg-[#fef3f2] hover:bg-[#fee4e2] text-[#f04438] border border-[#fecdca] px-2 py-1 rounded-lg text-[11px] font-semibold transition shadow-xs"
                               title="Deactivate Account"
                             >
                               Deactivate
@@ -467,7 +463,7 @@ export const StaffPage: React.FC = () => {
                                 setFormError(null);
                                 setActiveAction({ type: 'REACTIVATE', target: s });
                               }}
-                              className="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded text-[11px] font-semibold border border-emerald-500/30 transition"
+                              className="bg-[#ecfdf3] hover:bg-[#d1fadf] text-[#12b76a] border border-[#a6f4c5] px-2 py-1 rounded-lg text-[11px] font-semibold transition shadow-xs"
                               title="Reactivate Account"
                             >
                               Reactivate
@@ -480,7 +476,7 @@ export const StaffPage: React.FC = () => {
                               setFormError(null);
                               setActiveAction({ type: 'RESET_MFA', target: s });
                             }}
-                            className="bg-slate-900 hover:bg-slate-800 text-slate-300 px-2 py-1 rounded text-[11px] font-semibold border border-slate-800 transition"
+                            className="bg-white hover:bg-slate-50 text-slate-700 border border-[#e2e8f0] px-2 py-1 rounded-lg text-[11px] font-semibold transition shadow-xs"
                             title="Reset 2FA"
                           >
                             Reset 2FA
@@ -493,7 +489,7 @@ export const StaffPage: React.FC = () => {
                               setFormError(null);
                               setActiveAction({ type: 'RESET_PASSWORD', target: s });
                             }}
-                            className="bg-slate-900 hover:bg-slate-800 text-slate-300 px-2 py-1 rounded text-[11px] font-semibold border border-slate-800 transition"
+                            className="bg-white hover:bg-slate-50 text-slate-700 border border-[#e2e8f0] px-2 py-1 rounded-lg text-[11px] font-semibold transition shadow-xs"
                             title="Reset Password"
                           >
                             Reset Pwd
@@ -504,7 +500,7 @@ export const StaffPage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <td colSpan={7} className="py-12 text-center text-slate-400">
                       No staff members match the selected filters.
                     </td>
                   </tr>
@@ -517,60 +513,60 @@ export const StaffPage: React.FC = () => {
 
       {/* MODAL: ADD STAFF */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-panel border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <UserPlus className="w-4 h-4 text-indigo-400" />
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-[#e8ecf4] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#e8ecf4] pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-[#2f68ff]" />
                 Add Platform Staff Member
               </h3>
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-500 hover:text-slate-300"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {formError && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-xs text-red-300 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="bg-[#fef3f2] border border-[#fecdca] rounded-xl p-3 text-xs text-[#f04438] flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-[#f04438] shrink-0 mt-0.5" />
                 <span>{formError}</span>
               </div>
             )}
 
             <form onSubmit={handleCreateStaff} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Full Name</label>
+                <label className="block font-semibold text-slate-700 mb-1">Full Name</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g., Sarah Connor"
                   value={newFullName}
                   onChange={(e) => setNewFullName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Staff Email Address</label>
+                <label className="block font-semibold text-slate-700 mb-1">Staff Email Address</label>
                 <input
                   type="email"
                   required
                   placeholder="sarah.connor@platform.local"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Platform Role</label>
+                <label className="block font-semibold text-slate-700 mb-1">Platform Role</label>
                 <select
                   value={newRole}
                   onChange={(e) => setNewRole(e.target.value as any)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 >
                   <option value="SUPPORT">SUPPORT (Default operational read/write)</option>
                   <option value="FINANCE">FINANCE (Commercial ledger & pricing)</option>
@@ -579,37 +575,36 @@ export const StaffPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Initial Temporary Password</label>
+                <label className="block font-semibold text-slate-700 mb-1">Initial Temporary Password</label>
                 <input
                   type="password"
                   required
                   placeholder="Min 12 chars (Upper, lower, digit, symbol)"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 />
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Policy: $\ge$ 12 chars with upper, lower, digit, and symbol. The staff member will be forced to change it at first login.
+                  Policy: &ge; 12 chars with upper, lower, digit, and symbol. The staff member will be forced to change it at first login.
                 </p>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
-                <button
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#e8ecf4]">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setIsAddModalOpen(false)}
                   disabled={actionLoading}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={actionLoading}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
+                  variant="primary"
+                  loading={actionLoading}
                 >
-                  {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Create Staff Account
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -618,10 +613,10 @@ export const StaffPage: React.FC = () => {
 
       {/* MODAL: ACTIONS (ROLE / DEACTIVATE / REACTIVATE / RESET MFA / RESET PWD) */}
       {activeAction && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-panel border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white border border-[#e8ecf4] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#e8ecf4] pb-3">
+              <h3 className="text-base font-bold text-slate-900">
                 {activeAction.type === 'ROLE' && 'Change Staff Role'}
                 {activeAction.type === 'DEACTIVATE' && 'Deactivate Staff Account'}
                 {activeAction.type === 'REACTIVATE' && 'Reactivate Staff Account'}
@@ -631,19 +626,19 @@ export const StaffPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveAction(null)}
-                className="text-slate-500 hover:text-slate-300"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-300">
-              Target Operator: <strong>{activeAction.target.fullName}</strong> ({activeAction.target.email})
+            <p className="text-xs text-slate-600">
+              Target Operator: <strong className="text-slate-900">{activeAction.target.fullName}</strong> ({activeAction.target.email})
             </p>
 
             {formError && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-xs text-red-300 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="bg-[#fef3f2] border border-[#fecdca] rounded-xl p-3 text-xs text-[#f04438] flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-[#f04438] shrink-0 mt-0.5" />
                 <span>{formError}</span>
               </div>
             )}
@@ -651,11 +646,11 @@ export const StaffPage: React.FC = () => {
             <form onSubmit={handleExecuteAction} className="space-y-3.5 text-xs">
               {activeAction.type === 'ROLE' && (
                 <div>
-                  <label className="block font-semibold text-slate-300 mb-1">Select New Role</label>
+                  <label className="block font-semibold text-slate-700 mb-1">Select New Role</label>
                   <select
                     value={actionRole}
                     onChange={(e) => setActionRole(e.target.value as any)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-slate-900 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                   >
                     <option value="SUPPORT">SUPPORT</option>
                     <option value="FINANCE">FINANCE</option>
@@ -666,14 +661,14 @@ export const StaffPage: React.FC = () => {
 
               {activeAction.type === 'RESET_PASSWORD' && (
                 <div>
-                  <label className="block font-semibold text-slate-300 mb-1">New Temporary Password</label>
+                  <label className="block font-semibold text-slate-700 mb-1">New Temporary Password</label>
                   <input
                     type="password"
                     required
                     placeholder="Min 12 chars (Upper, lower, digit, symbol)"
                     value={actionPassword}
                     onChange={(e) => setActionPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                   />
                   <p className="text-[11px] text-slate-500 mt-1">
                     The staff member will be forced to change this password immediately upon their next login.
@@ -682,20 +677,20 @@ export const StaffPage: React.FC = () => {
               )}
 
               {activeAction.type === 'RESET_MFA' && (
-                <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl text-[11px] text-amber-300">
+                <div className="bg-[#fffbeb] border border-[#fde68a] p-3 rounded-xl text-[11px] text-[#b54708]">
                   ⚠️ This will revoke the existing TOTP key and immediately invalidate all active sessions. The user will be required to re-enroll in 2FA.
                 </div>
               )}
 
               {activeAction.type === 'DEACTIVATE' && (
-                <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-xl text-[11px] text-red-300">
+                <div className="bg-[#fef3f2] border border-[#fecdca] p-3 rounded-xl text-[11px] text-[#f04438]">
                   ⚠️ Deactivating this operator will immediately invalidate all active tokens and block future login attempts.
                 </div>
               )}
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">
-                  Audit Reason <span className="text-red-400">*</span> (Min 10 characters)
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Audit Reason <span className="text-[#f04438]">*</span> (Min 10 characters)
                 </label>
                 <textarea
                   required
@@ -703,27 +698,26 @@ export const StaffPage: React.FC = () => {
                   placeholder="Explain why this administrative mutation is being executed..."
                   value={actionReason}
                   onChange={(e) => setActionReason(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3 py-2 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white resize-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
-                <button
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#e8ecf4]">
+                <Button
                   type="button"
+                  variant="secondary"
                   onClick={() => setActiveAction(null)}
                   disabled={actionLoading}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
-                  disabled={actionLoading}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
+                  variant={activeAction.type === 'DEACTIVATE' ? 'danger' : 'primary'}
+                  loading={actionLoading}
                 >
-                  {actionLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Confirm & Audit
-                </button>
+                </Button>
               </div>
             </form>
           </div>

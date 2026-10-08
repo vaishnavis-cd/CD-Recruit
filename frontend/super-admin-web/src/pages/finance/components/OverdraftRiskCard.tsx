@@ -29,18 +29,18 @@ export const OverdraftRiskCard: React.FC<OverdraftRiskCardProps> = ({ overdraftA
       ];
 
   return (
-    <Card>
+    <Card className="bg-white border-[#e8ecf4]">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <ShieldAlert className="w-4 h-4 text-amber-400" /> Overdraft Buffer Exposure
+        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-900">
+          <ShieldAlert className="w-4 h-4 text-[#d97706]" /> Overdraft Buffer Exposure
         </CardTitle>
-        <span className="text-[10px] font-mono uppercase bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded">
+        <span className="text-[10px] font-mono uppercase bg-[#fffbeb] text-[#b54708] border border-[#fde68a] px-2 py-0.5 rounded font-bold">
           {accounts.length} Accounts Active
         </span>
       </CardHeader>
       <CardContent className="space-y-4">
         {accounts.length === 0 ? (
-          <div className="py-8 text-center text-slate-500 text-xs">
+          <div className="py-8 text-center text-slate-400 text-xs">
             Zero accounts are currently operating with negative balance. Credit safety within 100% threshold.
           </div>
         ) : (
@@ -48,27 +48,27 @@ export const OverdraftRiskCard: React.FC<OverdraftRiskCardProps> = ({ overdraftA
             {accounts.map((acc: AtRiskAccount) => (
               <div
                 key={acc.id}
-                className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 flex items-center justify-between text-xs"
+                className="p-3 bg-[#f8fafc] rounded-xl border border-[#e8ecf4] flex items-center justify-between text-xs"
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-slate-200">{acc.organizationName}</span>
+                    <span className="font-semibold text-slate-900">{acc.organizationName}</span>
                     <span className="font-mono text-slate-500 text-[10px]">
                       {truncateId(acc.id, 8, 4)}
                     </span>
                   </div>
-                  <span className="text-[11px] text-red-400 font-mono mt-0.5 block">
+                  <span className="text-[11px] text-[#f04438] font-mono mt-0.5 block font-semibold">
                     Deficit: {formatNumber(Math.abs(acc.balance))} Credits
                   </span>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-mono text-slate-400">
+                  <span className="text-[11px] font-mono text-slate-500">
                     Max: {formatNumber(acc.overdraftLimit)}
                   </span>
                   <Link
                     to={`/billing/accounts/${acc.id}`}
-                    className="text-indigo-400 hover:text-indigo-300 p-1"
+                    className="text-[#2f68ff] hover:text-[#2557db] p-1"
                   >
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>

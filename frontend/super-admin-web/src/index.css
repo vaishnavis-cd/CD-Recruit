@@ -1,61 +1,153 @@
 @import "tailwindcss";
+@source "../src";
+@import "../../../packages/design-tokens/src/tokens.css";
+
+@theme {
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Brand Palette (Proctora Royal Blue) */
+  --color-brand: #2f5cff;
+  --color-brand-hover: #0037ff;
+  --color-brand-ink: #15308f;
+  --color-brand-subtle: #eff6ff;
+  --color-brand-border: #bfdbfe;
+
+  /* Ink / Typography */
+  --color-ink: #0b0b0d;
+  --color-ink-2: #5b5b64;
+  --color-ink-3: #8b8b93;
+  --color-ink-muted: #9c9ca5;
+  --color-ink-secondary: #5b5b64;
+  --color-ink-tertiary: #8b8b93;
+
+  /* Borders & Dividers */
+  --color-line: #e6e6ea;
+  --color-line-strong: #d6d7dc;
+
+  /* Surfaces & Backgrounds */
+  --color-canvas: #f7f7f9;
+  --color-bg-soft: #f7f7f9;
+  --color-bg-inset: #eff0f3;
+  --color-surface-inset: #eff0f3;
+
+  /* Semantic Feedback Colors */
+  --color-danger: #e5484d;
+  --color-danger-subtle: #fef2f2;
+  --color-danger-border: #fecaca;
+  --color-danger-hover: #dc2626;
+
+  --color-success: #10b981;
+  --color-success-subtle: #ecfdf5;
+  --color-success-border: #a7f3d0;
+
+  --color-warning: #f59e0b;
+  --color-warning-subtle: #fffbeb;
+  --color-warning-border: #fde68a;
+
+  --color-purple: #8b5cf6;
+  --color-purple-subtle: #f5f3ff;
+  --color-purple-border: #ddd6fe;
+
+  /* Radius Scale */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-full: 9999px;
+}
 
 @layer base {
   :root {
-    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+    --background: #f7f7f9;
+    --foreground: #0b0b0d;
+    --card: #ffffff;
+    --card-foreground: #0b0b0d;
+    --popover: #ffffff;
+    --popover-foreground: #0b0b0d;
+    --primary: #2f5cff;
+    --primary-foreground: #ffffff;
+    --secondary: #eff0f3;
+    --secondary-foreground: #0b0b0d;
+    --muted: #f7f7f9;
+    --muted-foreground: #5b5b64;
+    --accent: #eff6ff;
+    --accent-foreground: #15308f;
+    --destructive: #e5484d;
+    --destructive-foreground: #ffffff;
+    --border: #e6e6ea;
+    --input: #e6e6ea;
+    --ring: #2f5cff;
+  }
+
+  * {
+    border-color: #e6e6ea;
   }
 
   body {
     font-family: var(--font-sans);
-    background-color: #030712;
-    color: #f3f4f6;
+    background-color: #f7f7f9;
+    color: #0b0b0d;
   }
 }
 
-/* Custom scrollbars */
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Custom Clean Light scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(241, 245, 249, 0.6);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(51, 65, 85, 0.7);
+  background: rgba(203, 213, 225, 0.8);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(71, 85, 105, 0.9);
+  background: rgba(148, 163, 184, 0.9);
 }
 
-/* Glassmorphism utility */
+/* Light Card & Panel Utilities */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #ffffff;
+  border: 1px solid #e8ecf4;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
 }
 
 .glass-panel-glow {
-  background: rgba(15, 23, 42, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.15);
+  background: #ffffff;
+  border: 1px solid #bfdbfe;
+  box-shadow: 0 4px 20px -2px rgba(47, 92, 255, 0.08);
 }
 
 .glass-card {
-  background: rgba(17, 24, 39, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #ffffff;
+  border: 1px solid #e8ecf4;
   transition: all 0.2s ease-in-out;
 }
 
 .glass-card:hover {
-  background: rgba(17, 24, 39, 0.85);
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  background: #ffffff;
+  border-color: #bfdbfe;
+  box-shadow: 0 6px 20px -2px rgba(0, 0, 0, 0.04);
 }
