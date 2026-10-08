@@ -27,7 +27,7 @@ import { StaffRole, Permission } from "@cd-recruit/shared-types";
 import { AdminService } from "./admin.service";
 import { InviteService } from "./invite.service";
 import { DashboardService } from "./dashboard.service";
-import { CreditEnforcementService } from "../billing/credit-enforcement.service";
+import { CreditPoolService } from "../billing/pool/credit-pool.service";
 import { LedgerService } from "../billing/ledger/ledger.service";
 import { PrismaService } from "../prisma/prisma.service";
 import {
@@ -54,7 +54,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly inviteService: InviteService,
     private readonly dashboardService: DashboardService,
-    private readonly creditEnforcementService: CreditEnforcementService,
+    private readonly creditPoolService: CreditPoolService,
     private readonly ledgerService: LedgerService,
     private readonly prisma: PrismaService,
   ) {}
@@ -266,7 +266,7 @@ export class AdminController {
   async getDriveCapacity(
     @Param("driveId", ParseUUIDPipe) driveId: string,
   ) {
-    return this.creditEnforcementService.getDriveCapacityStatus(driveId);
+    return this.creditPoolService.getDriveCapacityStatus(driveId);
   }
 
   @Post("billing/drive/:driveId/release-held")
@@ -275,7 +275,7 @@ export class AdminController {
   async releaseHeldSessions(
     @Param("driveId", ParseUUIDPipe) driveId: string,
   ) {
-    return this.creditEnforcementService.releaseHeldSessions(driveId);
+    return this.creditPoolService.releaseHeldSessions(driveId);
   }
 
   @Get("billing/account")

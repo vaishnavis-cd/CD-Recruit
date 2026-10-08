@@ -62,7 +62,6 @@ interface LedgerEntryItem {
   reason: string;
   reasonNote?: string | null;
   driveName?: string | null;
-  candidateName?: string | null;
   creditPoolName?: string | null;
   idempotencyKey?: string;
 }
@@ -79,174 +78,9 @@ interface InvoiceItem {
   pdfUrl?: string;
 }
 
-const DEFAULT_MOCK_POOLS: CreditPoolItem[] = [
-  {
-    id: "pool-dp-01",
-    name: "IIT Madras Campus Drive 2026",
-    poolType: "DRIVE_PASS",
-    totalCredits: 200,
-    cachedRemaining: 142,
-    status: "ACTIVE",
-    queueOrder: null,
-    validityDays: 7,
-    expiresAt: "2026-10-08T18:30:00.000Z",
-    clockStartedAt: "2026-09-30T10:00:00.000Z",
-    createdAt: "2026-09-30T10:00:00.000Z",
-    unitPriceMinor: 5000,
-    currency: "INR",
-    driveName: "IIT Madras Campus Hiring 2026",
-  },
-  {
-    id: "pool-tr-01",
-    name: "Q1 Talent Reserve Core Bank",
-    poolType: "TALENT_RESERVE",
-    totalCredits: 500,
-    cachedRemaining: 388,
-    status: "ACTIVE",
-    queueOrder: null,
-    validityDays: 180,
-    expiresAt: "2027-01-20T18:30:00.000Z",
-    clockStartedAt: "2026-07-24T10:00:00.000Z",
-    createdAt: "2026-07-24T10:00:00.000Z",
-    unitPriceMinor: 6000,
-    currency: "INR",
-  },
-  {
-    id: "pool-tr-02",
-    name: "Q2 Growth Pack (Jio Queue)",
-    poolType: "TALENT_RESERVE",
-    totalCredits: 300,
-    cachedRemaining: 300,
-    status: "QUEUED",
-    queueOrder: 1,
-    validityDays: 180,
-    expiresAt: null,
-    clockStartedAt: null,
-    createdAt: "2026-09-20T10:00:00.000Z",
-    unitPriceMinor: 5500,
-    currency: "INR",
-  },
-  {
-    id: "pool-tr-03",
-    name: "Enterprise Bulk Reserve Reserve 2",
-    poolType: "TALENT_RESERVE",
-    totalCredits: 1000,
-    cachedRemaining: 1000,
-    status: "QUEUED",
-    queueOrder: 2,
-    validityDays: 365,
-    expiresAt: null,
-    clockStartedAt: null,
-    createdAt: "2026-09-25T10:00:00.000Z",
-    unitPriceMinor: 5000,
-    currency: "INR",
-  },
-];
-
-const DEFAULT_MOCK_LEDGER: LedgerEntryItem[] = [
-  {
-    id: "tx-8941",
-    createdAt: "2026-10-01T11:48:00.000Z",
-    entryType: "CONSUME",
-    amount: -1,
-    balanceAfter: 530,
-    reason: "ATTEMPT_START",
-    reasonNote: "Candidate commencement: Ananya Sharma (Full Stack Engineer Assessment)",
-    driveName: "IIT Madras Campus Hiring 2026",
-    candidateName: "Ananya Sharma",
-    creditPoolName: "IIT Madras Campus Drive 2026",
-  },
-  {
-    id: "tx-8940",
-    createdAt: "2026-10-01T11:26:00.000Z",
-    entryType: "CONSUME",
-    amount: -1,
-    balanceAfter: 531,
-    reason: "ATTEMPT_START",
-    reasonNote: "Candidate commencement: Rohan Deshmukh (Frontend Specialist)",
-    driveName: "IIT Madras Campus Hiring 2026",
-    candidateName: "Rohan Deshmukh",
-    creditPoolName: "IIT Madras Campus Drive 2026",
-  },
-  {
-    id: "tx-8939",
-    createdAt: "2026-10-01T10:00:00.000Z",
-    entryType: "WAIVE",
-    amount: 0,
-    balanceAfter: 532,
-    reason: "PROCTORING_WAIVER",
-    reasonNote: "Hardware webcam glitch reattempt waived under 5% courtesy policy",
-    driveName: "IIT Madras Campus Hiring 2026",
-    candidateName: "Karthik Raja",
-    creditPoolName: "IIT Madras Campus Drive 2026",
-  },
-  {
-    id: "tx-8938",
-    createdAt: "2026-10-01T07:00:00.000Z",
-    entryType: "GRANT",
-    amount: 200,
-    balanceAfter: 532,
-    reason: "PAYMENT_CAPTURED",
-    reasonNote: "Purchase: Drive Pass for IIT Madras Campus Drive 2026 via Razorpay (Order #ord_9201)",
-    driveName: "IIT Madras Campus Hiring 2026",
-    creditPoolName: "IIT Madras Campus Drive 2026",
-  },
-  {
-    id: "tx-8937",
-    createdAt: "2026-09-30T10:00:00.000Z",
-    entryType: "CONSUME",
-    amount: -1,
-    balanceAfter: 332,
-    reason: "ATTEMPT_START",
-    reasonNote: "Candidate commencement: Vikram Mehta (Backend Lead)",
-    driveName: "Senior Engineering Lateral Drive",
-    candidateName: "Vikram Mehta",
-    creditPoolName: "Q1 Talent Reserve Core Bank",
-  },
-  {
-    id: "tx-8936",
-    createdAt: "2026-09-28T10:00:00.000Z",
-    entryType: "GRANT",
-    amount: 300,
-    balanceAfter: 333,
-    reason: "PAYMENT_CAPTURED",
-    reasonNote: "Purchase: Q2 Growth Pack added to sequential queue (Jio Model)",
-    creditPoolName: "Q2 Growth Pack (Jio Queue)",
-  },
-];
-
-const DEFAULT_MOCK_INVOICES: InvoiceItem[] = [
-  {
-    id: "inv-2026-004",
-    invoiceNumber: "INV-2026-0891",
-    date: "2026-10-01",
-    description: "Drive Pass Pack (200 Seats @ ₹50) + 18% GST",
-    amountFormatted: "₹11,800",
-    creditsPurchased: 200,
-    provider: "RAZORPAY",
-    status: "PAID",
-  },
-  {
-    id: "inv-2026-003",
-    invoiceNumber: "INV-2026-0742",
-    date: "2026-09-28",
-    description: "Talent Reserve Growth Pack (300 Credits @ ₹55) + 18% GST",
-    amountFormatted: "₹19,470",
-    creditsPurchased: 300,
-    provider: "RAZORPAY",
-    status: "PAID",
-  },
-  {
-    id: "inv-2026-002",
-    invoiceNumber: "INV-2026-0512",
-    date: "2026-07-24",
-    description: "Talent Reserve Opening Bank (500 Credits @ ₹60) + 18% GST",
-    amountFormatted: "₹35,400",
-    creditsPurchased: 500,
-    provider: "RAZORPAY",
-    status: "PAID",
-  },
-];
+const DEFAULT_MOCK_POOLS: CreditPoolItem[] = [];
+const DEFAULT_MOCK_LEDGER: LedgerEntryItem[] = [];
+const DEFAULT_MOCK_INVOICES: InvoiceItem[] = [];
 
 export function BillingSettingsTab() {
   const fetchBillingAccount = useStore((s) => s.fetchBillingAccount);
@@ -304,41 +138,39 @@ export function BillingSettingsTab() {
         ];
         setPools(combined);
       } else {
-        // Retain rich pre-populated demo data so all tabs & balances render consistently
         setAccountData({
-          totalRemaining: 530,
-          activePoolsRemaining: 530,
-          queuedPoolsCount: 2,
-          overdraftLimit: 50,
+          totalRemaining: data?.totalRemaining || 0,
+          activePoolsRemaining: data?.activePoolsRemaining || 0,
+          queuedPoolsCount: data?.queuedPoolsCount || 0,
+          overdraftLimit: 0,
           overdraftUsed: 0,
-          overdraftAvailable: 50,
-          status: "ACTIVE",
-          billingAccountId: data?.billingAccountId || "ba-enterprise-9941",
-          legalEntityName: data?.legalEntityName || "Acme Corporation Technologies India Pvt Ltd",
-          billingCountry: "IN",
-          currency: "INR",
-          taxId: "27AADCB2230M1Z2",
+          overdraftAvailable: 0,
+          status: data?.status || "ACTIVE",
+          billingAccountId: data?.billingAccountId || null,
+          legalEntityName: data?.legalEntityName || null,
+          billingCountry: data?.billingCountry || "IN",
+          currency: data?.currency || "INR",
+          taxId: data?.taxId || null,
         });
-        setPools(DEFAULT_MOCK_POOLS);
+        setPools([]);
       }
     } catch (err: any) {
-      console.warn("Backend billing endpoint fallback to mock state:", err);
-      // Fallback to rich mock data
+      console.warn("Backend billing endpoint unavailable:", err);
       setAccountData({
-        totalRemaining: 530,
-        activePoolsRemaining: 530,
-        queuedPoolsCount: 2,
-        overdraftLimit: 50,
+        totalRemaining: 0,
+        activePoolsRemaining: 0,
+        queuedPoolsCount: 0,
+        overdraftLimit: 0,
         overdraftUsed: 0,
-        overdraftAvailable: 50,
+        overdraftAvailable: 0,
         status: "ACTIVE",
-        billingAccountId: "ba-enterprise-9941",
-        legalEntityName: "Acme Corporation Technologies India Pvt Ltd",
+        billingAccountId: null,
+        legalEntityName: null,
         billingCountry: "IN",
         currency: "INR",
-        taxId: "27AADCB2230M1Z2",
+        taxId: null,
       });
-      setPools(DEFAULT_MOCK_POOLS);
+      setPools([]);
     }
 
     try {
@@ -347,11 +179,11 @@ export function BillingSettingsTab() {
         if (Array.isArray(entries) && entries.length > 0) {
           setLedgerEntries(entries);
         } else {
-          setLedgerEntries(DEFAULT_MOCK_LEDGER);
+          setLedgerEntries([]);
         }
       }
     } catch {
-      setLedgerEntries(DEFAULT_MOCK_LEDGER);
+      setLedgerEntries([]);
     } finally {
       if (!silent) setLoading(false);
     }
@@ -367,10 +199,10 @@ export function BillingSettingsTab() {
     });
   }, []);
 
-  const totalRemaining = accountData?.totalRemaining ?? 530;
-  const overdraftLimit = accountData?.overdraftLimit ?? 50;
-  const overdraftUsed = accountData?.overdraftUsed ?? 0;
-  const overdraftAvailable = accountData?.overdraftAvailable ?? (overdraftLimit - overdraftUsed);
+  const totalRemaining = accountData?.totalRemaining ?? 0;
+  const overdraftLimit = 0;
+  const overdraftUsed = 0;
+  const overdraftAvailable = 0;
   const activePools = pools.filter((p) => p.status === "ACTIVE");
   const queuedPools = pools.filter((p) => p.status === "QUEUED");
 
@@ -416,84 +248,11 @@ export function BillingSettingsTab() {
 
     setIsProcessingBuy(true);
     try {
-      const unitRate = buyCurrency === "INR" ? (buyPackType === "DRIVE_PASS" ? 50 : 60) : 2;
-      const targetDrive = drives?.find((d) => d.id === buyTargetDriveId);
-
-      if (purchaseCredits) {
-        await purchaseCredits({
-          poolType: buyPackType,
-          totalCredits: buyQuantity,
-          name:
-            buyPackType === "DRIVE_PASS"
-              ? `${targetDrive?.name || "Campus Drive"} Pass`
-              : `Talent Reserve Bank (${buyQuantity} credits)`,
-          validityDays: buyPackType === "DRIVE_PASS" ? 7 : 180,
-          driveId: buyPackType === "DRIVE_PASS" ? buyTargetDriveId : undefined,
-        });
-      }
-
-      // Optimistic UI Update
-      const newPool: CreditPoolItem = {
-        id: `pool-new-${Date.now()}`,
-        name:
-          buyPackType === "DRIVE_PASS"
-            ? `${targetDrive?.name || "Campus Drive"} Pass`
-            : `Talent Reserve Bank (${buyQuantity} credits)`,
-        poolType: buyPackType,
-        totalCredits: buyQuantity,
-        cachedRemaining: buyQuantity,
-        status: buyPackType === "DRIVE_PASS" ? "ACTIVE" : (activePools.some(p => p.poolType === "TALENT_RESERVE") ? "QUEUED" : "ACTIVE"),
-        queueOrder: buyPackType === "TALENT_RESERVE" && activePools.some(p => p.poolType === "TALENT_RESERVE") ? queuedPools.length + 1 : null,
-        validityDays: buyPackType === "DRIVE_PASS" ? 7 : 180,
-        expiresAt:
-          buyPackType === "DRIVE_PASS"
-            ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-            : null,
-        createdAt: new Date().toISOString(),
-        unitPriceMinor: unitRate * 100,
-        currency: buyCurrency,
-        driveName: targetDrive?.name,
-        driveId: buyTargetDriveId,
-      };
-
-      setPools((prev) => [newPool, ...prev]);
-
-      const newTx: LedgerEntryItem = {
-        id: `tx-${Math.floor(1000 + Math.random() * 9000)}`,
-        createdAt: new Date().toISOString(),
-        entryType: "GRANT",
-        amount: buyQuantity,
-        balanceAfter: totalRemaining + buyQuantity,
-        reason: "PAYMENT_CAPTURED",
-        reasonNote: `Purchased ${buyQuantity} credits (${buyPackType}) via Instant Allocation`,
-        driveName: targetDrive?.name,
-        creditPoolName: newPool.name,
-      };
-
-      setLedgerEntries((prev) => [newTx, ...prev]);
-
-      const newInv: InvoiceItem = {
-        id: `inv-${Date.now()}`,
-        invoiceNumber: `INV-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
-        date: new Date().toLocaleDateString(),
-        description: `${buyPackType === "DRIVE_PASS" ? "Drive Pass" : "Talent Reserve"} (${buyQuantity} Credits @ ${buyCurrency === "INR" ? `₹${unitRate}` : `$${unitRate}`}) + Tax`,
-        amountFormatted: `${buyCurrency === "INR" ? `₹${Math.round(buyQuantity * unitRate * 1.18).toLocaleString()}` : `$${Math.round(buyQuantity * unitRate * 1.18).toLocaleString()}`}`,
-        creditsPurchased: buyQuantity,
-        provider: "RAZORPAY",
-        status: "PAID",
-      };
-
-      setInvoices((prev) => [newInv, ...prev]);
-
-      setAccountData((prev: any) => ({
-        ...(prev || {}),
-        totalRemaining: (prev?.totalRemaining ?? totalRemaining) + buyQuantity,
-      }));
-
-      toast.success(`Successfully allocated ${buyQuantity} credits to ${newPool.name}`);
+      toast.info(
+        "Commercial credit purchases require verified payment gateway capture or an authorized offline PO invoice. Please contact your account manager at sales@proctora.com or billing support.",
+        { duration: 6000 }
+      );
       setShowBuyModal(false);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to complete credit purchase");
     } finally {
       setIsProcessingBuy(false);
     }
@@ -617,20 +376,19 @@ export function BillingSettingsTab() {
           </div>
         </div>
 
-        {/* Enterprise Overdraft Buffer */}
-        <div className="p-5 bg-white border border-[#E2E8F0] rounded-[14px] shadow-2xs relative overflow-hidden group hover:border-[#D97706]/40 transition-all">
+        {/* Account Standing & Policy */}
+        <div className="p-5 bg-white border border-[#E2E8F0] rounded-[14px] shadow-2xs relative overflow-hidden group hover:border-[#059669]/40 transition-all">
           <div className="flex items-center justify-between text-[#64748B] mb-2">
-            <span className="text-[12px] font-semibold">Overdraft Safety Buffer</span>
-            <div className="w-7 h-7 rounded-lg bg-[#FEF3C7] text-[#D97706] flex items-center justify-center">
+            <span className="text-[12px] font-semibold">Account Standing</span>
+            <div className="w-7 h-7 rounded-lg bg-[#ECFDF5] text-[#059669] flex items-center justify-center">
               <ShieldCheck size={15} />
             </div>
           </div>
-          <div className="text-[28px] font-bold text-[#0F172A] tracking-tight">
-            {overdraftAvailable}
-            <span className="text-[13px] font-normal text-[#64748B] ml-1.5">/ {overdraftLimit}</span>
+          <div className="text-[24px] font-bold text-[#0F172A] tracking-tight">
+            {accountData?.status || "ACTIVE"}
           </div>
           <div className="mt-2 flex items-center text-[11px] text-[#64748B]">
-            <span>Used: <strong className="text-[#0F172A]">{overdraftUsed}</strong> credits debt</span>
+            <span>Overdraft Policy: Strictly Disabled (Zero Debt)</span>
           </div>
         </div>
 
@@ -698,7 +456,7 @@ export function BillingSettingsTab() {
             <div>
               <h3 className="text-[14px] font-bold text-[#0F172A]">Authoritative Credit Pools</h3>
               <p className="text-[12px] text-[#64748B] mt-0.5">
-                Priority order: <strong>Drive Pass</strong> &gt; <strong>Talent Reserve</strong> &gt; <strong>Queued Jio-Model Promotion</strong> &gt; <strong>Enterprise Overdraft</strong>.
+                Priority order: <strong>Drive Pass</strong> &gt; <strong>Talent Reserve</strong> &gt; <strong>Queued Pack Promotion</strong>.
               </p>
             </div>
 

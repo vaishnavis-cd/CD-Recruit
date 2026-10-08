@@ -296,18 +296,10 @@
       return await res.json();
     },
 
-    purchaseCredits: async (dto) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/billing/purchase`, {
-        method: "POST",
-        headers: { ...headers, "Content-Type": "application/json" },
-        body: JSON.stringify(dto),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Failed to purchase credits");
-      }
-      return await res.json();
+    purchaseCredits: async () => {
+      throw new Error(
+        "Direct credit purchase endpoint is decommissioned per financial invariant INV-PAY-01. Please contact sales or submit an invoice request."
+      );
     },
 
     updateDriveFallthrough: async (driveId: string, fallthrough: "ALLOW" | "HOLD") => {

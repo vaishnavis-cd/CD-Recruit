@@ -15,7 +15,7 @@ import { GoneException } from "@app/common/exceptions/app.exceptions";
 import { ConfigService } from "@nestjs/config";
 import { CvMode, Session, SessionStatus, InviteStatus, ConsentType } from "@prisma/client";
 import { ShadowBillingService } from "../billing/shadow-billing.service";
-import { CreditEnforcementService } from "../billing/credit-enforcement.service";
+import { LedgerService } from "../billing/ledger/ledger.service";
 
 import { PrismaService } from "@app/prisma/prisma.service";
 import { AuthService } from "@app/auth/auth.service";
@@ -544,8 +544,8 @@ export class SessionService implements SessionStatusPort {
     @Inject(forwardRef(() => ShadowBillingService))
     private readonly shadowBillingService?: ShadowBillingService,
     @Optional()
-    @Inject(forwardRef(() => CreditEnforcementService))
-    private readonly creditEnforcementService?: CreditEnforcementService,
+    @Inject(forwardRef(() => LedgerService))
+    private readonly ledgerService?: LedgerService,
   ) {
     this.graceWindowSeconds = this.config.get("graceWindowSeconds", {
       infer: true,
@@ -837,16 +837,14 @@ export class SessionService implements SessionStatusPort {
 
     // ── Phase 3: Live Credit Enforcement & Capacity Management ─────────────
     const billingMode = this.config.get<string>("billingMode", { infer: true }) ?? process.env.BILLING_MODE ?? "off";
-    if (billingMode === "enforce" && this.creditEnforcementService) {
-      const enforcementResult = await this.creditEnforcementService.evaluateAndAcquireCredit(sessionId);
-      if (enforcementResult.outcome === "HELD") {
+    if (billingMode === "enforce" && this.ledgerService) {
+      const enforcementResult = await this.ledgerService.claimSessionCredit(sessionId, "enforce");
+      if (enforcementResult.outcome === "NEEDS_SLOW_PATH" || (enforcementResult.outcome as string) === "HELD") {
         throw new UnprocessableEntityException({
           state: "HOLD",
           code: "SESSION_HELD_CAPACITY",
           message:
-            enforcementResult.message ||
             "There is a brief delay starting your assessment session. Your recruiter has been notified. Your timer has not started and you will not lose any time.",
-          heldAt: enforcementResult.heldAt,
         });
       }
     }

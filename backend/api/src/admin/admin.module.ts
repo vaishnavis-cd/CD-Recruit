@@ -7,7 +7,8 @@ import { AuthModule } from "../auth/auth.module";
 import { SessionModule } from "../session/session.module";
 import { FaceVerifyOnnxModule } from "../integrations/face-verify-onnx/face-verify-onnx.module";
 import { OcrModule } from "../integrations/ocr/ocr.module";
-import { BillingModule } from "../billing/billing.module";
+import { CreditPoolModule } from "../billing/pool/credit-pool.module";
+import { LedgerModule } from "../billing/ledger/ledger.module";
 import { PrismaModule } from "../prisma/prisma.module";
 
 @Module({
@@ -16,7 +17,8 @@ import { PrismaModule } from "../prisma/prisma.module";
     SessionModule,
     FaceVerifyOnnxModule,
     OcrModule,
-    BillingModule,
+    CreditPoolModule,
+    LedgerModule,
     PrismaModule,
   ],
   controllers: [AdminController],

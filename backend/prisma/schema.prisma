@@ -6,7 +6,6 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["multiSchema"]
-  output          = "../../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -72,8 +71,6 @@ enum LedgerEntryType {
   REFUND             // -n   unused credits removed because cash was refunded to customer
   EXPIRE             // -n   remaining unconsumed credits expired at deadline
   ADJUST             // +-n  manual correction (strictly maker-checker)
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -85,8 +82,6 @@ enum GrantSource {
   GOODWILL
   MIGRATION
   ROLLOVER
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -118,15 +113,12 @@ enum LedgerReason {
   ADMINISTRATIVE_ADJUSTMENT
   CANDIDATE_APPEAL
   @@schema("billing")
-  @@schema("public")
 }
 
 enum PoolType {
   DRIVE_PASS
   TALENT_RESERVE
   ENTERPRISE
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -137,8 +129,6 @@ enum PoolStatus {
   EXHAUSTED          // 0 cached_remaining credits
   EXPIRED            // Validity deadline reached
   CANCELLED          // Refunded or administratively closed
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -146,8 +136,6 @@ enum SessionKind {
   LIVE               // Real candidate attempt (BILLABLE)
   PREVIEW            // Recruiter previewing questions (FREE, watermarked, no grading)
   SANDBOX            // Automated QA, k6 load scripts, dev runs (FREE, rejected in prod)
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -155,16 +143,12 @@ enum BillingAccountStatus {
   ACTIVE
   RESTRICTED         // Overdraft aged > 14 days; cannot schedule drives or invite
   SUSPENDED          // Payment dispute / fraud lock
-
-  @@schema("public")
   @@schema("billing")
 }
 
 enum DrivePoolFallthrough {
   ALLOW              // Exhausted Drive Pass falls through to Talent Reserve
   HOLD               // Exhausted Drive Pass puts candidate into polite HOLD screen
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -172,8 +156,6 @@ enum PaymentProvider {
   RAZORPAY
   STRIPE
   MANUAL_INVOICE
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -184,8 +166,6 @@ enum PaymentStatus {
   REFUNDED
   PARTIALLY_REFUNDED
   DISPUTED
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -197,8 +177,6 @@ enum ManualRequestKind {
   OVERDRAFT_LIMIT
   ACCOUNT_STATUS
   BILLING_COUNTRY
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -208,8 +186,6 @@ enum ManualRequestStatus {
   REJECTED
   EXECUTED
   CANCELLED
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -219,8 +195,6 @@ enum SessionEndReason {
   ABANDONED
   CANDIDATE_LEFT
   PLATFORM_FAULT
-
-  @@schema("public")
   @@schema("billing")
 }
 
@@ -1001,233 +975,11 @@ model PlatformStaff {
   overridesApproved  OverrideAction[]       @relation("ApprovedOverrides")
   impersonations     ImpersonationSession[]
   draftsCreated      OnboardingDraft[]
+  incidentsDeclared  IncidentWindow[]
 
   @@map("platform_staff")
   @@schema("platform")
 }
-// ==========================================
-// SCHEMA: billing (Commercial Ledger & Payer)
-// ==========================================
-
-model BillingAccount {
-  id              String               @id @default(uuid())
-  name            String               @db.VarChar(255)
-  legalEntityName String?              @map("legal_entity_name") @db.VarChar(255)
-  billingCountry  String               @default("IN") @map("billing_country") @db.VarChar(2)
-  currency        String               @default("INR") @db.VarChar(3)
-  taxId           String?              @map("tax_id") @db.VarChar(64)
-  status          BillingAccountStatus @default(ACTIVE)
-  overdraftLimit  Int                  @default(0) @map("overdraft_limit")
-  overdraftUsed   Int                  @default(0) @map("overdraft_used")
-  hasPaidPurchase Boolean              @default(false) @map("has_paid_purchase")
-  trialDomain     String?              @unique @map("trial_domain") @db.VarChar(255)
-  trialGrantedAt  DateTime?            @map("trial_granted_at")
-  createdAt       DateTime             @default(now()) @map("created_at")
-  updatedAt       DateTime             @updatedAt @default(now()) @map("updated_at")
-
-  organization          Organization?
-  creditPools           CreditPool[]
-  ledgerEntries         CreditLedgerEntry[]
-  manualBillingRequests ManualBillingRequest[]
-  payments              Payment[]
-
-  @@index([status])
-  @@map("billing_account")
-  @@schema("billing")
-}
-
-model CreditPool {
-  id              String      @id @default(uuid())
-  billingAccountId String     @map("billing_account_id")
-  driveId         String?     @map("drive_id")
-  poolType        PoolType    @map("pool_type")
-  name            String      @db.VarChar(255)
-  source          GrantSource @map("source")
-  totalCredits    Int         @map("total_credits")
-  cachedRemaining Int         @map("cached_remaining")
-  validityDays    Int?        @map("validity_days")
-  maxWaitDays     Int         @default(365) @map("max_wait_days")
-  queueOrder      Int?        @map("queue_order")
-  status          PoolStatus  @default(QUEUED)
-  purchasedAt     DateTime    @default(now()) @map("purchased_at")
-  clockStartedAt  DateTime?   @map("clock_started_at")
-  activatedAt     DateTime?   @map("activated_at")
-  expiresAt       DateTime?   @map("expires_at")
-  unitPriceMinor  Int?        @map("unit_price_minor")
-  currency        String?     @db.VarChar(3)
-  paymentId       String?     @map("payment_id")
-  termsVersion    String?     @map("terms_version") @db.VarChar(32)
-  termsAcceptedBy String?     @map("terms_accepted_by") @db.VarChar(255)
-  termsAcceptedAt DateTime?   @map("terms_accepted_at")
-  createdAt       DateTime    @default(now()) @map("created_at")
-
-  billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
-  payment        Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  ledgerEntries  CreditLedgerEntry[]
-
-  @@index([billingAccountId, status])
-  @@index([expiresAt])
-  @@map("credit_pool")
-  @@schema("billing")
-}
-
-model CreditLedgerEntry {
-  id               String          @id @default(uuid())
-  billingAccountId String          @map("billing_account_id")
-  organizationId   String          @map("organization_id")
-  creditPoolId     String?         @map("credit_pool_id")
-  entryType        LedgerEntryType @map("entry_type")
-  amount           Int
-  balanceAfter     Int?            @map("balance_after")
-  sessionId        String?         @map("session_id")
-  driveId          String?         @map("drive_id")
-  relatedEntryId   String?         @map("related_entry_id")
-  grantSource      GrantSource?    @map("grant_source")
-  reason           LedgerReason    @map("reason")
-  reasonNote       String?         @map("reason_note") @db.VarChar(200)
-  paymentId        String?         @map("payment_id")
-  requestId        String?         @map("request_id")
-  idempotencyKey   String          @unique @map("idempotency_key") @db.VarChar(128)
-  actorId          String          @map("actor_id") @db.VarChar(128)
-  approvedById     String?         @map("approved_by_id") @db.VarChar(128)
-  shadow           Boolean         @default(false)
-  createdAt        DateTime        @default(now()) @map("created_at")
-
-  billingAccount BillingAccount        @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
-  creditPool     CreditPool?           @relation(fields: [creditPoolId], references: [id], onDelete: Restrict)
-  relatedEntry   CreditLedgerEntry?    @relation("LedgerEntryReversal", fields: [relatedEntryId], references: [id], onDelete: Restrict)
-  reversedBy     CreditLedgerEntry[]   @relation("LedgerEntryReversal")
-  payment        Payment?              @relation(fields: [paymentId], references: [id], onDelete: Restrict)
-  request        ManualBillingRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
-
-  @@index([billingAccountId, createdAt])
-  @@index([creditPoolId, createdAt])
-  @@index([sessionId])
-  @@index([driveId, entryType])
-  @@map("credit_ledger_entry")
-  @@schema("billing")
-}
-
-model Payment {
-  id                String          @id @default(uuid())
-  billingAccountId  String          @map("billing_account_id")
-  provider          PaymentProvider @map("provider")
-  providerPaymentId String          @map("provider_payment_id") @db.VarChar(128)
-  providerOrderId   String?         @map("provider_order_id") @db.VarChar(128)
-  status            PaymentStatus   @map("status")
-  priceBookEntryId  String          @map("price_book_entry_id")
-  quantityCredits   Int             @map("quantity_credits")
-  unitPriceMinor    Int             @map("unit_price_minor")
-  amountMinor       Int             @map("amount_minor")
-  taxMinor          Int?            @map("tax_minor")
-  currency          String          @db.VarChar(3)
-  invoiceNumber     String?         @map("invoice_number") @db.VarChar(64)
-  capturedAt        DateTime?       @map("captured_at")
-  createdAt         DateTime        @default(now()) @map("created_at")
-
-  billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
-  priceBookEntry PriceBookEntry      @relation(fields: [priceBookEntryId], references: [id], onDelete: Restrict)
-  creditPools    CreditPool[]
-  ledgerEntries  CreditLedgerEntry[]
-
-  @@unique([provider, providerPaymentId])
-  @@index([billingAccountId, createdAt])
-  @@map("payment")
-  @@schema("billing")
-}
-
-model ManualBillingRequest {
-  id               String              @id @default(uuid())
-  billingAccountId String              @map("billing_account_id")
-  kind             ManualRequestKind   @map("kind")
-  payload          Json
-  reason           String
-  ticketRef        String              @map("ticket_ref") @db.VarChar(64)
-  requestedById    String              @map("requested_by_id") @db.VarChar(128)
-  approvedById     String?             @map("approved_by_id") @db.VarChar(128)
-  status           ManualRequestStatus @default(PENDING) @map("status")
-  rejectionReason  String?             @map("rejection_reason")
-  executionError   String?             @map("execution_error")
-  decidedAt        DateTime?           @map("decided_at")
-  executedAt       DateTime?           @map("executed_at")
-  createdAt        DateTime            @default(now()) @map("created_at")
-
-  billingAccount BillingAccount      @relation(fields: [billingAccountId], references: [id], onDelete: Restrict)
-  ledgerEntries  CreditLedgerEntry[]
-
-  @@index([billingAccountId, status])
-  @@index([status, createdAt])
-  @@map("manual_billing_request")
-  @@schema("billing")
-}
-
-model PriceBookEntry {
-  id             String    @id @default(uuid())
-  sku            String    @db.VarChar(64)
-  poolType       PoolType  @map("pool_type")
-  credits        Int
-  validityDays   Int?      @map("validity_days")
-  billingCountry String    @map("billing_country") @db.VarChar(2)
-  currency       String    @db.VarChar(3)
-  unitPriceMinor Int       @map("unit_price_minor")
-  version        Int       @default(1)
-  effectiveFrom  DateTime  @map("effective_from")
-  effectiveTo    DateTime? @map("effective_to")
-
-  payments Payment[]
-
-  @@unique([sku, billingCountry, version])
-  @@map("price_book_entry")
-  @@schema("billing")
-}
-
-model BillingAuditEvent {
-  id                   String   @id @default(uuid())
-  billingAccountId     String?  @map("billing_account_id")
-  timestamp            DateTime @default(now())
-  actorId              String   @map("actor_id") @db.VarChar(128)
-  actorRole            String?  @default("SYSTEM") @map("actor_role") @db.VarChar(32)
-  subjectType          String   @map("subject_type") @db.VarChar(32)
-  subjectId            String   @map("subject_id")
-  action               String   @db.VarChar(64)
-  before               Json?
-  after                Json?
-  reason               String?
-  ticketRef            String?  @map("ticket_ref") @db.VarChar(64)
-  impersonationContext Json?    @map("impersonation_context")
-  requestId            String?  @map("request_id")
-  approvedById         String?  @map("approved_by_id")
-  executionResult      String?  @default("SUCCESS") @map("execution_result") @db.VarChar(16)
-
-  @@index([billingAccountId, timestamp])
-  @@index([subjectType, subjectId])
-  @@index([timestamp])
-  @@map("billing_audit_event")
-  @@schema("billing")
-}
-
-model SessionBillingEvidence {
-  sessionId              String            @id @map("session_id")
-  billingAccountId       String            @map("billing_account_id")
-  driveId                String?           @map("drive_id")
-  kind                   SessionKind?      @map("kind")
-  startedAt              DateTime?         @map("started_at")
-  firstContentRenderedAt DateTime?         @map("first_content_rendered_at")
-  lastHeartbeatAt        DateTime?         @map("last_heartbeat_at")
-  endedAt                DateTime?         @map("ended_at")
-  endReason              SessionEndReason? @map("end_reason")
-  eventCount             Int               @default(0) @map("event_count")
-  modulesReached         Int               @default(0) @map("modules_reached")
-  cvMode                 CvMode?           @map("cv_mode")
-  infraFlags             Json?             @map("infra_flags")
-  createdAt              DateTime          @default(now()) @map("created_at")
-
-  @@index([billingAccountId])
-  @@index([driveId])
-  @@map("session_billing_evidence")
-  @@schema("billing")
-}
-
 model PaymentWebhookInbox {
   id           String    @id @default(uuid())
   provider     String    @db.VarChar(32)
@@ -1259,6 +1011,8 @@ model ReconciliationRun {
   @@map("reconciliation_run")
   @@schema("billing")
 }
+
+
 
 model TenantProfile {
   id             String @id @default(uuid())
@@ -1356,23 +1110,20 @@ model ImpersonationSession {
   @@schema("platform")
 }
 
-model PlatformAuditEvent {
+model SystemAuditEvent {
   id                   String   @id @default(uuid())
   timestamp            DateTime @default(now())
   actorId              String   @map("actor_id") @db.VarChar(128)
-  actorRole            String?  @default("SYSTEM") @map("actor_role") @db.VarChar(32)
+  actorRole            String   @map("actor_role") @db.VarChar(32)
   subjectType          String   @map("subject_type") @db.VarChar(32)
   subjectId            String   @map("subject_id")
   action               String   @db.VarChar(64)
   before               Json?
   after                Json?
-  beforeState          Json?    @map("before_state")
-  afterState           Json?    @map("after_state")
   reason               String?
   ticketRef            String?  @map("ticket_ref") @db.VarChar(64)
   impersonationContext Json?    @map("impersonation_context")
   requestId            String?  @map("request_id")
-  createdAt            DateTime @default(now()) @map("created_at")
   executionResult      String   @map("execution_result") @db.VarChar(16)
   targetTenantId       String?  @map("target_tenant_id") @db.VarChar(128)
 

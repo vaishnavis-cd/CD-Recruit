@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { PrismaService } from "../prisma/prisma.service";
-import { LedgerService } from "./ledger.service";
-import { PoolService } from "./pool.service";
+import { LedgerService } from "./ledger/ledger.service";
+import { CreditPoolService } from "./pool/credit-pool.service";
 import { ShadowBillingService } from "./shadow-billing.service";
 import { ShadowReconciliationService } from "./shadow-reconciliation.service";
 import { ShadowTelemetryService } from "./shadow-telemetry.service";
@@ -32,7 +32,7 @@ async function runShadowBillingTests() {
   await prisma.$connect();
 
   const ledgerService = new LedgerService(prisma);
-  const poolService = new PoolService(prisma, ledgerService);
+  const poolService = new CreditPoolService(prisma as any, ledgerService);
   const shadowBillingService = new ShadowBillingService(prisma);
   const reconciliationService = new ShadowReconciliationService(prisma);
   const telemetryService = new ShadowTelemetryService(prisma, reconciliationService);
