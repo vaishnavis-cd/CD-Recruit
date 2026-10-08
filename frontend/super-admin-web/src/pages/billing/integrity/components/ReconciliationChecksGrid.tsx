@@ -63,8 +63,8 @@ export const ReconciliationChecksGrid: React.FC<ReconciliationChecksGridProps> =
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-white">Continuous Invariant Verification (7/7)</h3>
-        <span className="text-xs font-mono text-slate-400">Database Engine Integrity</span>
+        <h3 className="text-sm font-bold text-slate-900">Continuous Invariant Verification (7/7)</h3>
+        <span className="text-xs font-mono text-slate-500">Database Engine Integrity</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -75,29 +75,29 @@ export const ReconciliationChecksGrid: React.FC<ReconciliationChecksGridProps> =
               key={chk.id}
               className={`p-4 rounded-xl border flex flex-col justify-between transition ${
                 chk.passed
-                  ? 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700/80'
-                  : 'bg-red-950/20 border-red-500/40'
+                  ? 'bg-white border-[#e8ecf4] shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:border-slate-300'
+                  : 'bg-rose-50/50 border-rose-200 shadow-[0_2px_8px_rgba(225,29,72,0.04)]'
               }`}
             >
-              <div className="space-y-2">
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <div className="w-8 h-8 rounded-lg bg-slate-800/80 flex items-center justify-center text-indigo-400">
+                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[#2f68ff]">
                     <Icon className="w-4 h-4" />
                   </div>
                   {chk.passed ? (
-                    <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                      <CheckCircle2 className="w-3 h-3" /> PASS
+                    <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-full">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> PASS
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[11px] font-mono text-red-400 font-semibold bg-red-500/10 px-2 py-0.5 rounded-full">
-                      <XCircle className="w-3 h-3" /> FAIL
+                    <span className="flex items-center gap-1 text-[11px] font-mono text-rose-700 font-semibold bg-rose-50 border border-rose-200/80 px-2 py-0.5 rounded-full">
+                      <XCircle className="w-3 h-3 text-rose-600" /> FAIL
                     </span>
                   )}
                 </div>
 
                 <div>
-                  <h4 className="text-xs font-bold text-slate-200">{chk.title}</h4>
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                  <h4 className="text-xs font-bold text-slate-900">{chk.title}</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
                     {chk.desc}
                   </p>
                 </div>

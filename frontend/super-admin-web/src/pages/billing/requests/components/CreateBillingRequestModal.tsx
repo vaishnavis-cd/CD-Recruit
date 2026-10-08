@@ -72,14 +72,14 @@ export const CreateBillingRequestModal: React.FC<CreateBillingRequestModalProps>
 
         <div className="space-y-4 py-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-600">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Billing Account ID <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Billing Account ID <span className="text-rose-500">*</span>
             </label>
             <Input
               value={billingAccountId}
@@ -91,8 +91,8 @@ export const CreateBillingRequestModal: React.FC<CreateBillingRequestModalProps>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Action Type <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Action Type <span className="text-rose-500">*</span>
               </label>
               <Select
                 value={requestType}
@@ -108,7 +108,7 @@ export const CreateBillingRequestModal: React.FC<CreateBillingRequestModalProps>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Amount (Credits)
               </label>
               <Input
@@ -121,21 +121,21 @@ export const CreateBillingRequestModal: React.FC<CreateBillingRequestModalProps>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Business Justification <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Business Justification <span className="text-rose-500">*</span>
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
               placeholder="State clear operational reason and impact (min 10 characters)..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition resize-none"
+              className="w-full bg-slate-50/50 border border-[#e8ecf4] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2f68ff]/20 focus:border-[#2f68ff] transition resize-none placeholder:text-slate-400"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
               Customer Support Ticket / Zendesk / Jira Ref
             </label>
             <Input

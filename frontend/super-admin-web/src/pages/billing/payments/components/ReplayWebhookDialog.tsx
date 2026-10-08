@@ -33,11 +33,11 @@ export const ReplayWebhookDialog: React.FC<ReplayWebhookDialogProps> = ({
       <DialogHeader>
         <DialogTitle>Replay Payment Webhook</DialogTitle>
         <DialogDescription>
-          Re-deliver inbound webhook delivery <span className="font-mono text-indigo-400 font-semibold">{webhookId}</span> into the idempotent payment processing queue.
+          Re-deliver inbound webhook delivery <span className="font-mono text-[#2f68ff] font-semibold">{webhookId}</span> into the idempotent payment processing queue.
         </DialogDescription>
       </DialogHeader>
 
-      <div className="py-4 text-xs text-slate-300 space-y-2">
+      <div className="py-4 text-xs text-slate-600 space-y-2">
         <p>
           Replaying will re-execute signature validation, idempotency key checks, and ledger credit allocation.
           Duplicate entries will be cleanly skipped by the database unique constraints.

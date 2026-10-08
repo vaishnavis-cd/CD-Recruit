@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -26,7 +26,7 @@ export const AccountsFilterBar: React.FC<AccountsFilterBarProps> = ({
   canCreate = false,
 }) => {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white border border-[#e8ecf4] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
       <div className="flex flex-1 flex-col sm:flex-row items-center gap-3">
         <div className="w-full sm:w-72">
           <Input

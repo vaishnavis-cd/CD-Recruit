@@ -41,16 +41,16 @@ export const WebhookInboxTab: React.FC = () => {
         }}
       >
         {data?.items.map((item) => (
-          <tr key={item.id} className="hover:bg-slate-900/40 transition">
-            <td className="py-3.5 px-4 font-mono text-xs text-slate-300">
+          <tr key={item.id} className="hover:bg-slate-50/80 border-b border-[#e8ecf4] transition">
+            <td className="py-3.5 px-4 font-mono text-xs text-slate-700 font-medium">
               {truncateId(item.id, 8, 4)}
             </td>
 
-            <td className="py-3.5 px-4 font-semibold text-xs text-indigo-400">
+            <td className="py-3.5 px-4 font-semibold text-xs text-[#2f68ff]">
               {item.gateway}
             </td>
 
-            <td className="py-3.5 px-4 font-mono text-xs text-slate-200">
+            <td className="py-3.5 px-4 font-mono text-xs text-slate-800 font-medium">
               {item.eventType}
             </td>
 
@@ -58,11 +58,11 @@ export const WebhookInboxTab: React.FC = () => {
               <StatusBadge status={item.status} />
             </td>
 
-            <td className="py-3.5 px-4 text-xs text-slate-400 whitespace-nowrap">
+            <td className="py-3.5 px-4 text-xs text-slate-500 whitespace-nowrap">
               {formatDateTime(item.createdAt)}
             </td>
 
-            <td className="py-3.5 px-4 font-mono text-xs text-slate-400">
+            <td className="py-3.5 px-4 font-mono text-xs text-slate-500">
               {item.idempotencyKey ? truncateId(item.idempotencyKey, 8, 4) : '—'}
             </td>
 
@@ -71,7 +71,7 @@ export const WebhookInboxTab: React.FC = () => {
                 size="sm"
                 variant="outline"
                 onClick={() => setSelectedWebhookId(item.id)}
-                className="h-7 text-xs px-2"
+                className="h-7 text-xs px-2.5"
                 icon={RotateCw}
               >
                 Replay

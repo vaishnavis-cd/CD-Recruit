@@ -8,7 +8,7 @@ export const MockBadge: React.FC<{ className?: string }> = ({ className = '' }) 
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30 shadow-sm ${className}`}
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs ${className}`}
       title="Running in local mock data preview mode (VITE_USE_MOCKS=true)"
     >
       <Database className="w-2.5 h-2.5" /> MOCK DATA

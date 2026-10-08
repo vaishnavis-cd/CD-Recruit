@@ -58,7 +58,7 @@ export const Dialog: React.FC<DialogProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
         onClick={handleClose}
       />
 
@@ -67,14 +67,14 @@ export const Dialog: React.FC<DialogProps> = ({
         role="dialog"
         aria-modal="true"
         className={cn(
-          'relative w-full rounded-2xl glass-panel-glow border border-slate-700/80 bg-slate-900/95 shadow-2xl p-6 text-slate-100 z-10 transition-all duration-200 animate-in fade-in-0 zoom-in-95',
+          'relative w-full rounded-2xl border border-[#e8ecf4] bg-white shadow-2xl p-6 text-[#0d1424] z-10 transition-all duration-200 animate-in fade-in-0 zoom-in-95',
           maxWidthStyles[maxWidth],
           className
         )}
       >
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-100 p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+          className="absolute top-4 right-4 text-[#94a3b8] hover:text-[#0d1424] p-1.5 rounded-lg hover:bg-[#f1f5f9] transition cursor-pointer"
           aria-label="Close dialog"
         >
           <X className="w-4 h-4" />
@@ -103,7 +103,7 @@ export const DialogTitle: React.FC<React.HTMLAttributes<HTMLHeadingElement>> = (
   ...props
 }) => {
   return (
-    <h3 className={cn('text-base font-bold text-white tracking-tight', className)} {...props}>
+    <h3 className={cn('text-base font-bold text-[#0d1424] tracking-tight', className)} {...props}>
       {children}
     </h3>
   );
@@ -115,7 +115,7 @@ export const DialogDescription: React.FC<React.HTMLAttributes<HTMLParagraphEleme
   ...props
 }) => {
   return (
-    <p className={cn('text-xs text-slate-400 mt-1', className)} {...props}>
+    <p className={cn('text-xs text-[#64748b] mt-1', className)} {...props}>
       {children}
     </p>
   );
@@ -127,7 +127,7 @@ export const DialogFooter: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   ...props
 }) => {
   return (
-    <div className={cn('mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-end gap-3', className)} {...props}>
+    <div className={cn('mt-6 pt-4 border-t border-[#f1f5f9] flex items-center justify-end gap-3', className)} {...props}>
       {children}
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { DollarSign, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { DollarSign, RefreshCw } from 'lucide-react';
 import { useFinanceOverview } from '@/hooks/billing/useBilling';
 import { ThroughputCards } from './components/ThroughputCards';
 import { CurrencyRevenueBreakdown } from './components/CurrencyRevenueBreakdown';
@@ -16,22 +16,23 @@ export const FinanceDashboardPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-indigo-400" />
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              <DollarSign className="w-6 h-6 text-[#2f68ff]" />
               Executive Finance & Revenue Telemetry
             </h1>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Real-time gross settlement volume, credit velocity, overdraft exposures, and AI proctoring unit margins.
           </p>
         </div>
 
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={() => refetch()}
-          isLoading={isRefetching}
+          loading={isRefetching}
           icon={RefreshCw}
+          className={isRefetching ? '[&_svg]:animate-spin' : ''}
         >
           Refresh
         </Button>

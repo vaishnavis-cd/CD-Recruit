@@ -57,28 +57,28 @@ export const OverdraftModal: React.FC<OverdraftModalProps> = ({ account, isOpen,
         <DialogHeader>
           <DialogTitle>Adjust Overdraft Buffer</DialogTitle>
           <DialogDescription>
-            Submit an overdraft limit change for account <span className="font-mono text-indigo-400 font-semibold">{account.id.slice(0, 8)}...</span>.
+            Submit an overdraft limit change for account <span className="font-mono text-[#2f68ff] font-semibold">{account.id.slice(0, 8)}...</span>.
             Under maker-checker governance, adjustments require dual authorization before applying.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
+            <div className="p-3 bg-[#fef3f2] border border-[#fecdca] rounded-xl text-xs text-[#f04438]">
               {error}
             </div>
           )}
 
-          <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800/80 flex justify-between text-xs">
-            <span className="text-slate-400">Current Overdraft Limit:</span>
-            <span className="font-mono font-bold text-slate-200">
+          <div className="p-3.5 bg-[#f8fafc] rounded-xl border border-[#e8ecf4] flex justify-between text-xs">
+            <span className="text-slate-500">Current Overdraft Limit:</span>
+            <span className="font-mono font-bold text-slate-900">
               {formatNumber(account.overdraftLimit)} Credits
             </span>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              New Overdraft Limit (Credits) <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              New Overdraft Limit (Credits) <span className="text-[#f04438]">*</span>
             </label>
             <Input
               type="number"
@@ -91,22 +91,22 @@ export const OverdraftModal: React.FC<OverdraftModalProps> = ({ account, isOpen,
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Business Justification <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Business Justification <span className="text-[#f04438]">*</span>
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
-              placeholder="Provide reason for risk/credit expansion (min 10 characters)..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition resize-none"
+              placeholder="State reason for credit safety cushion amendment (min 10 characters)..."
+              className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white transition resize-none"
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Support Ticket / Jira Reference (Optional)
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Jira / Incident Ticket Ref
             </label>
             <Input
               value={ticketRef}
@@ -117,11 +117,15 @@ export const OverdraftModal: React.FC<OverdraftModalProps> = ({ account, isOpen,
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} type="button" disabled={overdraftMutation.isPending}>
+          <Button variant="secondary" onClick={onClose} type="button">
             Cancel
           </Button>
-          <Button variant="primary" type="submit" isLoading={overdraftMutation.isPending}>
-            Submit For Approval
+          <Button
+            type="submit"
+            variant="primary"
+            loading={overdraftMutation.isPending}
+          >
+            Submit for Dual Approval
           </Button>
         </DialogFooter>
       </form>

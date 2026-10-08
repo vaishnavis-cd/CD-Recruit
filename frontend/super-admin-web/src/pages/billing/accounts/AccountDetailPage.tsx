@@ -26,22 +26,22 @@ export const AccountDetailPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="py-24 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-        <p className="text-xs text-slate-400">Loading commercial account ledger...</p>
+        <Loader2 className="w-8 h-8 text-[#2f68ff] animate-spin" />
+        <p className="text-xs text-slate-500">Loading commercial account ledger...</p>
       </div>
     );
   }
 
   if (error || !account) {
     return (
-      <div className="p-8 max-w-xl mx-auto bg-slate-900/60 border border-slate-800 rounded-2xl text-center space-y-4">
-        <h2 className="text-base font-bold text-white">Account Not Found</h2>
-        <p className="text-xs text-slate-400">
+      <div className="p-8 max-w-xl mx-auto bg-white border border-[#e8ecf4] rounded-2xl text-center space-y-4 shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
+        <h2 className="text-base font-bold text-slate-900">Account Not Found</h2>
+        <p className="text-xs text-slate-500">
           The requested billing account could not be retrieved from the authoritative ledger.
         </p>
         <div className="flex justify-center gap-3">
           <Link to="/billing/accounts">
-            <Button variant="outline" size="sm" icon={ArrowLeft}>
+            <Button variant="secondary" size="sm" icon={ArrowLeft}>
               Back to Accounts
             </Button>
           </Link>
