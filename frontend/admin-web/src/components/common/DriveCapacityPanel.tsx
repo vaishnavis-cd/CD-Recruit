@@ -52,26 +52,8 @@ export function DriveCapacityPanel({ driveId, driveName, onRefresh }: DriveCapac
         }
       }
     } catch (err: any) {
-      console.warn("Falling back to local drive capacity simulation:", err);
-      // Fallback mock data for drive capacity
-      setCapacityData({
-        driveId,
-        assessmentCommenceStatus: "AVAILABLE",
-        totalAvailableCapacity: 530,
-        heldSessionsCount: 0,
-        drivePassPool: {
-          remaining: 142,
-          total: 200,
-          expiresAt: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        talentReserveTotalRemaining: 388,
-        queuedPoolsCount: 2,
-        overdraftAvailable: 50,
-        overdraftLimit: 50,
-        overdraftUsed: 0,
-        fallthroughMode: "ALLOW",
-        heldSessions: [],
-      });
+      console.warn("Could not load drive capacity status:", err);
+      setCapacityData(null);
     } finally {
       if (!silent) setLoading(false);
     }
@@ -309,20 +291,20 @@ export function DriveCapacityPanel({ driveId, driveName, onRefresh }: DriveCapac
           </div>
         </div>
 
-        {/* Enterprise Overdraft */}
+        {/* Overdraft Policy */}
         <div className="p-4 bg-white border border-[#E2E8F0] rounded-[12px] shadow-2xs">
           <div className="flex items-center justify-between text-[#64748B] mb-2">
-            <span className="text-[12px] font-medium">Enterprise Overdraft</span>
-            <ShieldAlert size={15} className="text-[#D97706]" />
+            <span className="text-[12px] font-medium">Overdraft Policy</span>
+            <CheckCircle2 size={15} className="text-[#059669]" />
           </div>
-          <div className="text-[22px] font-bold text-[#0F172A]">
-            {capacityData?.overdraftAvailable ?? 0}
+          <div className="text-[18px] font-bold text-[#0F172A]">
+            0 credits
             <span className="text-[12px] font-normal text-[#64748B] ml-1">
-              / {capacityData?.overdraftLimit ?? 0} available
+              (Strictly Disabled)
             </span>
           </div>
           <div className="mt-2 flex items-center text-[11px] text-[#64748B]">
-            <span>Used: {capacityData?.overdraftUsed ?? 0} credits</span>
+            <span>Deficit borrowing eliminated per ADR-004</span>
           </div>
         </div>
       </div>

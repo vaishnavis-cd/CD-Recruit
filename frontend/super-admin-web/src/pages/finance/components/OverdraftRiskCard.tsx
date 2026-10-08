@@ -19,14 +19,7 @@ interface OverdraftRiskCardProps {
 export const OverdraftRiskCard: React.FC<OverdraftRiskCardProps> = ({ overdraftAccounts = [] }) => {
   const accounts: AtRiskAccount[] = (overdraftAccounts && overdraftAccounts.length > 0)
     ? (overdraftAccounts as AtRiskAccount[])
-    : [
-        {
-          id: 'acc-8821-4192-bc91',
-          organizationName: 'Beta Systems Corp',
-          balance: -3200,
-          overdraftLimit: 5000,
-        },
-      ];
+    : [];
 
   return (
     <Card className="bg-white border-[#e8ecf4]">
