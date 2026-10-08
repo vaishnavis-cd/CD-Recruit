@@ -7,7 +7,6 @@ import { AccountDetailHeader } from './components/AccountDetailHeader';
 import { AccountPoolsTab } from './components/AccountPoolsTab';
 import { AccountOrganizationsTab } from './components/AccountOrganizationsTab';
 import { AccountTransactionsTab } from './components/AccountTransactionsTab';
-import { OverdraftModal } from './components/OverdraftModal';
 import { StatusChangeModal } from './components/StatusChangeModal';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Button } from '@/components/ui/Button';
@@ -18,7 +17,6 @@ export const AccountDetailPage: React.FC = () => {
   const { data: account, isLoading, error, refetch } = useBillingAccountDetail(id || '');
 
   const [activeTab, setActiveTab] = useState('pools');
-  const [isOverdraftModalOpen, setIsOverdraftModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
   const canManage = staff?.role === 'OWNER' || staff?.role === 'FINANCE';
@@ -58,7 +56,6 @@ export const AccountDetailPage: React.FC = () => {
       {/* Account Header Banner */}
       <AccountDetailHeader
         account={account}
-        onOpenOverdraft={() => setIsOverdraftModalOpen(true)}
         onOpenStatusModal={() => setIsStatusModalOpen(true)}
         canManage={canManage}
       />
@@ -93,13 +90,7 @@ export const AccountDetailPage: React.FC = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Modals */}
-      <OverdraftModal
-        account={account as any}
-        isOpen={isOverdraftModalOpen}
-        onClose={() => setIsOverdraftModalOpen(false)}
-      />
-
+      {/* Status Change Modal (Maker-Checker Driven) */}
       <StatusChangeModal
         account={account}
         isOpen={isStatusModalOpen}

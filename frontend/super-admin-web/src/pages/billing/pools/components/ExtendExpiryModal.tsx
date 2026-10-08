@@ -37,13 +37,24 @@ export const ExtendExpiryModal: React.FC<ExtendExpiryModalProps> = ({ pool, isOp
       return;
     }
 
+    const trimmedTicket = ticketRef.trim();
+    if (!trimmedTicket) {
+      setError('Ticket or contract reference (e.g. DEAL-402, AMEND-2026) is mandatory for maker-checker tracking.');
+      return;
+    }
+    if (!/^[A-Za-z0-9_-]{3,64}$/.test(trimmedTicket)) {
+      setError('Ticket Reference must be 3-64 alphanumeric characters, underscores, or dashes (e.g. DEAL-402).');
+      return;
+    }
+
     try {
       setError(null);
       await extendMutation.mutateAsync({
         poolId: pool.id,
+        billingAccountId: pool.billingAccountId,
         newExpiryDate: new Date(newExpiryDate).toISOString(),
         reason: reason.trim(),
-        ticketRef: ticketRef.trim() || undefined,
+        ticketRef: trimmedTicket,
       });
       onClose();
       setNewExpiryDate('');
@@ -60,8 +71,7 @@ export const ExtendExpiryModal: React.FC<ExtendExpiryModalProps> = ({ pool, isOp
         <DialogHeader>
           <DialogTitle>Extend Pool Expiration Window</DialogTitle>
           <DialogDescription>
-            Submit an expiration extension for bucket <span className="font-mono text-[#2f68ff] font-semibold">{pool.id.slice(0, 8)}...</span>.
-            Under maker-checker governance, adjustments require dual authorization before applying.
+            Submit an expiration extension request for bucket <span className="font-mono text-[#2f68ff] font-semibold">{pool.id.slice(0, 8)}...</span> into the Maker-Checker queue.
           </DialogDescription>
         </DialogHeader>
 
@@ -86,6 +96,21 @@ export const ExtendExpiryModal: React.FC<ExtendExpiryModalProps> = ({ pool, isOp
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Ticket or Contract Reference <span className="text-[#f04438]">*</span>
+            </label>
+            <Input
+              value={ticketRef}
+              onChange={(e) => setTicketRef(e.target.value)}
+              placeholder="e.g. DEAL-402 or AMEND-2026"
+              required
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Must be 3-64 alphanumeric characters, underscores, or dashes.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
               Business Justification <span className="text-[#f04438]">*</span>
             </label>
             <textarea
@@ -97,21 +122,10 @@ export const ExtendExpiryModal: React.FC<ExtendExpiryModalProps> = ({ pool, isOp
               required
             />
           </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              Ticket or Contract Ref
-            </label>
-            <Input
-              value={ticketRef}
-              onChange={(e) => setTicketRef(e.target.value)}
-              placeholder="e.g. DEAL-402 or AMEND-2026"
-            />
-          </div>
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={onClose} type="button">
+          <Button variant="secondary" onClick={onClose} type="button" disabled={extendMutation.isPending}>
             Cancel
           </Button>
           <Button

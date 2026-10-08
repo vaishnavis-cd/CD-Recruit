@@ -8,10 +8,9 @@ import type { BillingAccountListItem } from '@/lib/api/billing/types';
 
 interface AccountRowProps {
   account: BillingAccountListItem;
-  onAdjustOverdraft?: (account: BillingAccountListItem) => void;
 }
 
-export const AccountRow: React.FC<AccountRowProps> = ({ account, onAdjustOverdraft }) => {
+export const AccountRow: React.FC<AccountRowProps> = ({ account }) => {
   const isOverdrawn = account.balance < 0;
 
   return (
@@ -56,24 +55,14 @@ export const AccountRow: React.FC<AccountRowProps> = ({ account, onAdjustOverdra
         </div>
       </td>
 
-      <td className="py-4 px-4 text-right font-mono text-xs text-slate-600">
-        {formatNumber(account.overdraftLimit)}
+      <td className="py-4 px-4 text-right font-mono text-xs text-slate-500">
+        0 (Disabled)
       </td>
 
       <td className="py-4 px-4 text-right">
         <div className="flex items-center justify-end gap-2">
-          {onAdjustOverdraft && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onAdjustOverdraft(account)}
-              className="text-[11px] h-7 px-2"
-            >
-              Overdraft
-            </Button>
-          )}
           <Link to={`/billing/accounts/${account.id}`}>
-            <Button size="sm" variant="ghost" className="text-[11px] h-7 px-2 text-[#2f68ff]">
+            <Button size="sm" variant="ghost" className="text-[11px] h-7 px-2.5 text-[#2f68ff]">
               View
             </Button>
           </Link>

@@ -148,6 +148,7 @@ export interface TenantDrivesSectionDto {
 
 export interface TenantBillingSectionDto {
   connected: boolean;
+  billingAccountId?: string | null;
   summary?: any;
 }
 

@@ -55,6 +55,7 @@ interface TenantDetail {
   };
   billing: {
     connected: boolean;
+    billingAccountId?: string | null;
     summary?: any;
   };
   licensing: {
@@ -555,7 +556,10 @@ export const TenantDetailPage: React.FC = () => {
 
             {/* Tab 3: Billing & Ledger */}
             {activeTab === 'BILLING' && (
-              <TenantBillingTab tenantId={id || ''} />
+              <TenantBillingTab
+                tenantId={id || ''}
+                billingAccountId={tenant?.billing?.billingAccountId}
+              />
             )}
 
             {/* Tab 4: Licensing Tier */}

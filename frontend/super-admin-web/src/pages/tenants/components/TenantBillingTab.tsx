@@ -1,29 +1,31 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CreditCard, ExternalLink, Plus, Coins, Layers } from 'lucide-react';
+import { CreditCard, ExternalLink, Plus, Layers, ShieldCheck } from 'lucide-react';
 import { useBillingAccountSummary } from '@/hooks/billing/useBilling';
 import { useAuthStore } from '@/lib/auth-store';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { CreateBillingRequestModal } from '@/pages/billing/requests/components/CreateBillingRequestModal';
-import { OverdraftModal } from '@/pages/billing/accounts/components/OverdraftModal';
 import { formatNumber, formatDateTime, truncateId } from '@/lib/utils';
 import type { BillingAccountListItem } from '@/lib/api/billing/types';
 
 interface TenantBillingTabProps {
   tenantId: string;
+  billingAccountId?: string | null;
 }
 
-export const TenantBillingTab: React.FC<TenantBillingTabProps> = ({ tenantId }) => {
+export const TenantBillingTab: React.FC<TenantBillingTabProps> = ({
+  tenantId,
+  billingAccountId,
+}) => {
   const { staff } = useAuthStore();
-  const { data: summary, isLoading } = useBillingAccountSummary(tenantId);
+  const { data: summary, isLoading } = useBillingAccountSummary(billingAccountId || '');
 
   const [isGrantModalOpen, setIsGrantModalOpen] = useState(false);
-  const [isOverdraftModalOpen, setIsOverdraftModalOpen] = useState(false);
 
   const canManage = staff?.role === 'OWNER' || staff?.role === 'FINANCE';
 
-  if (isLoading) {
+  if (isLoading && billingAccountId) {
     return (
       <div className="p-12 text-center text-xs text-slate-500">
         Loading commercial ledger summary for tenant...
@@ -31,9 +33,9 @@ export const TenantBillingTab: React.FC<TenantBillingTabProps> = ({ tenantId }) 
     );
   }
 
-  const accountId = summary?.account?.id || summary?.billingAccountId;
+  const accountId = billingAccountId || summary?.account?.id || summary?.billingAccountId;
 
-  if (!summary || !accountId) {
+  if (!billingAccountId || !summary || !accountId) {
     return (
       <div className="p-12 text-center bg-white border border-[#e8ecf4] rounded-2xl space-y-4 shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
         <CreditCard className="w-10 h-10 text-slate-300 mx-auto" />
@@ -47,7 +49,7 @@ export const TenantBillingTab: React.FC<TenantBillingTabProps> = ({ tenantId }) 
         {canManage && (
           <Link to="/billing/accounts">
             <Button size="sm" variant="primary" icon={Plus}>
-              Provision Commercial Account
+              View Commercial Accounts
             </Button>
           </Link>
         )}
@@ -60,7 +62,7 @@ export const TenantBillingTab: React.FC<TenantBillingTabProps> = ({ tenantId }) 
     currency: summary.currency || 'INR',
     status: summary.status || 'ACTIVE',
     balance: summary.totalAvailableCredits ?? 0,
-    overdraftLimit: summary.overdraftLimit ?? 0,
+    overdraftLimit: 0,
     createdAt: new Date().toISOString(),
   };
 
@@ -98,24 +100,14 @@ export const TenantBillingTab: React.FC<TenantBillingTabProps> = ({ tenantId }) 
 
         <div className="flex items-center gap-2">
           {canManage && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsOverdraftModalOpen(true)}
-                icon={Coins}
-              >
-                Buffer
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => setIsGrantModalOpen(true)}
-                icon={Plus}
-              >
-                Grant Credits
-              </Button>
-            </>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setIsGrantModalOpen(true)}
+              icon={Plus}
+            >
+              Submit Billing Request
+            </Button>
           )}
 
           <Link to={`/billing/accounts/${accountId}`}>
@@ -133,15 +125,18 @@ export const TenantBillingTab: React.FC<TenantBillingTabProps> = ({ tenantId }) 
           <span className={`text-xl font-bold font-mono ${accountData.balance < 0 ? 'text-[#f04438]' : 'text-[#12b76a]'}`}>
             {formatNumber(accountData.balance)}
           </span>
-          <span className="text-[11px] text-slate-500 block mt-0.5">Credits</span>
+          <span className="text-[11px] text-slate-500 block mt-0.5">Authoritative Credits</span>
         </div>
 
         <div className="p-4 bg-white rounded-xl border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
-          <span className="text-[10px] uppercase font-mono text-slate-500 block">Overdraft Buffer</span>
-          <span className="text-xl font-bold font-mono text-slate-900">
-            {formatNumber(accountData.overdraftLimit)}
-          </span>
-          <span className="text-[11px] text-slate-500 block mt-0.5">Credits Allowed Deficit</span>
+          <span className="text-[10px] uppercase font-mono text-slate-500 block">Overdraft Policy</span>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span className="text-sm font-bold font-mono text-slate-900">
+              Strictly Zero (Disabled)
+            </span>
+          </div>
+          <span className="text-[11px] text-slate-500 block mt-0.5">Deficit Incurrence Prohibited</span>
         </div>
 
         <div className="p-4 bg-white rounded-xl border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
@@ -208,12 +203,6 @@ export const TenantBillingTab: React.FC<TenantBillingTabProps> = ({ tenantId }) 
         isOpen={isGrantModalOpen}
         onClose={() => setIsGrantModalOpen(false)}
         defaultAccountId={accountId}
-      />
-
-      <OverdraftModal
-        account={accountData}
-        isOpen={isOverdraftModalOpen}
-        onClose={() => setIsOverdraftModalOpen(false)}
       />
     </div>
   );

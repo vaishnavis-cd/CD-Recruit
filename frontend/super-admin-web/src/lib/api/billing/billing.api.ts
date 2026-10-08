@@ -217,10 +217,10 @@ export const billingApi = {
     });
   },
 
-  replayWebhook: async (inboxId: string) => {
+  replayWebhook: async (eventId: string) => {
     return apiFetch<{ success: boolean; message: string }>('/billing/payments/replay-webhook', {
       method: 'POST',
-      body: JSON.stringify({ inboxId }),
+      body: JSON.stringify({ eventId }),
     });
   },
 
@@ -257,43 +257,6 @@ export const billingApi = {
       method: 'POST',
       body: JSON.stringify(body),
     });
-  },
-
-  // Additional mutations
-  createAccount: async (body: { tenantId: string; currency: string; overdraftLimit?: number }) => {
-    return apiFetch<T.BillingAccountDetail>('/billing/accounts', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-  },
-
-  updateAccountOverdraft: async (accountId: string, newLimit: number, reason: string, ticketRef?: string) => {
-    return apiFetch<T.BillingAccountDetail>(`/billing/accounts/${accountId}/overdraft`, {
-      method: 'PATCH',
-      body: JSON.stringify({ overdraftLimit: newLimit, reason, ticketRef }),
-    });
-  },
-
-  updateAccountStatus: async (accountId: string, status: T.BillingAccountStatus, reason: string, ticketRef?: string) => {
-    return apiFetch<T.BillingAccountDetail>(`/billing/accounts/${accountId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status, reason, ticketRef }),
-    });
-  },
-
-  extendPoolExpiry: async (poolId: string, newExpiryDate: string, reason: string, ticketRef?: string) => {
-    return apiFetch<T.CreditPoolDetail>(`/billing/pools/${poolId}/extend-expiry`, {
-      method: 'POST',
-      body: JSON.stringify({ expiresAt: newExpiryDate, reason, ticketRef }),
-    });
-  },
-
-  getWebhooks: async (params?: { page?: number; pageSize?: number }) => {
-    const sp = new URLSearchParams();
-    if (params?.page) sp.set('page', String(params.page));
-    if (params?.pageSize) sp.set('pageSize', String(params.pageSize));
-    const qs = sp.toString() ? `?${sp.toString()}` : '';
-    return apiFetch<{ items: T.PaymentWebhookItem[]; total: number }>(`/billing/payments/webhooks${qs}`);
   },
 };
 
