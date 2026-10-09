@@ -30,6 +30,7 @@
     fetchDriveCapacity: (driveId: string) => Promise<any>;
     releaseHeldSessions: (driveId: string) => Promise<any>;
     fetchBillingAccount: () => Promise<any>;
+    fetchLedgerEntries: () => Promise<any[]>;
     updateDriveFallthrough: (driveId: string, fallthrough: "ALLOW" | "HOLD") => Promise<any>;
     fetchInvoices: () => Promise<any[]>;
   }
@@ -282,6 +283,16 @@
         throw new Error(err.message || "Failed to fetch billing account balance");
       }
       return await res.json();
+    },
+
+    fetchLedgerEntries: async () => {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`${API_BASE}/admin/billing/ledger`, { headers });
+      if (!res.ok) {
+        return [];
+      }
+      const data = await res.json().catch(() => []);
+      return Array.isArray(data) ? data : (data.items || data.data || []);
     },
 
 
