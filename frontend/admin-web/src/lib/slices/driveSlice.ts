@@ -30,8 +30,6 @@
     fetchDriveCapacity: (driveId: string) => Promise<any>;
     releaseHeldSessions: (driveId: string) => Promise<any>;
     fetchBillingAccount: () => Promise<any>;
-    fetchLedgerEntries: () => Promise<any[]>;
-    purchaseCredits: (dto: { poolType: string; totalCredits: number; name?: string; validityDays?: number; driveId?: string }) => Promise<any>;
     updateDriveFallthrough: (driveId: string, fallthrough: "ALLOW" | "HOLD") => Promise<any>;
     fetchInvoices: () => Promise<any[]>;
   }
@@ -286,26 +284,11 @@
       return await res.json();
     },
 
-    fetchLedgerEntries: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/billing/ledger`, { headers });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || "Failed to fetch credit ledger entries");
-      }
-      return await res.json();
-    },
-
-    purchaseCredits: async () => {
-      throw new Error(
-        "Direct credit purchase endpoint is decommissioned per financial invariant INV-PAY-01. Please contact sales or submit an invoice request."
-      );
-    },
 
     updateDriveFallthrough: async (driveId: string, fallthrough: "ALLOW" | "HOLD") => {
       const headers = await getAuthHeaders();
-      const res = await fetch(`${API_BASE}/admin/billing/drive/${driveId}/fallthrough`, {
-        method: "POST",
+      const res = await fetch(`${API_BASE}/admin/drives/${driveId}`, {
+        method: "PATCH",
         headers: { ...headers, "Content-Type": "application/json" },
         body: JSON.stringify({ fallthrough }),
       });

@@ -12,6 +12,7 @@ import {
   CvMode,
 } from "@prisma/client";
 import { DrivePoolFallthrough, PoolType } from "@cd-recruit/shared-types";
+import { PoolGrantSource } from "./pool/credit-pool.types";
 import assert from "node:assert";
 
 async function runShadowBillingTests() {
@@ -124,14 +125,17 @@ async function runShadowBillingTests() {
     // TEST 1: Eligible LIVE Session Produces Shadow Acquisition (shadow = true)
     // ---------------------------------------------------------------------------
     console.log("\n[TEST 1] Testing shadow acquisition creation on eligible LIVE session...");
-    const pool = await poolService.createPool({
-      billingAccountId: testBillingAccountId,
-      organizationId: testOrgId,
-      poolType: PoolType.TALENT_RESERVE,
-      totalCredits: 10,
-      validityDays: 30,
-      actorId: "test-admin",
-    });
+    const pool = await poolService.createPool(
+      {
+        billingAccountId: testBillingAccountId,
+        poolType: PoolType.TALENT_RESERVE,
+        name: `Shadow Reserve ${testSuffix}`,
+        source: PoolGrantSource.PURCHASE,
+        totalCredits: 10,
+        validityDays: 30,
+      },
+      { actor: "system" },
+    );
     const initialRemaining = pool.cachedRemaining;
 
     const session1 = await prisma.session.create({
@@ -220,14 +224,17 @@ async function runShadowBillingTests() {
     // TEST 4: Drive Pass Pool Precedence over Talent Reserve
     // ---------------------------------------------------------------------------
     console.log("\n[TEST 4] Testing Drive Pass pool priority in shadow mode...");
-    const drivePool = await poolService.createPool({
-      billingAccountId: testBillingAccountId,
-      organizationId: testOrgId,
-      poolType: PoolType.DRIVE_PASS,
-      driveId: testDriveId,
-      totalCredits: 5,
-      actorId: "test-admin",
-    });
+    const drivePool = await poolService.createPool(
+      {
+        billingAccountId: testBillingAccountId,
+        poolType: PoolType.DRIVE_PASS,
+        name: `Shadow Drive Pass ${testSuffix}`,
+        source: PoolGrantSource.PURCHASE,
+        driveId: testDriveId,
+        totalCredits: 5,
+      },
+      { actor: "system" },
+    );
 
     const session4 = await prisma.session.create({
       data: {
@@ -322,7 +329,11 @@ async function runShadowBillingTests() {
       // Step 1: Real session start
       await tx.session.update({
         where: { id: session7.id },
-        data: { status: SessionStatus.IN_PROGRESS, startedAt: new Date() },
+        data: {
+          status: SessionStatus.IN_PROGRESS,
+          startedAt: new Date(),
+          deadlineAt: new Date(Date.now() + 3600000),
+        },
       });
 
       // Step 2: Establish SAVEPOINT and simulate illegal write
@@ -452,7 +463,15 @@ async function runShadowBillingTests() {
   console.log("================================================================================\n");
 }
 
-runShadowBillingTests().catch((err) => {
-  console.error("❌ Phase 2 Test Suite Failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("ShadowBillingService", () => {
+    it("executes all ShadowBillingService integration tests", async () => {
+      await runShadowBillingTests();
+    }, 120000);
+  });
+} else {
+  runShadowBillingTests().catch((err) => {
+    console.error("❌ Phase 2 Test Suite Failed:", err);
+    process.exit(1);
+  });
+}

@@ -707,7 +707,15 @@ async function runCreditPoolServiceTests() {
   }
 }
 
-runCreditPoolServiceTests().catch((err) => {
-  console.error("FATAL: CreditPoolService test suite failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("CreditPoolService", () => {
+    it("executes all CreditPoolService integration tests", async () => {
+      await runCreditPoolServiceTests();
+    }, 120000);
+  });
+} else {
+  runCreditPoolServiceTests().catch((err) => {
+    console.error("FATAL: CreditPoolService test suite failed:", err);
+    process.exit(1);
+  });
+}

@@ -19,8 +19,8 @@ async function main() {
         currency: "INR",
         taxId: "29AAAAA0000A1Z5",
         status: "ACTIVE",
-        overdraftLimit: 100,
-        overdraftUsed: 12,
+        overdraftLimit: 0,
+        overdraftUsed: 0,
         hasPaidPurchase: true,
       },
     });

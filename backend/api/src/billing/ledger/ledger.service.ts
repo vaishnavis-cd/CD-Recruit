@@ -118,6 +118,24 @@ export class LedgerService {
   }
 
   /**
+   * Helper to normalize a reason parameter to a valid Prisma LedgerReason enum value.
+   * If the provided value is already a member of LedgerReason, it is returned directly.
+   * Otherwise, the canonical fallback is used and the raw text is preserved in the note.
+   */
+  private normalizeReason(
+    reason: any,
+    fallback: LedgerReason = LedgerReason.ADMINISTRATIVE_ADJUSTMENT,
+  ): { canonicalReason: LedgerReason; note: string | null } {
+    if (reason && Object.values(LedgerReason).includes(reason as LedgerReason)) {
+      return { canonicalReason: reason as LedgerReason, note: null };
+    }
+    return {
+      canonicalReason: fallback,
+      note: reason ? String(reason) : null,
+    };
+  }
+
+  /**
    * Grant credits into a credit pool.
    *
    * Invariants enforced:
@@ -182,6 +200,7 @@ export class LedgerService {
       const balanceAfter = pool.cached_remaining + params.amount;
 
       // 3. Insert immutable ledger entry
+      const norm = this.normalizeReason(params.reason, LedgerReason.PURCHASE_ALLOCATION);
       const entry = await tx.creditLedgerEntry.create({
         data: {
           billingAccountId: params.billingAccountId,
@@ -191,8 +210,8 @@ export class LedgerService {
           amount: params.amount,
           balanceAfter,
           grantSource: params.grantSource,
-          reason: params.reason,
-          reasonNote: params.reasonNote || null,
+          reason: norm.canonicalReason,
+          reasonNote: params.reasonNote || norm.note,
           paymentId: params.paymentId || null,
           requestId: params.requestId || null,
           idempotencyKey: params.idempotencyKey,
@@ -304,6 +323,7 @@ export class LedgerService {
       const balanceAfter = pool.cached_remaining - 1;
 
       // 2. Insert immutable ledger entry
+      const norm = this.normalizeReason(params.reason, LedgerReason.ATTEMPT_START);
       const entry = await tx.creditLedgerEntry.create({
         data: {
           billingAccountId: params.billingAccountId,
@@ -312,8 +332,8 @@ export class LedgerService {
           entryType: LedgerEntryType.CONSUME,
           amount: -1,
           balanceAfter,
-          reason: params.reason as any,
-          reasonNote: params.reasonNote || null,
+          reason: norm.canonicalReason,
+          reasonNote: params.reasonNote || norm.note,
           sessionId: params.sessionId || null,
           driveId: params.driveId || null,
           idempotencyKey: params.idempotencyKey,
@@ -426,6 +446,7 @@ export class LedgerService {
         const pool = pools[0];
         balanceAfter = pool.cached_remaining + 1;
 
+        const norm = this.normalizeReason(params.reason, LedgerReason.DISPUTE_RESOLVED);
         // Create reversal ledger entry
         const reversalEntry = await tx.creditLedgerEntry.create({
           data: {
@@ -438,8 +459,8 @@ export class LedgerService {
             relatedEntryId: original.id,
             sessionId: original.session_id,
             driveId: original.drive_id,
-            reason: params.reason as any,
-            reasonNote: params.reasonNote || null,
+            reason: norm.canonicalReason,
+            reasonNote: params.reasonNote || norm.note,
             requestId: params.requestId || null,
             idempotencyKey,
             actorId,
@@ -485,6 +506,7 @@ export class LedgerService {
         const account = accounts[0];
         const newOverdraftUsed = Math.max(0, account.overdraft_used - 1);
 
+        const norm = this.normalizeReason(params.reason, LedgerReason.DISPUTE_RESOLVED);
         const reversalEntry = await tx.creditLedgerEntry.create({
           data: {
             billingAccountId: original.billing_account_id,
@@ -496,8 +518,8 @@ export class LedgerService {
             relatedEntryId: original.id,
             sessionId: original.session_id,
             driveId: original.drive_id,
-            reason: params.reason as any,
-            reasonNote: params.reasonNote || null,
+            reason: norm.canonicalReason,
+            reasonNote: params.reasonNote || norm.note,
             requestId: params.requestId || null,
             idempotencyKey,
             actorId,
@@ -610,6 +632,11 @@ export class LedgerService {
       }
 
       // 2. Insert immutable ledger entry
+      const canonicalReason = Object.values(LedgerReason).includes(params.reason as LedgerReason)
+        ? (params.reason as LedgerReason)
+        : LedgerReason.ADMINISTRATIVE_ADJUSTMENT;
+      const note = params.reasonNote || (canonicalReason !== params.reason ? params.reason : null);
+
       const entry = await tx.creditLedgerEntry.create({
         data: {
           billingAccountId: params.billingAccountId,
@@ -618,8 +645,8 @@ export class LedgerService {
           entryType: LedgerEntryType.ADJUST,
           amount: params.amount,
           balanceAfter,
-          reason: params.reason,
-          reasonNote: params.reasonNote || null,
+          reason: canonicalReason,
+          reasonNote: note,
           requestId: params.requestId,
           approvedById: params.approvedById || null,
           idempotencyKey: params.idempotencyKey,
@@ -748,6 +775,7 @@ export class LedgerService {
       }
 
       // 4. Insert immutable REFUND ledger entry (amount < 0 per chk_ledger_amount_sign)
+      const norm = this.normalizeReason(params.reason, LedgerReason.PAYMENT_REFUNDED);
       const entry = await tx.creditLedgerEntry.create({
         data: {
           billingAccountId: params.billingAccountId,
@@ -756,8 +784,8 @@ export class LedgerService {
           entryType: LedgerEntryType.REFUND,
           amount: -params.amount,
           balanceAfter,
-          reason: params.reason || "CASH_REFUND",
-          reasonNote: params.reasonNote || null,
+          reason: norm.canonicalReason,
+          reasonNote: params.reasonNote || norm.note,
           paymentId: params.paymentId,
           requestId: params.requestId || null,
           idempotencyKey,
@@ -1403,6 +1431,22 @@ export class LedgerService {
       }
     }
 
+    const defaultReason =
+      params.entryType === LedgerEntryType.CONSUME
+        ? LedgerReason.ATTEMPT_START
+        : params.entryType === LedgerEntryType.OVERDRAFT
+          ? LedgerReason.OVERDRAFT_USED
+          : params.entryType === LedgerEntryType.REFUND
+            ? LedgerReason.PAYMENT_REFUNDED
+            : params.entryType === LedgerEntryType.REVERSAL
+              ? LedgerReason.DISPUTE_RESOLVED
+              : params.entryType === LedgerEntryType.EXPIRE
+                ? LedgerReason.POOL_EXPIRED
+                : params.entryType === LedgerEntryType.GRANT
+                  ? LedgerReason.PURCHASE_ALLOCATION
+                  : LedgerReason.ADMINISTRATIVE_ADJUSTMENT;
+    const norm = this.normalizeReason(params.reason, defaultReason);
+
     return tx.creditLedgerEntry.create({
       data: {
         billingAccountId: params.billingAccountId,
@@ -1415,8 +1459,8 @@ export class LedgerService {
         driveId: params.driveId ?? null,
         relatedEntryId: params.relatedEntryId ?? null,
         grantSource: (params.grantSource as any) ?? null,
-        reason: params.reason as any,
-        reasonNote: params.reasonNote ?? null,
+        reason: norm.canonicalReason,
+        reasonNote: params.reasonNote ?? norm.note,
         paymentId: params.paymentId ?? null,
         requestId: params.requestId ?? null,
         idempotencyKey: params.idempotencyKey,

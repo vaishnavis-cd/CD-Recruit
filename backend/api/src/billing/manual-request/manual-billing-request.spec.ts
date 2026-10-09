@@ -965,7 +965,7 @@ async function runManualBillingRequestServiceTests() {
     // 47. Baseline seed data verification
     console.log("\n--- SECTION 9: Baseline Seed Data Verification ---");
     const seedOrgs = await prisma.organization.findMany({
-      where: { id: { in: ["a1111111-1111-1111-1111-111111111111", "b2222222-2222-2222-2222-222222222222"] } },
+      where: { name: { in: ["Acme Corporation", "Globex Industries"] } },
       include: {
         billingAccount: {
           include: {
@@ -1039,7 +1039,15 @@ async function runManualBillingRequestServiceTests() {
   }
 }
 
-runManualBillingRequestServiceTests().catch((err) => {
-  console.error("FATAL: ManualBillingRequestService test suite failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("ManualBillingRequestService Maker-Checker Suite", () => {
+    it("runs all ManualBillingRequestService maker-checker and dual-authorization tests", async () => {
+      await runManualBillingRequestServiceTests();
+    }, 120000);
+  });
+} else {
+  runManualBillingRequestServiceTests().catch((err) => {
+    console.error("FATAL: ManualBillingRequestService test suite failed:", err);
+    process.exit(1);
+  });
+}

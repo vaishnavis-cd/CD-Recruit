@@ -372,7 +372,7 @@ async function runFinanceMetricsTests() {
 
     await pg.query(
       `INSERT INTO billing.credit_ledger_entry (id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after, grant_source, idempotency_key, actor_id, reason, shadow, created_at)
-       VALUES ($1, $2, $3, $4, 'GRANT', 50, 50, 'PURCHASE', $5, 'system', 'PURCHASE_GRANT', false, clock_timestamp())`,
+       VALUES ($1, $2, $3, $4, 'GRANT', 50, 50, 'PURCHASE', $5, 'system', 'PURCHASE_ALLOCATION', false, clock_timestamp())`,
       [`cle-fms-h-${runId}`, baH, orgH, poolHId, `idem-fms-h-${runId}`],
     );
 
@@ -406,8 +406,8 @@ async function runFinanceMetricsTests() {
     await pg.query(
       `INSERT INTO billing.credit_ledger_entry (id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after, idempotency_key, actor_id, reason, shadow, created_at)
        VALUES 
-       ($1, $2, $3, $4, 'CONSUME', -1, 49, $5, 'system', 'SESSION_CONSUMPTION', false, clock_timestamp()),
-       ($6, $2, $3, $4, 'CONSUME', -1, 48, $7, 'system', 'SESSION_CONSUMPTION', false, clock_timestamp())`,
+       ($1, $2, $3, $4, 'CONSUME', -1, 49, $5, 'system', 'ATTEMPT_START', false, clock_timestamp()),
+       ($6, $2, $3, $4, 'CONSUME', -1, 48, $7, 'system', 'ATTEMPT_START', false, clock_timestamp())`,
       [
         `cle-fms-i1-${runId}`, baI, orgI, poolIId, `idem-fms-i1-${runId}`,
         `cle-fms-i2-${runId}`, `idem-fms-i2-${runId}`,
@@ -441,7 +441,7 @@ async function runFinanceMetricsTests() {
 
     await pg.query(
       `INSERT INTO billing.credit_ledger_entry (id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after, idempotency_key, actor_id, reason, shadow, created_at)
-       VALUES ($1, $2, $3, $4, 'EXPIRE', -20, 0, $5, 'system', 'SWEEPER_EXPIRY', false, clock_timestamp())`,
+       VALUES ($1, $2, $3, $4, 'EXPIRE', -20, 0, $5, 'system', 'POOL_EXPIRED', false, clock_timestamp())`,
       [`cle-fms-j-${runId}`, baJ, orgJ, poolJId, `idem-fms-j-${runId}`],
     );
 
@@ -472,7 +472,7 @@ async function runFinanceMetricsTests() {
 
     await pg.query(
       `INSERT INTO billing.credit_ledger_entry (id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after, grant_source, idempotency_key, actor_id, reason, shadow, created_at)
-       VALUES ($1, $2, $3, $4, 'GRANT', 25, 25, 'TRIAL', $5, 'system', 'TRIAL_ONBOARDING', false, clock_timestamp())`,
+       VALUES ($1, $2, $3, $4, 'GRANT', 25, 25, 'TRIAL', $5, 'system', 'TRIAL', false, clock_timestamp())`,
       [`cle-fms-k-${runId}`, baK, orgK, poolKId, `idem-fms-k-${runId}`],
     );
 
@@ -721,7 +721,15 @@ async function runFinanceMetricsTests() {
   }
 }
 
-runFinanceMetricsTests().catch((err) => {
-  console.error("FATAL: FinanceMetricsService verification failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("FinanceMetricsService Telemetry & Snapshot Suite", () => {
+    it("runs all FinanceMetricsService telemetry, unit economics and snapshot tests", async () => {
+      await runFinanceMetricsTests();
+    }, 120000);
+  });
+} else {
+  runFinanceMetricsTests().catch((err) => {
+    console.error("FATAL: FinanceMetricsService verification failed:", err);
+    process.exit(1);
+  });
+}

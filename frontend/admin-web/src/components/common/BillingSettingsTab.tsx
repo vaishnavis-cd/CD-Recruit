@@ -84,8 +84,6 @@ const DEFAULT_MOCK_INVOICES: InvoiceItem[] = [];
 
 export function BillingSettingsTab() {
   const fetchBillingAccount = useStore((s) => s.fetchBillingAccount);
-  const fetchLedgerEntries = useStore((s) => (s as any).fetchLedgerEntries);
-  const purchaseCredits = useStore((s) => (s as any).purchaseCredits);
   const drives = useStore((s) => s.drives);
   const fetchDrives = useStore((s) => s.fetchDrives);
 

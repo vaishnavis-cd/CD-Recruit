@@ -292,10 +292,11 @@ BEGIN
       USING ERRCODE = 'P0006';
   END IF;
 
-  -- Step 2: Claim 1 Credit (Drive Pass first, then single ACTIVE general pool)
-  -- FOR UPDATE locks the selected credit pool row to prevent concurrent race conditions
-  WITH eligible_pool AS (
-    SELECT p.id FROM "billing"."credit_pool" p
+  -- Step 2: Pool Selection & Ledger Entry
+  IF p_mode = 'shadow' THEN
+    -- Shadow Mode (Phase 2): Query eligible pool WITHOUT mutating cached_remaining
+    SELECT p.id, p.cached_remaining INTO v_pool_id, v_rem
+      FROM "billing"."credit_pool" p
      WHERE p.billing_account_id = v_acct_id
        AND p.status = 'ACTIVE'
        AND p.cached_remaining >= 1
@@ -308,28 +309,15 @@ BEGIN
          ))
        )
      ORDER BY (p.drive_id IS NULL), p.queue_order, p.created_at
-     LIMIT 1
-     FOR UPDATE
-  )
-  UPDATE "billing"."credit_pool" p
-     SET cached_remaining = p.cached_remaining - 1
-    FROM eligible_pool
-   WHERE p.id = eligible_pool.id
-  RETURNING p.id, p.cached_remaining INTO v_pool_id, v_rem;
+     LIMIT 1;
 
-  -- If no eligible pool had available balance:
-  IF NOT FOUND THEN
-    UPDATE "public"."session"
-       SET status = 'NOT_STARTED',
-           held_at = clock_timestamp(),
-           hold_reason = 'CREDITS_EXHAUSTED'
-     WHERE id = p_session_id;
-    
-    RAISE EXCEPTION 'NEEDS_SLOW_PATH' USING ERRCODE = 'P0001';
-  END IF;
+    IF v_pool_id IS NULL THEN
+      UPDATE "public"."session" SET started_at = clock_timestamp() WHERE id = p_session_id;
+      RETURN QUERY SELECT 'NEEDS_SLOW_PATH'::text, NULL::text, 0;
+      RETURN;
+    END IF;
 
-  -- Step 3: Insert Immutable Ledger Entry
-  IF p_mode = 'shadow' THEN
+    -- Insert shadow ledger entry (shadow = true)
     INSERT INTO "billing"."credit_ledger_entry" (
       id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after,
       session_id, drive_id, idempotency_key, actor_id, reason, shadow, created_at
@@ -338,6 +326,42 @@ BEGIN
       p_session_id, v_session.drive_id, 'shadow:acquire:' || p_session_id, 'system', 'ATTEMPT_START', true, clock_timestamp()
     );
   ELSE
+    -- Enforce Mode: Row lock & decrement cached_remaining
+    WITH eligible_pool AS (
+      SELECT p.id FROM "billing"."credit_pool" p
+       WHERE p.billing_account_id = v_acct_id
+         AND p.status = 'ACTIVE'
+         AND p.cached_remaining >= 1
+         AND (p.expires_at IS NULL OR p.expires_at > clock_timestamp())
+         AND (
+           p.drive_id = v_session.drive_id
+           OR (p.drive_id IS NULL AND (
+             EXISTS (SELECT 1 FROM "public"."drive" d WHERE d.id = v_session.drive_id AND d.fallthrough = 'ALLOW')
+             OR NOT EXISTS (SELECT 1 FROM "billing"."credit_pool" dp WHERE dp.drive_id = v_session.drive_id AND dp.status = 'ACTIVE')
+           ))
+         )
+       ORDER BY (p.drive_id IS NULL), p.queue_order, p.created_at
+       LIMIT 1
+       FOR UPDATE
+    )
+    UPDATE "billing"."credit_pool" p
+       SET cached_remaining = p.cached_remaining - 1
+      FROM eligible_pool
+     WHERE p.id = eligible_pool.id
+    RETURNING p.id, p.cached_remaining INTO v_pool_id, v_rem;
+
+    -- If no eligible pool had available balance:
+    IF NOT FOUND THEN
+      UPDATE "public"."session"
+         SET status = 'NOT_STARTED',
+             held_at = clock_timestamp(),
+             hold_reason = 'CREDITS_EXHAUSTED'
+       WHERE id = p_session_id;
+      
+      RAISE EXCEPTION 'NEEDS_SLOW_PATH' USING ERRCODE = 'P0001';
+    END IF;
+
+    -- Insert real ledger entry
     INSERT INTO "billing"."credit_ledger_entry" (
       id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after,
       session_id, drive_id, idempotency_key, actor_id, reason, shadow, created_at

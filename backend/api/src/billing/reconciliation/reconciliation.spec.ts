@@ -171,7 +171,7 @@ async function runReconciliationTests() {
     );
     await pg.query(
       `INSERT INTO billing.credit_ledger_entry (id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after, grant_source, idempotency_key, actor_id, reason, shadow, created_at)
-       VALUES ($1, $2, $3, $4, 'GRANT', 10, 10, 'PURCHASE', $5, 'system', 'INITIAL_PURCHASE', false, clock_timestamp())`,
+       VALUES ($1, $2, $3, $4, 'GRANT', 10, 10, 'PURCHASE', $5, 'system', 'PURCHASE_ALLOCATION', false, clock_timestamp())`,
       [`cle-b1-${runId}`, baB, orgB, poolBId, `idem-b1-${runId}`],
     );
 
@@ -266,8 +266,8 @@ async function runReconciliationTests() {
       await pg.query(`DROP INDEX IF EXISTS billing.uq_ledger_one_acquisition_per_session`);
 
       await pg.query(
-        `INSERT INTO billing.session_billing_evidence (session_id, billing_account_id, kind, started_at, created_at)
-         VALUES ($1, $2, 'LIVE', clock_timestamp(), clock_timestamp())`,
+        `INSERT INTO billing.session_billing_evidence (session_id, billing_account_id, kind, event_count, modules_reached, started_at, created_at)
+         VALUES ($1, $2, 'LIVE', 1, 1, clock_timestamp(), clock_timestamp())`,
         [sessD2, baD],
       );
 
@@ -275,7 +275,7 @@ async function runReconciliationTests() {
         `INSERT INTO billing.credit_ledger_entry (id, billing_account_id, organization_id, credit_pool_id, entry_type, amount, balance_after, session_id, idempotency_key, actor_id, reason, shadow, created_at)
          VALUES 
          ($1, $3, $4, $5, 'CONSUME', -1, 49, $2, $6, 'system', 'ATTEMPT_START', false, clock_timestamp()),
-         ($7, $3, $4, $5, 'CONSUME', -1, 48, $2, $8, 'system', 'DUPLICATE_START', false, clock_timestamp())`,
+         ($7, $3, $4, $5, 'CONSUME', -1, 48, $2, $8, 'system', 'ATTEMPT_START', false, clock_timestamp())`,
         [
           `cle-d1-${runId}`, sessD2, baD, orgD, poolDId, `idem-d1-${runId}`,
           `cle-d2-${runId}`, `idem-d2-${runId}`,
@@ -632,7 +632,15 @@ async function runReconciliationTests() {
   }
 }
 
-runReconciliationTests().catch((err) => {
-  console.error("FATAL: ReconciliationService verification failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("ReconciliationService", () => {
+    it("executes all ReconciliationService integration tests", async () => {
+      await runReconciliationTests();
+    }, 120000);
+  });
+} else {
+  runReconciliationTests().catch((err) => {
+    console.error("FATAL: ReconciliationService verification failed:", err);
+    process.exit(1);
+  });
+}

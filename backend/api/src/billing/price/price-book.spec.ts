@@ -859,7 +859,15 @@ async function runPriceBookServiceTests() {
   }
 }
 
-runPriceBookServiceTests().catch((err) => {
-  console.error("FATAL: PriceBookService test suite failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("PriceBookService", () => {
+    it("executes all PriceBookService integration tests", async () => {
+      await runPriceBookServiceTests();
+    }, 120000);
+  });
+} else {
+  runPriceBookServiceTests().catch((err) => {
+    console.error("FATAL: PriceBookService test suite failed:", err);
+    process.exit(1);
+  });
+}
