@@ -31,10 +31,10 @@ export const CurrencyRevenueBreakdown: React.FC<CurrencyRevenueBreakdownProps> =
   }, [breakdown]);
 
   return (
-    <Card>
+    <Card className="bg-white border-[#e8ecf4]">
       <CardHeader>
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Globe className="w-4 h-4 text-indigo-400" /> Territorial Currency Inflow
+        <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-900">
+          <Globe className="w-4 h-4 text-[#2f68ff]" /> Territorial Currency Inflow
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -42,25 +42,25 @@ export const CurrencyRevenueBreakdown: React.FC<CurrencyRevenueBreakdownProps> =
           {currencies.map((item) => (
             <div
               key={item.currency}
-              className="p-4 bg-slate-950/70 rounded-xl border border-slate-800/80 flex flex-col justify-between"
+              className="p-4 bg-[#f8fafc] rounded-xl border border-[#e8ecf4] flex flex-col justify-between"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-mono text-xs font-bold text-slate-300 px-2 py-0.5 rounded bg-slate-800 border border-slate-700">
+                  <span className="font-mono text-xs font-bold text-slate-700 px-2 py-0.5 rounded bg-white border border-[#e2e8f0]">
                     {item.currency}
                   </span>
                   <span className="text-[11px] text-slate-500 font-mono">
                     {formatNumber(item.transactionCount)} transactions
                   </span>
                 </div>
-                <div className="text-lg font-bold font-mono text-emerald-400">
+                <div className="text-lg font-bold font-mono text-slate-900">
                   {formatCurrencyMinor(item.amountMinor, item.currency)}
                 </div>
               </div>
 
-              <div className="pt-3 mt-3 border-t border-slate-800/60 text-[11px] text-slate-400 flex justify-between">
+              <div className="pt-3 mt-3 border-t border-[#e8ecf4] text-[11px] text-slate-500 flex justify-between">
                 <span>Settlement Health:</span>
-                <span className="text-emerald-400 font-medium">100% Reconciled</span>
+                <span className="text-[#12b76a] font-semibold">100% Reconciled</span>
               </div>
             </div>
           ))}

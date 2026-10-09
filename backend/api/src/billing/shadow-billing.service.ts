@@ -259,7 +259,7 @@ export class ShadowBillingService {
     const db = tx || this.prisma;
     const results = await db.$queryRaw<
       Array<{ outcome: string; pool_id: string | null; balance_remaining: number }>
-    >`SELECT * FROM billing_begin(${sessionId}::text, ${mode}::text)`;
+    >`SELECT * FROM billing.billing_begin(${sessionId}::text, ${mode}::text)`;
 
     const first = results[0];
     return {

@@ -38,10 +38,10 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   if (isBusy) {
     return (
-      <div className={cn('glass-panel rounded-2xl p-5 border border-slate-800/80', className)}>
+      <div className={cn('bg-white rounded-2xl p-5 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)]', className)}>
         <div className="flex items-center justify-between mb-3">
           <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-8 w-8 rounded-lg" />
+          <Skeleton className="h-9 w-9 rounded-full" />
         </div>
         <Skeleton className="h-7 w-36 mb-2" />
         <Skeleton className="h-3 w-44" />
@@ -54,69 +54,75 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   return (
     <div
       className={cn(
-        'glass-panel rounded-2xl p-5 border transition-all duration-200 flex flex-col justify-between',
+        'bg-white rounded-2xl p-5 border transition-all duration-200 shadow-[0_4px_16px_rgba(0,0,0,0.02)] flex flex-col justify-between',
         alert
           ? isDanger
-            ? 'border-rose-500/50 bg-rose-950/20 shadow-lg shadow-rose-950/30'
-            : 'border-amber-500/50 bg-amber-950/20'
-          : 'border-slate-800/80 hover:border-slate-700/80',
+            ? 'border-rose-200 bg-rose-50/40'
+            : 'border-amber-200 bg-amber-50/40'
+          : 'border-[#e8ecf4] hover:border-[#cbd5e1]',
         className
       )}
     >
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
-            {title}
-          </span>
+        <div className="flex items-start justify-between">
+          <div>
+            <span className="text-[12px] font-bold tracking-wider text-[#94a3b8] block">
+              {title}
+            </span>
+            <div className="text-2xl font-extrabold text-[#0d1424] tracking-tight mt-1">
+              {value}
+            </div>
+            {subtitle && <p className="text-xs text-[#64748b] mt-0.5 font-normal">{subtitle}</p>}
+          </div>
+
           {Icon && (
             <div
               className={cn(
-                'w-8 h-8 rounded-lg flex items-center justify-center border',
+                'w-9 h-9 rounded-full flex items-center justify-center shrink-0',
                 alert
                   ? isDanger
-                    ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-                    : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                  : 'bg-slate-900 text-indigo-400 border-slate-800'
+                    ? 'bg-rose-50 text-rose-600'
+                    : 'bg-amber-50 text-amber-600'
+                  : 'bg-[#eff6ff] text-[#2f68ff]'
               )}
             >
               <Icon className="w-4 h-4" />
             </div>
           )}
         </div>
-
-        <div className="text-2xl font-bold text-white tracking-tight font-mono">{value}</div>
-
-        {subtitle && <p className="text-xs text-slate-400 mt-1 font-medium">{subtitle}</p>}
       </div>
 
       {(trend || alert) && (
-        <div className="mt-4 pt-3 border-t border-slate-800/60">
+        <div className="mt-3.5 pt-2.5 border-t border-[#f1f5f9]">
           {alert ? (
             <div
               className={cn(
                 'flex items-center gap-1.5 text-xs font-medium',
-                isDanger ? 'text-rose-400' : 'text-amber-400'
+                isDanger ? 'text-rose-600' : 'text-amber-600'
               )}
             >
               <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
               <span>{alert.message}</span>
             </div>
           ) : trend ? (
-            <div
-              className={cn(
-                'text-xs font-mono font-medium',
-                trend.neutral
-                  ? 'text-slate-400'
-                  : (trend.positive ?? trend.isPositive)
-                  ? 'text-emerald-400'
-                  : 'text-rose-400'
-              )}
-            >
-              {typeof trend.value === 'number'
-                ? trend.value > 0
-                  ? `+${trend.value}%`
-                  : `${trend.value}%`
-                : trend.value}
+            <div>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-semibold border',
+                  trend.neutral
+                    ? 'bg-[#f1f5f9] text-[#64748b] border-[#e2e8f0]'
+                    : (trend.positive ?? trend.isPositive)
+                    ? 'bg-[#ecfdf3] text-[#12b76a] border-[#a6f4c5]'
+                    : 'bg-[#fef3f2] text-[#f04438] border-[#fecdca]'
+                )}
+              >
+                <span>{(trend.positive ?? trend.isPositive) ? '▲' : trend.neutral ? '•' : '▼'}</span>{' '}
+                {typeof trend.value === 'number'
+                  ? trend.value > 0
+                    ? `+${trend.value}%`
+                    : `${trend.value}%`
+                  : trend.value}
+              </span>
             </div>
           ) : null}
         </div>

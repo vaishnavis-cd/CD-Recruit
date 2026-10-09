@@ -50,46 +50,6 @@ export function useBillingAccountSummary(id: string) {
   });
 }
 
-export function useCreateBillingAccountMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: billingApi.createAccount,
-    onSuccess: () => {
-      toast.success('Billing account provisioned successfully');
-      qc.invalidateQueries({ queryKey: ['billing', 'accounts'] });
-    },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to create billing account');
-    },
-  });
-}
-
-export function useRequestOverdraftLimitMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      accountId,
-      newLimit,
-      reason,
-      ticketRef,
-    }: {
-      accountId: string;
-      newLimit: number;
-      reason: string;
-      ticketRef?: string;
-    }) => billingApi.updateAccountOverdraft(accountId, newLimit, reason, ticketRef),
-    onSuccess: () => {
-      toast.success('Overdraft buffer adjustment requested');
-      qc.invalidateQueries({ queryKey: ['billing', 'accounts'] });
-      qc.invalidateQueries({ queryKey: ['billing', 'account'] });
-      qc.invalidateQueries({ queryKey: ['billing', 'requests'] });
-    },
-    onError: (err: any) => {
-      toast.error(err.message || 'Failed to submit overdraft adjustment');
-    },
-  });
-}
-
 export function useUpdateAccountStatusMutation() {
   const qc = useQueryClient();
   return useMutation({
@@ -102,15 +62,21 @@ export function useUpdateAccountStatusMutation() {
       accountId: string;
       status: T.BillingAccountStatus;
       reason: string;
-      ticketRef?: string;
-    }) => billingApi.updateAccountStatus(accountId, status, reason, ticketRef),
+      ticketRef: string;
+    }) =>
+      billingApi.createRequest({
+        billingAccountId: accountId,
+        kind: 'ACCOUNT_STATUS' as any,
+        payload: { status },
+        reason,
+        ticketRef,
+      }),
     onSuccess: () => {
-      toast.success('Account operational status updated');
-      qc.invalidateQueries({ queryKey: ['billing', 'accounts'] });
-      qc.invalidateQueries({ queryKey: ['billing', 'account'] });
+      toast.success('Account status change submitted to Maker-Checker queue');
+      qc.invalidateQueries({ queryKey: ['billing', 'requests'] });
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Failed to update account status');
+      toast.error(err.message || 'Failed to submit status change request');
     },
   });
 }
@@ -129,22 +95,30 @@ export function useExtendPoolExpiryMutation() {
   return useMutation({
     mutationFn: ({
       poolId,
+      billingAccountId,
       newExpiryDate,
       reason,
       ticketRef,
     }: {
       poolId: string;
+      billingAccountId: string;
       newExpiryDate: string;
       reason: string;
-      ticketRef?: string;
-    }) => billingApi.extendPoolExpiry(poolId, newExpiryDate, reason, ticketRef),
+      ticketRef: string;
+    }) =>
+      billingApi.createRequest({
+        billingAccountId,
+        kind: 'EXPIRY_EXTEND' as any,
+        payload: { poolId, newExpiry: newExpiryDate },
+        reason,
+        ticketRef,
+      }),
     onSuccess: () => {
-      toast.success('Pool validity window extended');
-      qc.invalidateQueries({ queryKey: ['billing', 'pool'] });
-      qc.invalidateQueries({ queryKey: ['billing', 'account'] });
+      toast.success('Pool validity extension submitted to Maker-Checker queue');
+      qc.invalidateQueries({ queryKey: ['billing', 'requests'] });
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Failed to extend pool expiration');
+      toast.error(err.message || 'Failed to submit pool extension request');
     },
   });
 }
@@ -196,7 +170,11 @@ export function useApproveRequest() {
       toast.success('Request approved and executed successfully');
       qc.invalidateQueries({ queryKey: ['billing', 'requests'] });
       qc.invalidateQueries({ queryKey: ['billing', 'accounts'] });
+      qc.invalidateQueries({ queryKey: ['billing', 'account'] });
+      qc.invalidateQueries({ queryKey: ['billing', 'pools'] });
       qc.invalidateQueries({ queryKey: ['billing', 'ledger'] });
+      qc.invalidateQueries({ queryKey: ['billing', 'summary'] });
+      qc.invalidateQueries({ queryKey: ['finance', 'metrics'] });
     },
     onError: (err: any) => {
       toast.error(err.message || 'Failed to approve request');
@@ -245,7 +223,11 @@ export function useRetryRequest() {
       toast.success('Execution retried successfully');
       qc.invalidateQueries({ queryKey: ['billing', 'requests'] });
       qc.invalidateQueries({ queryKey: ['billing', 'accounts'] });
+      qc.invalidateQueries({ queryKey: ['billing', 'account'] });
+      qc.invalidateQueries({ queryKey: ['billing', 'pools'] });
       qc.invalidateQueries({ queryKey: ['billing', 'ledger'] });
+      qc.invalidateQueries({ queryKey: ['billing', 'summary'] });
+      qc.invalidateQueries({ queryKey: ['finance', 'metrics'] });
     },
     onError: (err: any) => {
       toast.error(err.message || 'Retry execution failed');
@@ -260,15 +242,16 @@ export function useCreateManualRequest() {
       billingAccountId: string;
       requestType: string;
       amount?: number;
+      payload?: Record<string, any>;
       reason: string;
-      ticketRef?: string;
+      ticketRef: string;
     }) =>
       billingApi.createRequest({
         billingAccountId: vars.billingAccountId,
         kind: vars.requestType as any,
-        payload: { amount: vars.amount },
+        payload: vars.payload ?? { amount: vars.amount },
         reason: vars.reason,
-        ticketRef: vars.ticketRef || '',
+        ticketRef: vars.ticketRef,
       }),
     onSuccess: () => {
       toast.success('Manual request submitted for maker-checker approval');
@@ -355,7 +338,10 @@ export function useRecordManualInvoice() {
       toast.success('Manual invoice registered and pool minted');
       qc.invalidateQueries({ queryKey: ['billing', 'payments'] });
       qc.invalidateQueries({ queryKey: ['billing', 'accounts'] });
+      qc.invalidateQueries({ queryKey: ['billing', 'account'] });
+      qc.invalidateQueries({ queryKey: ['billing', 'pools'] });
       qc.invalidateQueries({ queryKey: ['billing', 'ledger'] });
+      qc.invalidateQueries({ queryKey: ['finance', 'metrics'] });
     },
     onError: (err: any) => {
       toast.error(err.message || 'Failed to record invoice payment');
@@ -365,20 +351,14 @@ export function useRecordManualInvoice() {
 
 export const useRecordManualInvoiceMutation = useRecordManualInvoice;
 
-export function useWebhookEvents(params?: { page?: number; pageSize?: number }) {
-  return useQuery({
-    queryKey: ['billing', 'webhooks', params],
-    queryFn: () => billingApi.getWebhooks(params),
-  });
-}
-
 export function useReplayWebhook() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: billingApi.replayWebhook,
+    mutationFn: (eventId: string) => billingApi.replayWebhook(eventId),
     onSuccess: () => {
       toast.success('Webhook replay job enqueued');
       qc.invalidateQueries({ queryKey: ['billing', 'payments'] });
+      qc.invalidateQueries({ queryKey: ['billing', 'ledger'] });
     },
     onError: (err: any) => {
       toast.error(err.message || 'Webhook replay failed');

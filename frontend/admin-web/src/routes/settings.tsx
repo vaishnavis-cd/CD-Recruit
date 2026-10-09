@@ -185,8 +185,27 @@ function SettingsPage() {
 
   const fetchAuditLogs = useStore((s) => s.fetchAuditLogs);
   const [activeTab, setActiveTab] = useState<
-    "profile" | "users" | "permissions" | "modules" | "calibration" | "proctoring" | "scoring" | "system" | "retention" | "audit" | "integrations" | "billing"
+    "profile" | "billing" | "users" | "permissions" | "modules" | "calibration" | "proctoring" | "scoring" | "system" | "retention" | "audit" | "integrations"
   >("profile");
+
+  useEffect(() => {
+    try {
+      const param = new URLSearchParams(window.location.search).get("tab");
+      const validTabs = ["profile", "billing", "users", "permissions", "modules", "calibration", "proctoring", "scoring", "system", "retention", "audit", "integrations"];
+      if (param && validTabs.includes(param)) {
+        setActiveTab(param as any);
+      }
+    } catch {}
+  }, []);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId as any);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tabId);
+      window.history.replaceState({}, "", url.toString());
+    }
+  };
 
   // Dynamic Role Permissions Matrix state
   const [permissionsMatrix, setPermissionsMatrix] = useState<Record<string, string[]>>(DEFAULT_ROLE_PERMISSIONS);
@@ -1109,6 +1128,7 @@ function SettingsPage() {
 
   const TABS = [
     { id: "profile", label: "Admin Profile", icon: IdCard },
+    { id: "billing", label: "Credit & Billing", icon: Coins, highlight: true },
     { id: "users", label: "Staff & Roles", icon: UsersRound },
     { id: "permissions", label: "Roles & Permissions", icon: ShieldCheck },
     { id: "modules", label: "Assessment Modules", icon: LayoutGrid },
@@ -1119,34 +1139,62 @@ function SettingsPage() {
     { id: "retention", label: "Data Retention", icon: Database },
     { id: "audit", label: "Audit Logs", icon: ClipboardList },
     { id: "integrations", label: "Integrations", icon: PlugZap },
-    { id: "billing", label: "Credit & Capacity", icon: Coins },
   ] as const;
 
   return (
     <AppShell hideHeader={true}>
       <div className="max-w-[1320px] mx-auto w-full pb-20">
         {/* Main Header */}
-        <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight mb-8">
-          Settings &amp; Administration
-        </h1>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight">
+              Settings &amp; Administration
+            </h1>
+            <p className="text-[13px] text-[#64748B] mt-1">
+              Organization profile, staff roles, assessment engines, and real-time credit capacity.
+            </p>
+          </div>
+
+          <button
+            onClick={() => handleTabChange("billing")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[12.5px] font-semibold transition-all cursor-pointer shadow-2xs border ${
+              activeTab === "billing"
+                ? "bg-[#EFF6FF] border-[#2563EB] text-[#2563EB] ring-2 ring-[#2563EB]/20"
+                : "bg-white border-[#E2E8F0] text-[#334155] hover:border-[#2563EB] hover:text-[#2563EB]"
+            }`}
+          >
+            <Coins size={15} className="text-[#2563EB]" />
+            <span>Credit &amp; Billing</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#059669] animate-pulse" />
+          </button>
+        </div>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* Navigation Tabs Side (Sticky on desktop) */}
-          <div className="w-full lg:w-[220px] shrink-0 lg:sticky lg:top-6 self-start flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-x-visible pb-2 lg:pb-0">
+          {/* Navigation Tabs Side (Sticky & Scrollable on desktop) */}
+          <div className="w-full lg:w-[230px] shrink-0 lg:sticky lg:top-6 self-start flex flex-row lg:flex-col gap-1.5 overflow-x-auto no-scrollbar lg:overflow-y-auto lg:max-h-[calc(100vh-120px)] pb-2 lg:pb-4 pr-1">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
+              const isHighlight = (tab as any).highlight;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2.5 px-4 h-[35px] rounded-full text-left transition-all cursor-pointer whitespace-nowrap text-[13px] ${active
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`flex items-center justify-between px-4 h-[36px] rounded-full text-left transition-all cursor-pointer whitespace-nowrap text-[13px] ${
+                    active
                       ? "border border-[#2E5DE0] bg-white text-[#2E5DE0] font-semibold shadow-xs"
+                      : isHighlight
+                      ? "text-[#2563EB] bg-[#EFF6FF]/60 hover:bg-[#EFF6FF] font-medium border border-[#BFDBFE]/60"
                       : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/50 font-normal"
-                    }`}
+                  }`}
                 >
-                  <Icon size={15} className={`shrink-0 ${active ? "text-[#2E5DE0]" : "text-[#64748B]"}`} />
-                  <span className="truncate">{tab.label}</span>
+                  <div className="flex items-center gap-2.5 truncate">
+                    <Icon size={15} className={`shrink-0 ${active || isHighlight ? "text-[#2E5DE0]" : "text-[#64748B]"}`} />
+                    <span className="truncate">{tab.label}</span>
+                  </div>
+                  {isHighlight && !active && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2563EB] shrink-0 ml-1.5" />
+                  )}
                 </button>
               );
             })}
@@ -1176,7 +1224,7 @@ function SettingsPage() {
 
                 {/* Profile Visual Badge & Summary */}
                 <div className="flex items-center gap-4 p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-[12px]">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white flex items-center justify-center text-sm font-bold shadow-xs shrink-0">
+                  <div suppressHydrationWarning className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white flex items-center justify-center text-sm font-bold shadow-xs shrink-0">
                     {adminName
                       .split(" ")
                       .map((w: string) => w[0])
@@ -1186,12 +1234,12 @@ function SettingsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-bold text-[#0F172A] truncate">{adminName}</span>
+                      <span suppressHydrationWarning className="text-[14px] font-bold text-[#0F172A] truncate">{adminName}</span>
                       <span className="px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] rounded-full">
                         VERIFIED ADMIN
                       </span>
                     </div>
-                    <p className="text-[12px] text-[#64748B] truncate mt-0.5">{adminEmail}</p>
+                    <p suppressHydrationWarning className="text-[12px] text-[#64748B] truncate mt-0.5">{adminEmail}</p>
                   </div>
                 </div>
 
@@ -1256,11 +1304,11 @@ function SettingsPage() {
                   <div className="space-y-3 pt-1">
                     <div className="p-3.5 border border-[#E2E8F0] rounded-[8px] bg-white">
                       <div className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Display Name</div>
-                      <div className="text-[13px] font-semibold text-[#0F172A] mt-1">{adminName}</div>
+                      <div suppressHydrationWarning className="text-[13px] font-semibold text-[#0F172A] mt-1">{adminName}</div>
                     </div>
                     <div className="p-3.5 border border-[#E2E8F0] rounded-[8px] bg-white">
                       <div className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">Email Address</div>
-                      <div className="text-[13px] font-mono text-[#0F172A] mt-1">{adminEmail}</div>
+                      <div suppressHydrationWarning className="text-[13px] font-mono text-[#0F172A] mt-1">{adminEmail}</div>
                     </div>
                     <div className="p-3.5 border border-[#E2E8F0] rounded-[8px] bg-[#F8FAFC]">
                       <div className="text-[11px] font-semibold uppercase tracking-wider text-[#94A3B8]">System Role &amp; Privileges</div>
@@ -1270,6 +1318,9 @@ function SettingsPage() {
                 )}
               </div>
             )}
+
+            {/* Tab: Credit & Billing Management Suite */}
+            {activeTab === "billing" && <BillingSettingsTab />}
 
             {/* Tab 2: Staff & Roles */}
             {activeTab === "users" && (

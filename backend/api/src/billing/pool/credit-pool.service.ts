@@ -9,7 +9,8 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { LedgerService } from "../ledger/ledger.service";
 import { randomUUID } from "node:crypto";
-import { PlatformStaffRole } from "@cd-recruit/shared-types";
+import { PlatformStaffRole, DrivePoolFallthrough, HoldReason } from "@cd-recruit/shared-types";
+import { SessionStatus } from "@prisma/client";
 import { LedgerActor, LedgerEntryType, LedgerReason } from "../ledger/ledger.types";
 import {
   PoolType,
@@ -881,5 +882,121 @@ export class CreditPoolService {
       createdAt: pool.createdAt,
       recentLedgerEntries: pool.ledgerEntries,
     };
+  }
+
+  async getDriveCapacityStatus(driveId: string) {
+    const drive = await this.prisma.drive.findUnique({
+      where: { id: driveId },
+      include: { organization: true },
+    });
+
+    if (!drive) {
+      throw new NotFoundException(`Drive ${driveId} not found`);
+    }
+
+    const billingAccountId = drive.organization?.billingAccountId;
+    if (!billingAccountId) {
+      return {
+        driveId,
+        billingAccountId: "",
+        hasActiveDrivePass: false,
+        drivePassRemaining: 0,
+        drivePassExpiresAt: null,
+        fallthroughMode: drive.fallthrough as DrivePoolFallthrough,
+        activeTalentReserveRemaining: 0,
+        queuedPoolCount: 0,
+        heldCandidateCount: 0,
+        canAcceptCandidates: false,
+        statusSummary: "CAPACITY_EXHAUSTED",
+      };
+    }
+
+    const now = new Date();
+
+    const drivePass = await this.prisma.creditPool.findFirst({
+      where: {
+        billingAccountId,
+        driveId,
+        status: PoolStatus.ACTIVE,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    });
+
+    const activeReserve = await this.prisma.creditPool.findFirst({
+      where: {
+        billingAccountId,
+        driveId: null,
+        status: PoolStatus.ACTIVE,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    });
+
+    const queuedCount = await this.prisma.creditPool.count({
+      where: {
+        billingAccountId,
+        driveId: null,
+        status: PoolStatus.QUEUED,
+      },
+    });
+
+    const heldCount = await this.prisma.session.count({
+      where: {
+        driveId,
+        status: SessionStatus.NOT_STARTED,
+        holdReason: HoldReason.CAPACITY,
+      },
+    });
+
+    const dpRemaining = drivePass?.cachedRemaining ?? 0;
+    const trRemaining = activeReserve?.cachedRemaining ?? 0;
+    const fallthrough = drive.fallthrough;
+
+    const totalUsable = dpRemaining + (fallthrough === DrivePoolFallthrough.ALLOW ? trRemaining : 0);
+    const canAccept = totalUsable > 0;
+
+    let summary = "AVAILABLE";
+    if (totalUsable === 0) {
+      summary = "CAPACITY_EXHAUSTED";
+    } else if (totalUsable < 10) {
+      summary = "LOW_BALANCE";
+    }
+
+    return {
+      driveId,
+      billingAccountId,
+      hasActiveDrivePass: !!drivePass,
+      drivePassRemaining: dpRemaining,
+      drivePassExpiresAt: drivePass?.expiresAt ?? null,
+      fallthroughMode: fallthrough as DrivePoolFallthrough,
+      activeTalentReserveRemaining: trRemaining,
+      queuedPoolCount: queuedCount,
+      heldCandidateCount: heldCount,
+      canAcceptCandidates: canAccept,
+      statusSummary: summary,
+    };
+  }
+
+  async releaseHeldSessions(driveId: string): Promise<{ releasedCount: number }> {
+    const heldSessions = await this.prisma.session.findMany({
+      where: {
+        driveId,
+        status: SessionStatus.NOT_STARTED,
+        holdReason: HoldReason.CAPACITY,
+      },
+      orderBy: { heldAt: "asc" },
+    });
+
+    let releasedCount = 0;
+    for (const s of heldSessions) {
+      const result = await this.ledgerService.claimSessionCredit(s.id, "enforce");
+      if (result.outcome === "STARTED") {
+        releasedCount++;
+      } else {
+        break;
+      }
+    }
+
+    this.logger.log(`Released ${releasedCount} held sessions for drive ${driveId}.`);
+    return { releasedCount };
   }
 }

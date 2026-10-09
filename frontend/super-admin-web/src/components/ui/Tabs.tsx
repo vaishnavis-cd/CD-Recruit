@@ -31,7 +31,7 @@ export const TabsList: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({
   return (
     <div
       className={cn(
-        'flex items-center gap-1.5 p-1 bg-slate-950/80 border border-slate-800/80 rounded-xl overflow-x-auto',
+        'flex items-center gap-1 p-1 bg-[#eff0f3] border border-[#e6e6ea] rounded-xl overflow-x-auto',
         className
       )}
       {...props}
@@ -74,8 +74,8 @@ export const TabsTrigger: React.FC<TabsTriggerProps> = ({
       className={cn(
         'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer whitespace-nowrap',
         isActive
-          ? 'bg-indigo-600/15 text-indigo-400 border border-indigo-500/30 shadow-sm'
-          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent',
+          ? 'bg-white text-[#0d1424] shadow-xs border border-[#e6e6ea]/80 font-bold'
+          : 'text-[#64748b] hover:text-[#0d1424] hover:bg-white/50 border border-transparent',
         className
       )}
       {...props}
@@ -87,8 +87,8 @@ export const TabsTrigger: React.FC<TabsTriggerProps> = ({
           className={cn(
             'px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold border',
             isActive
-              ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
-              : 'bg-slate-900 text-slate-500 border-slate-800'
+              ? 'bg-[#eff6ff] text-[#2f68ff] border-[#bfdbfe]'
+              : 'bg-[#e2e8f0] text-[#64748b] border-[#cbd5e1]'
           )}
         >
           {count}

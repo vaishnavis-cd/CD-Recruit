@@ -49,22 +49,22 @@ export const PaymentsTable: React.FC<PaymentsTableProps> = ({
       }}
     >
       {payments.map((p) => (
-        <tr key={p.id} className="hover:bg-slate-900/40 transition">
-          <td className="py-3.5 px-4 font-mono text-xs text-slate-300">
+        <tr key={p.id} className="hover:bg-slate-50/80 border-b border-[#e8ecf4] transition">
+          <td className="py-3.5 px-4 font-mono text-xs text-slate-700 font-medium">
             {truncateId(p.id, 10, 6)}
           </td>
 
-          <td className="py-3.5 px-4 font-mono text-xs text-indigo-400">
-            <Link to={`/billing/accounts/${p.billingAccountId}`} className="hover:underline">
+          <td className="py-3.5 px-4 font-mono text-xs text-[#2f68ff]">
+            <Link to={`/billing/accounts/${p.billingAccountId}`} className="hover:underline font-medium">
               {truncateId(p.billingAccountId, 8, 4)}
             </Link>
           </td>
 
-          <td className="py-3.5 px-4 text-xs font-semibold text-slate-300">
+          <td className="py-3.5 px-4 text-xs font-semibold text-slate-800">
             {p.provider || 'STRIPE'}
           </td>
 
-          <td className="py-3.5 px-4 font-mono text-xs font-bold text-emerald-400">
+          <td className="py-3.5 px-4 font-mono text-xs font-bold text-emerald-600">
             {formatCurrencyMinor(p.amountMinor, p.currency)}
           </td>
 
@@ -72,23 +72,23 @@ export const PaymentsTable: React.FC<PaymentsTableProps> = ({
             <StatusBadge status={p.status} />
           </td>
 
-          <td className="py-3.5 px-4 text-xs text-slate-400 whitespace-nowrap">
+          <td className="py-3.5 px-4 text-xs text-slate-500 whitespace-nowrap">
             {formatDateTime(p.createdAt)}
           </td>
 
-          <td className="py-3.5 px-4 text-xs text-slate-300">
+          <td className="py-3.5 px-4 text-xs text-slate-700">
             {p.invoiceUrl ? (
               <a
                 href={p.invoiceUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-mono text-[11px]"
+                className="text-[#2f68ff] hover:underline flex items-center gap-1 font-mono text-[11px] font-medium"
               >
                 <span>Invoice PDF</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
             ) : (
-              <span className="text-slate-500 font-mono text-[11px]">Direct Settlement</span>
+              <span className="text-slate-400 font-mono text-[11px]">Direct Settlement</span>
             )}
           </td>
         </tr>

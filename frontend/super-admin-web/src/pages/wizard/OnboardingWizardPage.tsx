@@ -5,7 +5,6 @@ import {
   Building2,
   Globe,
   User,
-  CreditCard,
   ShieldCheck,
   CheckCircle2,
   ArrowRight,
@@ -19,6 +18,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { apiFetch, ApiError } from '@/lib/api';
+import { Button } from '@/components/ui/Button';
 
 interface Draft {
   id: string;
@@ -253,7 +253,7 @@ export const OnboardingWizardPage: React.FC = () => {
       });
 
       setCommittedOrg(result);
-      setCurrentStep(5); // Proceed to Walkthrough checklist step
+      setCurrentStep(5);
     } catch (err: any) {
       const msg =
         err instanceof ApiError && err.data?.message
@@ -295,19 +295,19 @@ export const OnboardingWizardPage: React.FC = () => {
       {/* Wizard Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <Sparkles className="w-6 h-6 text-indigo-400" />
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
+            <Sparkles className="w-6 h-6 text-[#2f68ff]" />
             Tenant Onboarding Wizard
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Standard 6-step atomic tenant provisioning • Company, Admin, Domain, Atomic Commit & Walkthrough
           </p>
         </div>
 
         {draftId && currentStep < 5 && (
-          <div className="flex items-center gap-2 text-xs font-mono bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">
-            <Save className={`w-3.5 h-3.5 ${saveStatus === 'saving' ? 'text-amber-400 animate-spin' : saveStatus === 'saved' ? 'text-emerald-400' : 'text-slate-500'}`} />
-            <span className={saveStatus === 'saved' ? 'text-emerald-400' : 'text-slate-400'}>
+          <div className="flex items-center gap-2 text-xs font-mono bg-white border border-[#e8ecf4] shadow-xs px-3 py-1.5 rounded-xl">
+            <Save className={`w-3.5 h-3.5 ${saveStatus === 'saving' ? 'text-amber-500 animate-spin' : saveStatus === 'saved' ? 'text-[#12b76a]' : 'text-slate-400'}`} />
+            <span className={saveStatus === 'saved' ? 'text-[#12b76a] font-semibold' : 'text-slate-500'}>
               {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Draft Autosaved' : 'Draft Ready'}
             </span>
           </div>
@@ -316,13 +316,13 @@ export const OnboardingWizardPage: React.FC = () => {
 
       {/* Resume Drafts Banner (Step 1 when no active draft loaded) */}
       {!draftId && existingDrafts.length > 0 && currentStep === 1 && (
-        <div className="glass-panel rounded-2xl p-5 border border-indigo-500/20 bg-indigo-500/5 space-y-3">
+        <div className="bg-[#eff6ff]/60 rounded-2xl p-5 border border-[#bfdbfe] space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 text-indigo-400" />
+            <h3 className="text-xs font-bold text-[#2f68ff] uppercase tracking-wider flex items-center gap-2">
+              <RotateCcw className="w-4 h-4 text-[#2f68ff]" />
               Resume Existing Onboarding Drafts
             </h3>
-            <span className="text-[11px] text-slate-400">{existingDrafts.length} drafts saved</span>
+            <span className="text-[11px] text-slate-500">{existingDrafts.length} drafts saved</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
@@ -330,34 +330,34 @@ export const OnboardingWizardPage: React.FC = () => {
               <div
                 key={d.id}
                 onClick={() => handleResumeDraft(d)}
-                className="bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-indigo-500/40 rounded-xl p-3.5 cursor-pointer transition flex items-center justify-between group"
+                className="bg-white hover:bg-slate-50 border border-[#e8ecf4] hover:border-[#2f68ff]/40 rounded-xl p-3.5 cursor-pointer transition flex items-center justify-between group shadow-xs"
               >
                 <div>
-                  <h4 className="text-xs font-bold text-white group-hover:text-indigo-300 transition">
+                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#2f68ff] transition">
                     {d.draftData?.companyName || d.corporateDomain || 'Untitled Draft'}
                   </h4>
-                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">
                     Step {d.currentStep} of 4 • Updated {new Date(d.updatedAt).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={(e) => handleDeleteDraft(d.id, e)}
-                    className="p-1.5 text-slate-500 hover:text-red-400 rounded-lg hover:bg-slate-800 transition"
+                    className="p-1.5 text-slate-400 hover:text-[#f04438] rounded-lg hover:bg-slate-100 transition"
                     title="Delete draft"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
-                  <ArrowRight className="w-4 h-4 text-indigo-400 group-hover:translate-x-0.5 transition" />
+                  <ArrowRight className="w-4 h-4 text-[#2f68ff] group-hover:translate-x-0.5 transition" />
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="pt-2 border-t border-slate-800/60 flex justify-end">
+          <div className="pt-2 border-t border-[#dbeafe] flex justify-end">
             <button
               onClick={handleStartNewDraft}
-              className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition"
+              className="text-xs font-semibold text-[#2f68ff] hover:text-[#2557db] transition"
             >
               + Start fresh blank draft
             </button>
@@ -366,7 +366,7 @@ export const OnboardingWizardPage: React.FC = () => {
       )}
 
       {/* Step Indicator */}
-      <div className="glass-panel rounded-2xl p-4 border border-slate-800/80">
+      <div className="bg-white rounded-2xl p-4 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
         <div className="flex items-center justify-between">
           {steps.map((step, idx) => {
             const Icon = step.icon;
@@ -379,17 +379,17 @@ export const OnboardingWizardPage: React.FC = () => {
                   <div
                     className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs transition ${
                       isDone
-                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        ? 'bg-[#ecfdf3] text-[#12b76a] border border-[#a6f4c5]'
                         : isCurrent
-                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 ring-2 ring-indigo-400/30'
-                        : 'bg-slate-900 text-slate-500 border border-slate-800'
+                        ? 'bg-[#2f68ff] text-white shadow-md shadow-[#2f68ff]/25 ring-2 ring-[#2f68ff]/20'
+                        : 'bg-slate-100 text-slate-400 border border-slate-200'
                     }`}
                   >
                     {isDone ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
                   </div>
                   <span
                     className={`text-[11px] font-medium hidden sm:block ${
-                      isCurrent ? 'text-indigo-300 font-semibold' : isDone ? 'text-slate-300' : 'text-slate-500'
+                      isCurrent ? 'text-[#2f68ff] font-bold' : isDone ? 'text-slate-700' : 'text-slate-400'
                     }`}
                   >
                     {step.label}
@@ -398,7 +398,7 @@ export const OnboardingWizardPage: React.FC = () => {
                 {idx < steps.length - 1 && (
                   <div
                     className={`flex-1 h-[2px] mx-2 sm:mx-3 ${
-                      currentStep > idx + 1 ? 'bg-emerald-500/40' : 'bg-slate-800'
+                      currentStep > idx + 1 ? 'bg-[#12b76a]' : 'bg-[#e2e8f0]'
                     }`}
                   />
                 )}
@@ -409,21 +409,21 @@ export const OnboardingWizardPage: React.FC = () => {
       </div>
 
       {/* Step Form Container */}
-      <div className="glass-panel rounded-2xl p-6 border border-slate-800/80 shadow-xl space-y-6">
+      <div className="bg-white rounded-2xl p-6 border border-[#e8ecf4] shadow-[0_4px_16px_rgba(0,0,0,0.02)] space-y-6">
         {/* STEP 1: Company Profile */}
         {currentStep === 1 && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
-              <h3 className="text-base font-bold text-white">Step 1: Company Profile & Commercial Entity</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Define the primary company identity, URL slug, and billing currency metadata.
+              <h3 className="text-base font-bold text-slate-900">Step 1: Company Profile & Commercial Entity</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Define primary company identity, URL slug, and billing currency metadata.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Company Name <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Company Name <span className="text-[#f04438]">*</span>
                 </label>
                 <input
                   type="text"
@@ -431,16 +431,16 @@ export const OnboardingWizardPage: React.FC = () => {
                   placeholder="e.g. Acme Corporation"
                   value={formData.companyName}
                   onChange={handleCompanyNameChange}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Workspace URL Slug <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Workspace URL Slug <span className="text-[#f04438]">*</span>
                 </label>
                 <div className="flex items-center">
-                  <span className="bg-slate-950 border border-r-0 border-slate-800 px-3 py-2 text-xs text-slate-500 rounded-l-xl font-mono">
+                  <span className="bg-slate-100 border border-r-0 border-[#e2e8f0] px-3 py-2 text-xs text-slate-500 rounded-l-xl font-mono">
                     app.proctora.com/
                   </span>
                   <input
@@ -449,14 +449,14 @@ export const OnboardingWizardPage: React.FC = () => {
                     placeholder="acme-corp"
                     value={formData.slug}
                     onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase() })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-r-xl px-3.5 py-2 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-r-xl px-3.5 py-2 text-xs text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Billing Country (ISO-2) <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Billing Country (ISO-2) <span className="text-[#f04438]">*</span>
                 </label>
                 <select
                   value={formData.billingCountry}
@@ -467,7 +467,7 @@ export const OnboardingWizardPage: React.FC = () => {
                       currency: e.target.value === 'IN' ? 'INR' : 'USD',
                     })
                   }
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 >
                   <option value="US">United States (US)</option>
                   <option value="IN">India (IN)</option>
@@ -476,13 +476,13 @@ export const OnboardingWizardPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Currency (ISO-3) <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Currency (ISO-3) <span className="text-[#f04438]">*</span>
                 </label>
                 <select
                   value={formData.currency}
                   onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2f68ff] focus:bg-white font-mono"
                 >
                   <option value="USD">USD ($)</option>
                   <option value="INR">INR (₹)</option>
@@ -491,28 +491,28 @@ export const OnboardingWizardPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Legal Entity Name <span className="text-slate-500 font-normal">(optional)</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Legal Entity Name <span className="text-slate-400 font-normal">(optional)</span>
                 </label>
                 <input
                   type="text"
                   placeholder="Acme Technologies Inc."
                   value={formData.legalEntityName}
                   onChange={(e) => setFormData({ ...formData, legalEntityName: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Tax Identification Number <span className="text-slate-500 font-normal">(optional)</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Tax Identification Number <span className="text-slate-400 font-normal">(optional)</span>
                 </label>
                 <input
                   type="text"
                   placeholder="EIN / GSTIN / VAT ID"
                   value={formData.taxId}
                   onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 />
               </div>
             </div>
@@ -523,16 +523,16 @@ export const OnboardingWizardPage: React.FC = () => {
         {currentStep === 2 && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
-              <h3 className="text-base font-bold text-white">Step 2: Primary Tenant Administrator</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <h3 className="text-base font-bold text-slate-900">Step 2: Primary Tenant Administrator</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
                 Designate the initial organization admin who will receive workspace provisioning credentials.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Admin Full Name <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Admin Full Name <span className="text-[#f04438]">*</span>
                 </label>
                 <input
                   type="text"
@@ -540,13 +540,13 @@ export const OnboardingWizardPage: React.FC = () => {
                   placeholder="Jane Doe"
                   value={formData.adminName}
                   onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Admin Corporate Email <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Admin Corporate Email <span className="text-[#f04438]">*</span>
                 </label>
                 <input
                   type="email"
@@ -562,7 +562,7 @@ export const OnboardingWizardPage: React.FC = () => {
                       domain: prev.domain === '' && domainPart ? domainPart : prev.domain,
                     }));
                   }}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                 />
               </div>
             </div>
@@ -573,16 +573,16 @@ export const OnboardingWizardPage: React.FC = () => {
         {currentStep === 3 && (
           <div className="space-y-4 animate-in fade-in duration-200">
             <div>
-              <h3 className="text-base font-bold text-white">Step 3: Domain Verification & License Tier</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <h3 className="text-base font-bold text-slate-900">Step 3: Domain Verification & License Tier</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
                 Verify corporate domain ownership and select initial platform licensing tier.
               </p>
             </div>
 
             <div className="space-y-4 pt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Corporate Email Domain <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Corporate Email Domain <span className="text-[#f04438]">*</span>
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -594,17 +594,18 @@ export const OnboardingWizardPage: React.FC = () => {
                       setFormData({ ...formData, domain: e.target.value });
                       setDomainCheckResult(null);
                     }}
-                    className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    className="flex-1 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                   />
-                  <button
+                  <Button
                     type="button"
+                    variant="primary"
+                    size="sm"
                     onClick={handleVerifyDomain}
                     disabled={isVerifyingDomain || !formData.domain || !formData.adminEmail}
-                    className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 shrink-0"
+                    loading={isVerifyingDomain}
                   >
-                    {isVerifyingDomain && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     Check Domain
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -613,14 +614,14 @@ export const OnboardingWizardPage: React.FC = () => {
                 <div
                   className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
                     domainCheckResult.ok
-                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
-                      : 'bg-red-500/10 border-red-500/20 text-red-300'
+                      ? 'bg-[#ecfdf3] border-[#a6f4c5] text-[#12b76a]'
+                      : 'bg-[#fef3f2] border-[#fecdca] text-[#f04438]'
                   }`}
                 >
                   {domainCheckResult.ok ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-[#12b76a] shrink-0 mt-0.5" />
                   ) : (
-                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <AlertCircle className="w-4 h-4 text-[#f04438] shrink-0 mt-0.5" />
                   )}
                   <div>
                     <span className="font-bold">
@@ -629,7 +630,7 @@ export const OnboardingWizardPage: React.FC = () => {
                         : 'Domain verification failed:'}
                     </span>
                     {!domainCheckResult.ok && (
-                      <ul className="list-disc list-inside mt-1 space-y-0.5 text-[11px] text-red-300/90 font-mono">
+                      <ul className="list-disc list-inside mt-1 space-y-0.5 text-[11px] font-mono">
                         {domainCheckResult.reasons.map((r, i) => (
                           <li key={i}>{r}</li>
                         ))}
@@ -641,13 +642,13 @@ export const OnboardingWizardPage: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Platform License Tier <span className="text-red-400">*</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Platform License Tier <span className="text-[#f04438]">*</span>
                   </label>
                   <select
                     value={formData.licenseTier}
                     onChange={(e) => setFormData({ ...formData, licenseTier: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                   >
                     <option value="STARTER">Starter Tier</option>
                     <option value="GROWTH">Growth Tier</option>
@@ -656,15 +657,15 @@ export const OnboardingWizardPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Internal Account Owner <span className="text-slate-500 font-normal">(optional Staff ID)</span>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Internal Account Owner <span className="text-slate-400 font-normal">(optional Staff ID)</span>
                   </label>
                   <input
                     type="text"
                     placeholder="Staff UUID / Operator ID"
                     value={formData.internalOwnerId}
                     onChange={(e) => setFormData({ ...formData, internalOwnerId: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 font-mono placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2 text-xs text-slate-900 font-mono placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white"
                   />
                 </div>
               </div>
@@ -676,15 +677,15 @@ export const OnboardingWizardPage: React.FC = () => {
         {currentStep === 4 && (
           <div className="space-y-5 animate-in fade-in duration-200">
             <div>
-              <h3 className="text-base font-bold text-white">Step 4: Review & Atomic Tenant Commit</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <h3 className="text-base font-bold text-slate-900">Step 4: Review & Atomic Tenant Commit</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
                 Review verified configuration before committing changes to the multi-schema ledger.
               </p>
             </div>
 
             {commitError && (
-              <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300 flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="p-3.5 bg-[#fef3f2] border border-[#fecdca] rounded-xl text-xs text-[#f04438] flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-[#f04438] shrink-0 mt-0.5" />
                 <div>
                   <strong className="block">Commit Transaction Failed</strong>
                   <span>{commitError}</span>
@@ -693,29 +694,29 @@ export const OnboardingWizardPage: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-2.5 text-xs">
-                <h4 className="font-bold text-indigo-400 uppercase tracking-wider text-[10px]">Company & Commercial</h4>
-                <div className="space-y-1.5 text-slate-300">
-                  <div><span className="text-slate-500">Name:</span> <strong className="text-white">{formData.companyName}</strong></div>
-                  <div><span className="text-slate-500">Slug:</span> <code className="text-indigo-300">{formData.slug}</code></div>
+              <div className="bg-[#f8fafc] border border-[#e8ecf4] rounded-xl p-4 space-y-2.5 text-xs">
+                <h4 className="font-bold text-[#2f68ff] uppercase tracking-wider text-[10px]">Company & Commercial</h4>
+                <div className="space-y-1.5 text-slate-700">
+                  <div><span className="text-slate-500">Name:</span> <strong className="text-slate-900">{formData.companyName}</strong></div>
+                  <div><span className="text-slate-500">Slug:</span> <code className="text-[#2f68ff] font-mono">{formData.slug}</code></div>
                   <div><span className="text-slate-500">Country / Currency:</span> {formData.billingCountry} • {formData.currency}</div>
                   {formData.legalEntityName && <div><span className="text-slate-500">Legal Entity:</span> {formData.legalEntityName}</div>}
                 </div>
               </div>
 
-              <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 space-y-2.5 text-xs">
-                <h4 className="font-bold text-indigo-400 uppercase tracking-wider text-[10px]">Admin & Governance</h4>
-                <div className="space-y-1.5 text-slate-300">
-                  <div><span className="text-slate-500">Admin Name:</span> <strong className="text-white">{formData.adminName}</strong></div>
-                  <div><span className="text-slate-500">Admin Email:</span> <code className="text-indigo-300">{formData.adminEmail}</code></div>
-                  <div><span className="text-slate-500">Domain:</span> <code className="text-emerald-400">{formData.domain}</code></div>
-                  <div><span className="text-slate-500">License Tier:</span> <span className="font-semibold text-white">{formData.licenseTier}</span></div>
+              <div className="bg-[#f8fafc] border border-[#e8ecf4] rounded-xl p-4 space-y-2.5 text-xs">
+                <h4 className="font-bold text-[#2f68ff] uppercase tracking-wider text-[10px]">Admin & Governance</h4>
+                <div className="space-y-1.5 text-slate-700">
+                  <div><span className="text-slate-500">Admin Name:</span> <strong className="text-slate-900">{formData.adminName}</strong></div>
+                  <div><span className="text-slate-500">Admin Email:</span> <code className="text-[#2f68ff] font-mono">{formData.adminEmail}</code></div>
+                  <div><span className="text-slate-500">Domain:</span> <code className="text-[#12b76a] font-mono">{formData.domain}</code></div>
+                  <div><span className="text-slate-500">License Tier:</span> <span className="font-semibold text-slate-900">{formData.licenseTier}</span></div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-3.5 text-xs text-indigo-300 flex items-center gap-3">
-              <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
+            <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-3.5 text-xs text-[#2f68ff] flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-[#2f68ff] shrink-0" />
               <span>
                 Atomic commit executes within an interactive PostgreSQL transaction. If any step fails, all mutations roll back cleanly.
               </span>
@@ -727,52 +728,52 @@ export const OnboardingWizardPage: React.FC = () => {
         {currentStep === 5 && (
           <div className="space-y-5 animate-in fade-in duration-200">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mb-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#ecfdf3] text-[#12b76a] border border-[#a6f4c5] mb-2">
                 <Check className="w-3 h-3" /> Tenant Provisioned Successfully
               </div>
-              <h3 className="text-base font-bold text-white">Step 5: Onboarding Walkthrough Checklist</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <h3 className="text-base font-bold text-slate-900">Step 5: Onboarding Walkthrough Checklist</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
                 Track customer success milestone completion for this new organization.
               </p>
             </div>
 
             <div className="space-y-3 pt-2">
-              <label className="flex items-center gap-3 p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl cursor-pointer hover:bg-slate-900 transition">
+              <label className="flex items-center gap-3 p-3.5 bg-[#f8fafc] border border-[#e8ecf4] rounded-xl cursor-pointer hover:bg-slate-50 transition">
                 <input
                   type="checkbox"
                   checked={formData.kickoffCallDone}
                   onChange={(e) => setFormData({ ...formData, kickoffCallDone: e.target.checked })}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-800"
+                  className="w-4 h-4 rounded text-[#2f68ff] focus:ring-[#2f68ff] border-slate-300"
                 />
                 <div>
-                  <strong className="text-xs text-white block">Kickoff Call Completed</strong>
-                  <span className="text-[11px] text-slate-400">Introduction to workspace admin and assessment objectives established.</span>
+                  <strong className="text-xs text-slate-900 block">Kickoff Call Completed</strong>
+                  <span className="text-[11px] text-slate-500">Introduction to workspace admin and assessment objectives established.</span>
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl cursor-pointer hover:bg-slate-900 transition">
+              <label className="flex items-center gap-3 p-3.5 bg-[#f8fafc] border border-[#e8ecf4] rounded-xl cursor-pointer hover:bg-slate-50 transition">
                 <input
                   type="checkbox"
                   checked={formData.sampleDriveDeployed}
                   onChange={(e) => setFormData({ ...formData, sampleDriveDeployed: e.target.checked })}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-800"
+                  className="w-4 h-4 rounded text-[#2f68ff] focus:ring-[#2f68ff] border-slate-300"
                 />
                 <div>
-                  <strong className="text-xs text-white block">Sample Assessment Drive Deployed</strong>
-                  <span className="text-[11px] text-slate-400">Test drive configured and previewed by customer lead.</span>
+                  <strong className="text-xs text-slate-900 block">Sample Assessment Drive Deployed</strong>
+                  <span className="text-[11px] text-slate-500">Test drive configured and previewed by customer lead.</span>
                 </div>
               </label>
 
-              <label className="flex items-center gap-3 p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl cursor-pointer hover:bg-slate-900 transition">
+              <label className="flex items-center gap-3 p-3.5 bg-[#f8fafc] border border-[#e8ecf4] rounded-xl cursor-pointer hover:bg-slate-50 transition">
                 <input
                   type="checkbox"
                   checked={formData.adminTrained}
                   onChange={(e) => setFormData({ ...formData, adminTrained: e.target.checked })}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-slate-950 border-slate-800"
+                  className="w-4 h-4 rounded text-[#2f68ff] focus:ring-[#2f68ff] border-slate-300"
                 />
                 <div>
-                  <strong className="text-xs text-white block">Tenant Admin Trained</strong>
-                  <span className="text-[11px] text-slate-400">Candidate review, invite dispatch, and report navigation walkthrough completed.</span>
+                  <strong className="text-xs text-slate-900 block">Tenant Admin Trained</strong>
+                  <span className="text-[11px] text-slate-500">Candidate review, invite dispatch, and report navigation walkthrough completed.</span>
                 </div>
               </label>
             </div>
@@ -782,38 +783,42 @@ export const OnboardingWizardPage: React.FC = () => {
         {/* STEP 6: Finished / Success State */}
         {currentStep === 6 && (
           <div className="py-8 text-center space-y-5 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/10">
+            <div className="w-16 h-16 rounded-3xl bg-[#ecfdf3] border border-[#a6f4c5] text-[#12b76a] flex items-center justify-center mx-auto shadow-md">
               <Check className="w-8 h-8" />
             </div>
 
             <div className="space-y-1.5">
-              <h3 className="text-xl font-bold text-white">Tenant Onboarding Completed!</h3>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
+              <h3 className="text-xl font-bold text-slate-900">Tenant Onboarding Completed!</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
                 The organization has been provisioned with ACTIVE status and trial pool allocation.
               </p>
             </div>
 
             {committedOrg && (
-              <div className="inline-flex items-center gap-3 bg-slate-900/80 border border-slate-800 rounded-xl p-3 text-xs font-mono text-slate-300">
-                <span>Org ID: <strong className="text-indigo-400">{committedOrg.organizationId}</strong></span>
+              <div className="inline-flex items-center gap-3 bg-[#f8fafc] border border-[#e8ecf4] rounded-xl p-3 text-xs font-mono text-slate-700">
+                <span>Org ID: <strong className="text-[#2f68ff]">{committedOrg.organizationId}</strong></span>
                 <span>•</span>
-                <span>Trial Credits: <strong className="text-emerald-400">{committedOrg.trial.creditsGranted}</strong></span>
+                <span>Trial Credits: <strong className="text-[#12b76a]">{committedOrg.trial.creditsGranted}</strong></span>
               </div>
             )}
 
             <div className="pt-4 flex items-center justify-center gap-3">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => navigate('/tenants')}
-                className="bg-slate-900 hover:bg-slate-800 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold border border-slate-800 transition"
               >
                 Back to Tenants Directory
-              </button>
+              </Button>
               {committedOrg && (
-                <Link
-                  to={`/tenants/${committedOrg.organizationId}`}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-600/20"
-                >
-                  View Tenant Profile <ExternalLink className="w-3.5 h-3.5" />
+                <Link to={`/tenants/${committedOrg.organizationId}`}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={ExternalLink}
+                  >
+                    View Tenant Profile
+                  </Button>
                 </Link>
               )}
             </div>
@@ -822,30 +827,34 @@ export const OnboardingWizardPage: React.FC = () => {
 
         {/* Wizard Navigation Footer */}
         {currentStep < 6 && (
-          <div className="flex items-center justify-between pt-4 border-t border-slate-800/80">
-            <button
+          <div className="flex items-center justify-between pt-4 border-t border-[#e8ecf4]">
+            <Button
               type="button"
+              variant="secondary"
+              size="sm"
               onClick={() => setCurrentStep((s) => Math.max(1, s - 1))}
               disabled={currentStep === 1 || currentStep >= 5}
-              className="bg-slate-900 hover:bg-slate-800 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold border border-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition flex items-center gap-1.5"
+              icon={ArrowLeft}
             >
-              <ArrowLeft className="w-3.5 h-3.5" /> Previous
-            </button>
+              Previous
+            </Button>
 
             <div className="flex items-center gap-3">
               {currentStep === 1 && !draftId && (
                 <button
                   type="button"
                   onClick={handleStartNewDraft}
-                  className="text-xs font-semibold text-slate-400 hover:text-white transition"
+                  className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition"
                 >
                   Save Draft Later
                 </button>
               )}
 
               {currentStep < 4 && (
-                <button
+                <Button
                   type="button"
+                  variant="primary"
+                  size="sm"
                   onClick={async () => {
                     if (currentStep === 1 && !draftId) {
                       await handleStartNewDraft();
@@ -857,32 +866,35 @@ export const OnboardingWizardPage: React.FC = () => {
                     (currentStep === 2 && (!formData.adminName || !formData.adminEmail)) ||
                     (currentStep === 3 && (!formData.domain || !domainCheckResult?.ok))
                   }
-                  className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-600/20"
                 >
-                  Next Step <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  <span>Next Step</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
               )}
 
               {currentStep === 4 && (
-                <button
+                <Button
                   type="button"
+                  variant="primary"
+                  size="sm"
                   onClick={handleCommitTenant}
                   disabled={isSubmitting}
-                  className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-500/25"
+                  loading={isSubmitting}
                 >
-                  {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   Create Tenant & Grant Trial
-                </button>
+                </Button>
               )}
 
               {currentStep === 5 && (
-                <button
+                <Button
                   type="button"
+                  variant="primary"
+                  size="sm"
                   onClick={handleSaveWalkthrough}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-600/20"
                 >
-                  Save & Finish Onboarding <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                  <span>Save & Finish Onboarding</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
               )}
             </div>
           </div>

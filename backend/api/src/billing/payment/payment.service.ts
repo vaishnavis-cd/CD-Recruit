@@ -39,7 +39,7 @@ export class PaymentService {
     private readonly creditPoolService: CreditPoolService,
     private readonly priceBookService: PriceBookService,
     private readonly billingAccountService: BillingAccountService,
-  ) {}
+  ) { }
 
   /**
    * Validates and extracts actor info.

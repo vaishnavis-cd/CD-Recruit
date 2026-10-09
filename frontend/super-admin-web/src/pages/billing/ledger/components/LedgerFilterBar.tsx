@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, ShieldCheck, Eye } from 'lucide-react';
+import { Search, Eye } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { ExportCsvButton } from './ExportCsvButton';
@@ -34,7 +34,7 @@ export const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
   exportParams,
 }) => {
   return (
-    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl">
+    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-white border border-[#e8ecf4] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
       <div className="flex flex-1 flex-wrap items-center gap-3">
         <div className="w-full sm:w-64">
           <Input
@@ -78,8 +78,8 @@ export const LedgerFilterBar: React.FC<LedgerFilterBarProps> = ({
           onClick={() => onShadowModeToggle(!shadowMode)}
           className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition ${
             shadowMode
-              ? 'bg-amber-500/15 border-amber-500/30 text-amber-300'
-              : 'bg-slate-950/80 border-slate-800 text-slate-400 hover:text-slate-200'
+              ? 'bg-[#fffbeb] border-[#fde68a] text-[#b54708]'
+              : 'bg-white border-[#e2e8f0] text-slate-600 hover:text-slate-900 shadow-xs'
           }`}
         >
           <Eye className="w-3.5 h-3.5" />

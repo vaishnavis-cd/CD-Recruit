@@ -541,7 +541,15 @@ async function runBillingAccountServiceTests() {
   console.log("================================================================================");
 }
 
-runBillingAccountServiceTests().catch((err) => {
-  console.error("FATAL BillingAccountService Test Failure:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("BillingAccountService Characterization & Lifecycle Suite", () => {
+    it("runs all BillingAccountService characterization and lifecycle tests", async () => {
+      await runBillingAccountServiceTests();
+    }, 120000);
+  });
+} else {
+  runBillingAccountServiceTests().catch((err) => {
+    console.error("FATAL BillingAccountService Test Failure:", err);
+    process.exit(1);
+  });
+}

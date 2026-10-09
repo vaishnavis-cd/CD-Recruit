@@ -22,22 +22,22 @@ export const CreditPoolDetailPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="py-24 flex flex-col items-center justify-center gap-3">
-        <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-        <p className="text-xs text-slate-400">Loading credit pool bucket details...</p>
+        <Loader2 className="w-8 h-8 text-[#2f68ff] animate-spin" />
+        <p className="text-xs text-slate-500">Loading credit pool bucket details...</p>
       </div>
     );
   }
 
   if (error || !pool) {
     return (
-      <div className="p-8 max-w-xl mx-auto bg-slate-900/60 border border-slate-800 rounded-2xl text-center space-y-4">
-        <h2 className="text-base font-bold text-white">Credit Pool Not Found</h2>
-        <p className="text-xs text-slate-400">
+      <div className="p-8 max-w-xl mx-auto bg-white border border-[#e8ecf4] rounded-2xl text-center space-y-4 shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
+        <h2 className="text-base font-bold text-slate-900">Credit Pool Not Found</h2>
+        <p className="text-xs text-slate-500">
           The requested credit pool bucket could not be found in the authoritative ledger.
         </p>
         <div className="flex justify-center gap-3">
           <Link to="/billing/accounts">
-            <Button variant="outline" size="sm" icon={ArrowLeft}>
+            <Button variant="secondary" size="sm" icon={ArrowLeft}>
               Back to Accounts
             </Button>
           </Link>
@@ -55,27 +55,27 @@ export const CreditPoolDetailPage: React.FC = () => {
       <div>
         <Link
           to={`/billing/accounts/${pool.billingAccountId}`}
-          className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition font-medium"
+          className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 transition font-medium"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Billing Account
         </Link>
       </div>
 
       {/* Header Banner */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white border border-[#e8ecf4] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
         <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-bold text-white font-mono tracking-tight flex items-center gap-2">
-              <Layers className="w-5 h-5 text-indigo-400" />
+            <h1 className="text-xl font-bold text-slate-900 font-mono tracking-tight flex items-center gap-2">
+              <Layers className="w-5 h-5 text-[#2f68ff]" />
               Pool: {pool.id}
             </h1>
-            <StatusBadge status={pool.status} />
+            <StatusBadge status={pool.status} dot />
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
             <span>Billing Account:</span>
             <Link
               to={`/billing/accounts/${pool.billingAccountId}`}
-              className="font-mono text-indigo-400 hover:underline flex items-center gap-1"
+              className="font-mono text-[#2f68ff] hover:underline flex items-center gap-1 font-semibold"
             >
               <CreditCard className="w-3.5 h-3.5" /> {pool.billingAccountId}
             </Link>
@@ -83,11 +83,12 @@ export const CreditPoolDetailPage: React.FC = () => {
         </div>
 
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={() => refetch()}
-          isLoading={isRefetching}
+          loading={isRefetching}
           icon={RefreshCw}
+          className={isRefetching ? '[&_svg]:animate-spin' : ''}
         >
           Refresh
         </Button>

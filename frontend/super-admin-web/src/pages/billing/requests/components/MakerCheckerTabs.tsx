@@ -39,7 +39,7 @@ export const MakerCheckerTabs: React.FC<MakerCheckerTabsProps> = ({
   ];
 
   return (
-    <div className="flex border-b border-slate-800/80 space-x-1">
+    <div className="flex border-b border-[#e8ecf4] space-x-2">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = currentTab === tab.id;
@@ -48,16 +48,16 @@ export const MakerCheckerTabs: React.FC<MakerCheckerTabsProps> = ({
           <button
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition -mb-px ${
               isActive
-                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5'
-                : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+                ? 'border-[#2f68ff] text-[#2f68ff]'
+                : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
             }`}
           >
-            <Icon className="w-3.5 h-3.5" />
+            <Icon className="w-4 h-4" />
             <span>{tab.label}</span>
             {tab.count !== undefined && tab.count > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-50 text-amber-700 border border-amber-200/80">
                 {tab.count}
               </span>
             )}

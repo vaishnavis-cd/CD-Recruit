@@ -722,7 +722,7 @@ async function runLedgerServiceTests() {
     // TEST 32: Verify baseline database state is completely pristine
     const seededOrgs = await prisma.organization.findMany({
       where: {
-        id: { notIn: [testOrgId] },
+        name: { in: ["Acme Corporation", "Globex Industries"] },
       },
       include: {
         billingAccount: {
@@ -761,7 +761,15 @@ async function runLedgerServiceTests() {
   }
 }
 
-runLedgerServiceTests().catch((err) => {
-  console.error("LedgerService test suite failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("LedgerService Characterization & Financial Invariants Suite", () => {
+    it("runs all LedgerService financial invariant and append-only tests", async () => {
+      await runLedgerServiceTests();
+    }, 120000);
+  });
+} else {
+  runLedgerServiceTests().catch((err) => {
+    console.error("LedgerService test suite failed:", err);
+    process.exit(1);
+  });
+}

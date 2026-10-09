@@ -860,7 +860,15 @@ async function runPaymentWebhookServiceTests() {
   }
 }
 
-runPaymentWebhookServiceTests().catch((err) => {
-  console.error("Test Suite Failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("PaymentWebhookService", () => {
+    it("executes all PaymentWebhookService integration tests", async () => {
+      await runPaymentWebhookServiceTests();
+    }, 120000);
+  });
+} else {
+  runPaymentWebhookServiceTests().catch((err) => {
+    console.error("Test Suite Failed:", err);
+    process.exit(1);
+  });
+}

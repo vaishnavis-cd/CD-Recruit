@@ -44,25 +44,26 @@ export const LedgerExplorerPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              <History className="w-5 h-5 text-indigo-400" />
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              <History className="w-6 h-6 text-[#2f68ff]" />
               Authoritative Ledger Explorer
             </h1>
-            <span className="flex items-center gap-1 text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+            <span className="flex items-center gap-1 text-[10px] font-mono font-bold bg-[#ecfdf3] text-[#12b76a] border border-[#a6f4c5] px-2 py-0.5 rounded-full">
               <ShieldCheck className="w-3 h-3" /> Append-Only Invariant
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Global double-entry audit stream. Every single credit grant, consumption, overdraft, and reversal event.
           </p>
         </div>
 
         <Button
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={() => refetch()}
-          isLoading={isRefetching}
+          loading={isRefetching}
           icon={RefreshCw}
+          className={isRefetching ? '[&_svg]:animate-spin' : ''}
         >
           Refresh
         </Button>

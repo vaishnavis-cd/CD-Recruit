@@ -753,7 +753,15 @@ async function runPlatformBillingTestSuite() {
   console.log("================================================================================");
 }
 
-runPlatformBillingTestSuite().catch((err) => {
-  console.error("Test Suite Failed with error:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("Platform Billing Controllers & API Layer Suite", () => {
+    it("executes all 24 API and RBAC verification tests", async () => {
+      await runPlatformBillingTestSuite();
+    }, 120000);
+  });
+} else {
+  runPlatformBillingTestSuite().catch((err) => {
+    console.error("Test Suite Failed with error:", err);
+    process.exit(1);
+  });
+}

@@ -869,7 +869,15 @@ async function runPaymentServiceTests() {
   }
 }
 
-runPaymentServiceTests().catch((err) => {
-  console.error("FATAL: PaymentService verification failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("PaymentService", () => {
+    it("executes all PaymentService integration tests", async () => {
+      await runPaymentServiceTests();
+    }, 120000);
+  });
+} else {
+  runPaymentServiceTests().catch((err) => {
+    console.error("FATAL: PaymentService verification failed:", err);
+    process.exit(1);
+  });
+}

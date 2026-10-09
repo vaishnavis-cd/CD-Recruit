@@ -423,7 +423,7 @@ async function runTrialGrantServiceTests() {
     console.log("\n--- SECTION 10: Baseline Verification ---");
 
     const seedOrgs = await prisma.organization.findMany({
-      where: { id: { in: ["a1111111-1111-1111-1111-111111111111", "b2222222-2222-2222-2222-222222222222"] } },
+      where: { name: { in: ["Acme Corporation", "Globex Industries"] } },
       include: {
         billingAccount: {
           include: {
@@ -490,7 +490,15 @@ async function runTrialGrantServiceTests() {
   }
 }
 
-runTrialGrantServiceTests().catch((err) => {
-  console.error("FATAL: TrialGrantService test suite failed:", err);
-  process.exit(1);
-});
+if (process.env.JEST_WORKER_ID !== undefined) {
+  describe("TrialGrantService", () => {
+    it("executes all TrialGrantService integration tests", async () => {
+      await runTrialGrantServiceTests();
+    }, 120000);
+  });
+} else {
+  runTrialGrantServiceTests().catch((err) => {
+    console.error("FATAL: TrialGrantService test suite failed:", err);
+    process.exit(1);
+  });
+}

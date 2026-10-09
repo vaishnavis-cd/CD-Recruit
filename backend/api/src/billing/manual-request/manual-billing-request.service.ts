@@ -34,7 +34,7 @@ export class ManualBillingRequestService {
     private readonly ledgerService: LedgerService,
     private readonly creditPoolService: CreditPoolService,
     private readonly billingAccountService: BillingAccountService,
-  ) {}
+  ) { }
 
   /**
    * Authoritatively extracts actor identity for manual billing workflows.

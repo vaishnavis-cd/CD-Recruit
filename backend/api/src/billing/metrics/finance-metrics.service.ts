@@ -25,7 +25,7 @@ export class FinanceMetricsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reconciliationService: ReconciliationService,
-  ) {}
+  ) { }
 
   /**
    * Resolves a period filter into an explicit, deterministic UTC half-open interval [startInclusive, endExclusive).

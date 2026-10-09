@@ -72,14 +72,14 @@ export const RecordManualInvoiceModal: React.FC<RecordManualInvoiceModalProps> =
 
         <div className="space-y-4 py-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-600">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Billing Account ID <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Billing Account ID <span className="text-rose-500">*</span>
             </label>
             <Input
               value={billingAccountId}
@@ -91,8 +91,8 @@ export const RecordManualInvoiceModal: React.FC<RecordManualInvoiceModalProps> =
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Currency <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Currency <span className="text-rose-500">*</span>
               </label>
               <Select
                 value={currency}
@@ -106,8 +106,8 @@ export const RecordManualInvoiceModal: React.FC<RecordManualInvoiceModalProps> =
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Amount Received <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Amount Received <span className="text-rose-500">*</span>
               </label>
               <Input
                 type="number"
@@ -123,8 +123,8 @@ export const RecordManualInvoiceModal: React.FC<RecordManualInvoiceModalProps> =
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Invoice / UTR Reference <span className="text-red-400">*</span>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Invoice / UTR Reference <span className="text-rose-500">*</span>
               </label>
               <Input
                 value={invoiceNumber}
@@ -135,7 +135,7 @@ export const RecordManualInvoiceModal: React.FC<RecordManualInvoiceModalProps> =
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                 Channel
               </label>
               <Select
@@ -152,7 +152,7 @@ export const RecordManualInvoiceModal: React.FC<RecordManualInvoiceModalProps> =
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
               Settlement Notes / Bank Details
             </label>
             <textarea
@@ -160,7 +160,7 @@ export const RecordManualInvoiceModal: React.FC<RecordManualInvoiceModalProps> =
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="e.g. Received via HDFC corporate account from Acme Corp treasury"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition resize-none"
+              className="w-full bg-slate-50/50 border border-[#e8ecf4] rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2f68ff]/20 focus:border-[#2f68ff] transition resize-none placeholder:text-slate-400"
             />
           </div>
         </div>

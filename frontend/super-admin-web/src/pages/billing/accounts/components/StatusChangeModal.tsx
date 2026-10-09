@@ -31,7 +31,17 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({ account, i
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (reason.trim().length < 10) {
-      setError('A formal reason of at least 10 characters is required for regulatory and audit tracking.');
+      setError('A formal justification of at least 10 characters is required for regulatory and audit tracking.');
+      return;
+    }
+
+    const trimmedTicket = ticketRef.trim();
+    if (!trimmedTicket) {
+      setError('Incident or Ticket reference (e.g. SEC-4410, COMP-102) is mandatory for maker-checker tracking.');
+      return;
+    }
+    if (!/^[A-Za-z0-9_-]{3,64}$/.test(trimmedTicket)) {
+      setError('Ticket Reference must be 3-64 alphanumeric characters, underscores, or dashes (e.g. SEC-4410).');
       return;
     }
 
@@ -41,13 +51,13 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({ account, i
         accountId: account.id,
         status: status as any,
         reason: reason.trim(),
-        ticketRef: ticketRef.trim() || undefined,
+        ticketRef: trimmedTicket,
       });
       onClose();
       setReason('');
       setTicketRef('');
     } catch (err: any) {
-      setError(err?.message || 'Failed to update account status');
+      setError(err?.message || 'Failed to submit status change request');
     }
   };
 
@@ -55,66 +65,74 @@ export const StatusChangeModal: React.FC<StatusChangeModalProps> = ({ account, i
     <Dialog isOpen={isOpen} onClose={onClose}>
       <form onSubmit={handleSubmit}>
         <DialogHeader>
-          <DialogTitle>Update Account Operating Status</DialogTitle>
+          <DialogTitle>Request Account Operating Status Change</DialogTitle>
           <DialogDescription>
-            Modify operational standing for account <span className="font-mono text-indigo-400 font-semibold">{account.id.slice(0, 8)}...</span>.
+            Submit an operational status change for account <span className="font-mono text-[#2f68ff] font-semibold">{account.id.slice(0, 8)}...</span> into the Maker-Checker authorization queue.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
+            <div className="p-3 bg-[#fef3f2] border border-[#fecdca] rounded-xl text-xs text-[#f04438]">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Target Status <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Target Status <span className="text-[#f04438]">*</span>
             </label>
             <Select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               options={[
                 { value: 'ACTIVE', label: 'ACTIVE (Fully operational, draws credits)' },
-                { value: 'RESTRICTED', label: 'RESTRICTED (Overdraft blocked, reads allowed)' },
-                { value: 'SUSPENDED', label: 'SUSPENDED (All candidate assessments & tests blocked)' },
+                { value: 'RESTRICTED', label: 'RESTRICTED (Slow-path hold, reads allowed)' },
+                { value: 'SUSPENDED', label: 'SUSPENDED (All assessments & candidate tests blocked)' },
               ]}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Operational Justification <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Incident or Ticket Reference <span className="text-[#f04438]">*</span>
+            </label>
+            <Input
+              value={ticketRef}
+              onChange={(e) => setTicketRef(e.target.value)}
+              placeholder="e.g. SEC-4410"
+              required
+            />
+            <p className="text-[10px] text-slate-400 mt-1">
+              Must be 3-64 alphanumeric characters, underscores, or dashes.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              Operational Justification <span className="text-[#f04438]">*</span>
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
               placeholder="State the regulatory or operational cause for this status change (min 10 characters)..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 transition resize-none"
+              className="w-full bg-[#f8fafc] border border-[#e2e8f0] rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2f68ff] focus:bg-white transition resize-none"
               required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Support Incident / Ticket ID
-            </label>
-            <Input
-              value={ticketRef}
-              onChange={(e) => setTicketRef(e.target.value)}
-              placeholder="e.g. INC-8291"
             />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} type="button" disabled={statusMutation.isPending}>
+          <Button variant="secondary" onClick={onClose} type="button" disabled={statusMutation.isPending}>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" isLoading={statusMutation.isPending}>
-            Confirm Status Change
+          <Button
+            type="submit"
+            variant="primary"
+            loading={statusMutation.isPending}
+          >
+            Submit For Review
           </Button>
         </DialogFooter>
       </form>

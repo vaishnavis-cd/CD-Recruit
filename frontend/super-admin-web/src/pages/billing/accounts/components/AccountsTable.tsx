@@ -11,7 +11,6 @@ interface AccountsTableProps {
   page: number;
   pageSize: number;
   onPageChange: (newPage: number) => void;
-  onAdjustOverdraft?: (account: BillingAccountListItem) => void;
 }
 
 const HEADERS = [
@@ -20,7 +19,7 @@ const HEADERS = [
   'Status',
   'Currency',
   'Balance (Credits)',
-  'Overdraft Limit',
+  'Overdraft',
   'Actions',
 ];
 
@@ -31,7 +30,6 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
   page,
   pageSize,
   onPageChange,
-  onAdjustOverdraft,
 }) => {
   return (
     <DataTable
@@ -39,7 +37,7 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
       isLoading={isLoading}
       isEmpty={!isLoading && accounts.length === 0}
       emptyTitle="No Billing Accounts Found"
-      emptyDescription="Try adjusting your filters or create a new billing account to get started."
+      emptyDescription="Try adjusting your filters to find commercial billing accounts."
       emptyIcon={CreditCard}
       pagination={{
         page,
@@ -52,7 +50,6 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
         <AccountRow
           key={account.id}
           account={account}
-          onAdjustOverdraft={onAdjustOverdraft}
         />
       ))}
     </DataTable>

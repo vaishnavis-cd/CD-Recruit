@@ -1,8 +1,7 @@
 import React from 'react';
-import { Search, Plus, Filter } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Button } from '@/components/ui/Button';
 
 interface AccountsFilterBarProps {
   search: string;
@@ -11,8 +10,6 @@ interface AccountsFilterBarProps {
   onStatusChange: (value: string) => void;
   currency: string;
   onCurrencyChange: (value: string) => void;
-  onCreateClick?: () => void;
-  canCreate?: boolean;
 }
 
 export const AccountsFilterBar: React.FC<AccountsFilterBarProps> = ({
@@ -22,11 +19,9 @@ export const AccountsFilterBar: React.FC<AccountsFilterBarProps> = ({
   onStatusChange,
   currency,
   onCurrencyChange,
-  onCreateClick,
-  canCreate = false,
 }) => {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-slate-900/60 border border-slate-800/80 rounded-2xl">
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white border border-[#e8ecf4] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
       <div className="flex flex-1 flex-col sm:flex-row items-center gap-3">
         <div className="w-full sm:w-72">
           <Input
@@ -63,12 +58,6 @@ export const AccountsFilterBar: React.FC<AccountsFilterBarProps> = ({
           />
         </div>
       </div>
-
-      {canCreate && onCreateClick && (
-        <Button onClick={onCreateClick} variant="primary" icon={Plus} className="shrink-0">
-          Create Account
-        </Button>
-      )}
     </div>
   );
 };

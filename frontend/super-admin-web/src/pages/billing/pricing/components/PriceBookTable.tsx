@@ -30,24 +30,24 @@ export const PriceBookTable: React.FC<PriceBookTableProps> = ({ items, isLoading
       emptyIcon={Tag}
     >
       {items.map((item) => (
-        <tr key={item.id} className="hover:bg-slate-900/40 transition">
-          <td className="py-3.5 px-4 font-semibold text-xs text-white">
+        <tr key={item.id} className="hover:bg-slate-50/80 border-b border-[#e8ecf4] transition">
+          <td className="py-3.5 px-4 font-semibold text-xs text-slate-900">
             {item.tierName}
           </td>
 
-          <td className="py-3.5 px-4 font-mono text-xs text-slate-300 font-bold">
+          <td className="py-3.5 px-4 font-mono text-xs text-slate-700 font-bold">
             {item.currency}
           </td>
 
-          <td className="py-3.5 px-4 font-mono text-xs font-bold text-emerald-400">
+          <td className="py-3.5 px-4 font-mono text-xs font-bold text-emerald-600">
             {formatCurrencyMinor(item.unitRateMinor, item.currency)}
           </td>
 
-          <td className="py-3.5 px-4 text-xs text-slate-400 whitespace-nowrap">
+          <td className="py-3.5 px-4 text-xs text-slate-500 whitespace-nowrap">
             {formatDateTime(item.effectiveFrom)}
           </td>
 
-          <td className="py-3.5 px-4 text-xs text-slate-400 whitespace-nowrap">
+          <td className="py-3.5 px-4 text-xs text-slate-500 whitespace-nowrap">
             {item.effectiveTo ? formatDateTime(item.effectiveTo) : 'Current Standard (Indefinite)'}
           </td>
 

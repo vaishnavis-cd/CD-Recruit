@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { LogOut, AlertTriangle } from "lucide-react";
+import { LogOut, AlertTriangle, Coins } from "lucide-react";
 import type { ReactNode } from "react";
 import { getUserProfile, clearStoredToken, logout } from "../lib/auth";
 import { API_BASE } from "../lib/store";
@@ -38,7 +38,15 @@ function SupportHeadsetIcon({ size = 18, className = "" }: IconProps) {
   );
 }
 
-const ALL_NAV = [
+interface NavItem {
+  to: string;
+  label: string;
+  defaultIcon?: string;
+  variant2Icon?: string;
+  icon?: any;
+}
+
+const ALL_NAV: readonly NavItem[] = [
   {
     to: "/dashboard",
     label: "Dashboard",
@@ -68,6 +76,11 @@ const ALL_NAV = [
     label: "Reports",
     defaultIcon: reportsDefault,
     variant2Icon: reportsVariant2,
+  },
+  {
+    to: "/billing",
+    label: "Credit & Billing",
+    icon: Coins,
   },
   {
     to: "/templates",
@@ -170,8 +183,8 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
     (item) => pathname === item.to || pathname.startsWith(item.to + "/")
   );
 
-  const topItems = activeIdx >= 0 ? ALL_NAV.slice(0, activeIdx) : ALL_NAV.slice(0, 7);
-  const activeItem = activeIdx >= 0 ? ALL_NAV[activeIdx] : ALL_NAV[0];
+  const topItems = activeIdx >= 0 ? ALL_NAV.slice(0, activeIdx) : ALL_NAV;
+  const activeItem = activeIdx >= 0 ? ALL_NAV[activeIdx] : null;
   const bottomItems = activeIdx >= 0 ? ALL_NAV.slice(activeIdx + 1) : [];
 
   return (
@@ -202,12 +215,16 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
                     className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
                   >
                     <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px]">
-                      <img
-                        src={item.defaultIcon}
-                        alt={item.label}
-                        className="w-[19px] h-[19px] object-contain shrink-0"
-                        draggable={false}
-                      />
+                      {item.icon ? (
+                        <item.icon className="w-[18px] h-[18px] text-[#64748b]" strokeWidth={1.8} />
+                      ) : (
+                        <img
+                          src={item.defaultIcon}
+                          alt={item.label}
+                          className="w-[19px] h-[19px] object-contain shrink-0"
+                          draggable={false}
+                        />
+                      )}
                       {item.to === "/results" && hasUnreadResults && (
                         <span
                           className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
@@ -232,12 +249,16 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
             >
               <span className="w-[4.5px] h-[20px] bg-[#2f68ff] rounded-full shrink-0" />
               <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px] text-[#2f68ff]">
-                <img
-                  src={activeItem.variant2Icon}
-                  alt={activeItem.label}
-                  className="w-[19px] h-[19px] object-contain shrink-0"
-                  draggable={false}
-                />
+                {activeItem.icon ? (
+                  <activeItem.icon className="w-[18px] h-[18px] text-[#2f68ff]" strokeWidth={2.2} />
+                ) : (
+                  <img
+                    src={activeItem.variant2Icon}
+                    alt={activeItem.label}
+                    className="w-[19px] h-[19px] object-contain shrink-0"
+                    draggable={false}
+                  />
+                )}
                 {activeItem.to === "/results" && hasUnreadResults && (
                   <span
                     className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
@@ -263,12 +284,16 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
                     className="relative flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium text-[#64748b] hover:text-[#0d1424] hover:bg-[#f8fafc] transition-all"
                   >
                     <div className="relative inline-flex items-center justify-center shrink-0 w-[19px] h-[19px]">
-                      <img
-                        src={item.defaultIcon}
-                        alt={item.label}
-                        className="w-[19px] h-[19px] object-contain shrink-0"
-                        draggable={false}
-                      />
+                      {item.icon ? (
+                        <item.icon className="w-[18px] h-[18px] text-[#64748b]" strokeWidth={1.8} />
+                      ) : (
+                        <img
+                          src={item.defaultIcon}
+                          alt={item.label}
+                          className="w-[19px] h-[19px] object-contain shrink-0"
+                          draggable={false}
+                        />
+                      )}
                       {item.to === "/results" && hasUnreadResults && (
                         <span
                           className="absolute -top-0.5 -right-1 w-1.5 h-1.5 rounded-full bg-rose-500 ring-2 ring-white"
@@ -308,14 +333,14 @@ export function AppShell({ title, count, actions, search, hideHeader = false, ch
 
           {/* User Profile Footer inside bottom card */}
           <div className="pt-2.5 border-t border-[#f1f5f9] flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#2f68ff] text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
+            <div suppressHydrationWarning className="w-8 h-8 rounded-full bg-[#2f68ff] text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
               {userInfo.initials}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[12.5px] truncate text-[#0d1424] font-bold leading-tight">
+              <div suppressHydrationWarning className="text-[12.5px] truncate text-[#0d1424] font-bold leading-tight">
                 {userInfo.userName}
               </div>
-              <div className="text-[9.5px] font-semibold text-[#8c9ba5] uppercase tracking-wider mt-0.5">
+              <div suppressHydrationWarning className="text-[9.5px] font-semibold text-[#8c9ba5] uppercase tracking-wider mt-0.5">
                 {userInfo.userRole}
               </div>
             </div>
