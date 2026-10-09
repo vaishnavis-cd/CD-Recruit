@@ -64,6 +64,7 @@ interface LedgerEntryItem {
   driveName?: string | null;
   creditPoolName?: string | null;
   idempotencyKey?: string;
+  candidateName?: string | null;
 }
 
 interface InvoiceItem {
@@ -84,6 +85,7 @@ const DEFAULT_MOCK_INVOICES: InvoiceItem[] = [];
 
 export function BillingSettingsTab() {
   const fetchBillingAccount = useStore((s) => s.fetchBillingAccount);
+  const fetchLedgerEntries = useStore((s) => s.fetchLedgerEntries);
   const drives = useStore((s) => s.drives);
   const fetchDrives = useStore((s) => s.fetchDrives);
 

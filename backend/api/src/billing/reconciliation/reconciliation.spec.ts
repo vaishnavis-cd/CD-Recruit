@@ -126,6 +126,16 @@ async function runReconciliationTests() {
     await pg.query("DELETE FROM public.organization WHERE id LIKE 'org-wh-%' OR id LIKE 'org-recon-%'");
     await pg.query("DELETE FROM billing.billing_account WHERE id LIKE 'ba-wh-%' OR id LIKE 'ba-recon-%'");
     await pg.query("DELETE FROM billing.price_book_entry WHERE sku LIKE 'SKU-WH-%' OR sku LIKE 'SKU-RECON-%'");
+    await pg.query("UPDATE public.session SET kind = 'PRACTICE' WHERE kind = 'LIVE' AND NOT EXISTS (SELECT 1 FROM billing.credit_ledger_entry l WHERE l.session_id = session.id AND l.entry_type IN ('CONSUME', 'OVERDRAFT') AND l.shadow = false)");
+    await pg.query(`
+      UPDATE billing.credit_pool p
+      SET cached_remaining = COALESCE((
+        SELECT COALESCE(SUM(l.amount) FILTER (WHERE l.shadow = false), 0)::integer
+        FROM billing.credit_ledger_entry l
+        WHERE l.credit_pool_id = p.id
+      ), p.total_credits)
+      WHERE p.status = 'ACTIVE'
+    `);
   });
 
   try {

@@ -321,5 +321,101 @@ export class AdminController {
 
     return this.ledgerService.getAccountBalance(billingAccountId);
   }
+
+  @Get("billing/ledger")
+  @RequirePermission(Permission.SETTINGS_MANAGE)
+  async getAccountLedger(@CurrentUser() actor: any) {
+    const orgId = actor?.organizationId || actor?.orgId;
+    let billingAccountId: string | null = null;
+
+    if (orgId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { billingAccountId: true },
+      });
+      billingAccountId = org?.billingAccountId || null;
+    }
+
+    if (!billingAccountId) {
+      const firstOrg = await this.prisma.organization.findFirst({
+        select: { billingAccountId: true },
+      });
+      billingAccountId = firstOrg?.billingAccountId || null;
+    }
+
+    if (!billingAccountId) {
+      const firstAccount = await (this.prisma as any).billingAccount?.findFirst?.({
+        select: { id: true },
+      });
+      billingAccountId = firstAccount?.id || null;
+    }
+
+    if (!billingAccountId) {
+      return [];
+    }
+
+    const entries = await this.prisma.creditLedgerEntry.findMany({
+      where: { billingAccountId, shadow: false },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: {
+        creditPool: {
+          select: { id: true, name: true, poolType: true },
+        },
+      },
+    });
+
+    return entries.map((entry) => ({
+      id: entry.id,
+      createdAt: entry.createdAt.toISOString(),
+      entryType: entry.entryType,
+      amount: entry.amount,
+      balanceAfter: entry.balanceAfter,
+      reason: entry.reason,
+      reasonNote: entry.reasonNote,
+      driveName: entry.driveId || null,
+      creditPoolName: entry.creditPool?.name || null,
+      idempotencyKey: entry.idempotencyKey,
+    }));
+  }
+
+  @Get("billing/invoices")
+  @RequirePermission(Permission.SETTINGS_MANAGE)
+  async getInvoices(@CurrentUser() actor: any) {
+    const orgId = actor?.organizationId || actor?.orgId;
+    let billingAccountId: string | null = null;
+
+    if (orgId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { billingAccountId: true },
+      });
+      billingAccountId = org?.billingAccountId || null;
+    }
+
+    if (!billingAccountId) {
+      const firstOrg = await this.prisma.organization.findFirst({
+        select: { billingAccountId: true },
+      });
+      billingAccountId = firstOrg?.billingAccountId || null;
+    }
+
+    if (!billingAccountId) {
+      const firstAccount = await (this.prisma as any).billingAccount?.findFirst?.({
+        select: { id: true },
+      });
+      billingAccountId = firstAccount?.id || null;
+    }
+
+    if (!billingAccountId) {
+      return [];
+    }
+
+    return this.prisma.payment.findMany({
+      where: { billingAccountId },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+  }
 }
 
