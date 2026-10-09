@@ -107,6 +107,7 @@ export interface ManualRequestFilter {
   billingAccountId?: string;
   page?: number;
   limit?: number;
+  pageSize?: number;
 }
 
 /**

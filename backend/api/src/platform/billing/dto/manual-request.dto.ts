@@ -97,6 +97,14 @@ export class ListManualRequestsQueryDto {
   @Min(1)
   @Max(100)
   limit?: number = 20;
+
+  @ApiPropertyOptional({ description: "Items per page (alias for limit)", default: 20 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
 }
 
 export class ManualRequestIdParamDto {

@@ -5,6 +5,7 @@ import { PlatformTenantsModule } from './tenants/platform-tenants.module';
 import { PlatformOnboardingModule } from './onboarding/platform-onboarding.module';
 import { PlatformMetricsModule } from './metrics/platform-metrics.module';
 import { PlatformStaffModule } from './staff/platform-staff.module';
+import { PlatformOverridesModule } from './overrides/platform-overrides.module';
 import { MockBillingAccountService } from './mocks/mock-billing-account.service';
 import { MockTrialGrantService } from './mocks/mock-trial-grant.service';
 
@@ -17,6 +18,7 @@ import { MockTrialGrantService } from './mocks/mock-trial-grant.service';
     PlatformOnboardingModule,
     PlatformMetricsModule,
     PlatformStaffModule,
+    PlatformOverridesModule,
   ],
   providers: [
     MockBillingAccountService,
@@ -29,6 +31,7 @@ import { MockTrialGrantService } from './mocks/mock-trial-grant.service';
     PlatformOnboardingModule,
     PlatformMetricsModule,
     PlatformStaffModule,
+    PlatformOverridesModule,
     MockBillingAccountService,
     MockTrialGrantService,
   ],
