@@ -111,31 +111,22 @@ async function runCodingServiceTests() {
     },
   };
 
-  const mockJudge0: any = {
-    getLanguageId: () => 71, // Python
-    runTests: async (code: string, langId: number, qId: string, testCases: any[]) => {
+  const mockPistonClient: any = {
+    execute: async (lang: string, ver: string, files: any[], opts: any) => {
+      const code = files[0]?.content || "";
       if (code.includes("THROW_RUNNER_ERROR")) {
-        throw new Error("Judge0 connection timeout");
+        throw new Error("Piston connection timeout");
       }
       const passedAll = !code.includes("FAIL_TEST");
       return {
-        status: passedAll ? ExecutionStatus.COMPLETED : ExecutionStatus.FAILED,
-        passedTests: passedAll ? testCases.length : 0,
-        totalTests: testCases.length,
-        executionTime: 0.12,
-        memoryUsage: 256,
-        stdout: passedAll ? "All tests passed" : "Test failed",
-        stderr: "",
-        compileOutput: "",
-        results: testCases.map((tc, idx) => ({
-          passed: passedAll,
-          status: passedAll ? "Accepted" : "Wrong Answer",
-          executionTime: 0.05,
-          memoryUsage: 128,
-          stdout: tc.expectedOutput,
+        language: lang,
+        version: ver,
+        run: {
+          code: passedAll ? 0 : 1,
+          stdout: passedAll ? (opts?.stdin || "OK") : "Wrong Output",
           stderr: "",
-          compileOutput: "",
-        })),
+          wall_time: 120,
+        },
       };
     },
   };
@@ -159,8 +150,8 @@ async function runCodingServiceTests() {
       const exec = executionsDb.get(data.executionId);
       if (exec?.sourceCode === "THROW_RUNNER_ERROR") {
         exec.status = ExecutionStatus.FAILED;
-        exec.stderr = "Judge0 connection timeout";
-        throw new Error("Judge0 connection timeout");
+        exec.stderr = "Runner error";
+        throw new Error("Runner error");
       }
     },
   };
@@ -170,7 +161,7 @@ async function runCodingServiceTests() {
     get: async () => null,
   };
 
-  const service = new CodingService(mockPrisma, mockJudge0, mockQaSandbox, mockQueueProvider, mockRedisService);
+  const service = new CodingService(mockPrisma, mockPistonClient, mockQaSandbox, mockQueueProvider, mockRedisService);
 
   // ---------------------------------------------------------------------------
   // TEST 1: Source Code Security Guardrails & Comment-Safe Filtering
@@ -296,7 +287,7 @@ async function runCodingServiceTests() {
     // Check that the last created CodingExecution was updated to ERROR
     const lastExec = Array.from(executionsDb.values()).pop();
     assert(lastExec.status === ExecutionStatus.FAILED, "Failed execution must be updated from PENDING to FAILED");
-    assert(lastExec.stderr.includes("Judge0 connection timeout"), "stderr must record runner error message");
+    assert(lastExec.stderr.includes("Runner error"), "stderr must record runner error message");
   }
 
   // ---------------------------------------------------------------------------

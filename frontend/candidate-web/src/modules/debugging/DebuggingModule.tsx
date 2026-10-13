@@ -154,11 +154,11 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
           const starter = content.starterCode || content.buggyCode || {};
           const lang = content.allowedLanguages?.[0] || 'python';
           setActiveLang(lang);
-          
-          const codeVal = typeof starter === 'string' 
-            ? starter 
+
+          const codeVal = typeof starter === 'string'
+            ? starter
             : (starter[lang] || starter['python'] || starter['javascript'] || content.code || '');
-          
+
           setCode(codeVal);
           setLoading(false);
         }
@@ -174,7 +174,7 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
     return () => { isMounted = false; };
   }, [assessment?.sessionId, questionId, isValidUUID]);
 
-  // Real Judge0 Remote Code Execution Handler
+  // Real Remote Code Execution Handler (Piston Sandbox)
   const handleRunDiagnostics = async () => {
     if (isRunning || !assessment?.sessionId) return;
     setIsRunning(true);
@@ -212,8 +212,8 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
       }
       setQuestionStatus(questionId, 'answered');
     } catch (err: any) {
-      console.error('[DebuggingModule] Judge0 execution failed:', err);
-      setExecError(err.message || 'Remote Judge0 code execution failed. Verify runner service.');
+      console.error('[DebuggingModule] Code execution failed:', err);
+      setExecError(err.message || 'Remote sandbox code execution failed. Verify runner service.');
     } finally {
       setIsRunning(false);
     }
@@ -467,11 +467,10 @@ export function DebuggingModule({ moduleIndex }: DebuggingModuleProps) {
                       {executionResult.results.map((r, i) => (
                         <div
                           key={i}
-                          className={`p-2.5 rounded-lg border flex items-center justify-between text-xs font-mono ${
-                            r.passed
+                          className={`p-2.5 rounded-lg border flex items-center justify-between text-xs font-mono ${r.passed
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300'
                               : 'bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-900 text-red-800 dark:text-red-300'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-2">
                             {r.passed ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> : <XCircle className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />}

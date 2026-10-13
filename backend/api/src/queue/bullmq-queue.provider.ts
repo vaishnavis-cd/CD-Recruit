@@ -41,12 +41,13 @@ export class BullmqQueueProvider extends QueueProviderPort {
     queueName: string,
     jobName: string,
     payload: Record<string, unknown>,
-    opts?: { delayMs?: number; jobId?: string },
+    opts?: { delayMs?: number; jobId?: string; priority?: number },
   ): Promise<void> {
     await this.resolveQueue(queueName).add(jobName, payload, {
       delay: opts?.delayMs,
       jobId: opts?.jobId,
-      removeOnComplete: true,
+      priority: opts?.priority,
+      removeOnComplete: { age: 3600, count: 5000 },
       removeOnFail: false,
     });
   }
@@ -55,12 +56,13 @@ export class BullmqQueueProvider extends QueueProviderPort {
     queueName: string,
     jobName: string,
     payload: Record<string, unknown>,
-    opts: { delayMs: number; jobId?: string },
+    opts: { delayMs: number; jobId?: string; priority?: number },
   ): Promise<void> {
     await this.resolveQueue(queueName).add(jobName, payload, {
       delay: opts.delayMs,
       jobId: opts.jobId,
-      removeOnComplete: true,
+      priority: opts.priority,
+      removeOnComplete: { age: 3600, count: 5000 },
       removeOnFail: false,
     });
   }
@@ -89,5 +91,16 @@ export class BullmqQueueProvider extends QueueProviderPort {
         removeOnFail: false,
       },
     );
+  }
+
+  async getJobState(queueName: string, jobId: string): Promise<string | null> {
+    try {
+      const queue = this.resolveQueue(queueName);
+      const job = await queue.getJob(jobId);
+      if (!job) return null;
+      return await job.getState();
+    } catch {
+      return null;
+    }
   }
 }

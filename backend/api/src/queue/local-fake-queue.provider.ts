@@ -19,10 +19,10 @@ export class LocalFakeQueueProvider extends QueueProviderPort {
     queueName: string,
     jobName: string,
     payload: Record<string, unknown>,
-    opts?: { delayMs?: number; jobId?: string },
+    opts?: { delayMs?: number; jobId?: string; priority?: number },
   ): Promise<void> {
     if (opts?.delayMs && opts.delayMs > 0) {
-      return this.enqueueDelayed(queueName, jobName, payload, { delayMs: opts.delayMs, jobId: opts?.jobId });
+      return this.enqueueDelayed(queueName, jobName, payload, { delayMs: opts.delayMs, jobId: opts?.jobId, priority: opts?.priority });
     }
     const key = `${queueName}:${jobName}`;
     setImmediate(async () => {
@@ -41,7 +41,7 @@ export class LocalFakeQueueProvider extends QueueProviderPort {
     queueName: string,
     jobName: string,
     payload: Record<string, unknown>,
-    opts: { delayMs: number; jobId?: string },
+    opts: { delayMs: number; jobId?: string; priority?: number },
   ): Promise<void> {
     const key = `${queueName}:${jobName}`;
     this.logger.log(
@@ -88,5 +88,9 @@ export class LocalFakeQueueProvider extends QueueProviderPort {
     }, everyMs);
 
     this.intervals.set(repeatKey, interval);
+  }
+
+  async getJobState(queueName: string, jobId: string): Promise<string | null> {
+    return null;
   }
 }

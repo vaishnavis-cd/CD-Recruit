@@ -102,6 +102,27 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  async hexists(key: string, field: string): Promise<boolean> {
+    if (!this.client || !this.isConnected) return false;
+    try {
+      const res = await this.client.hexists(key, field);
+      return res === 1;
+    } catch (err: any) {
+      this.logger.warn(`Redis HEXISTS failed for key ${key}: ${err.message}`);
+      return false;
+    }
+  }
+
+  async hlen(key: string): Promise<number> {
+    if (!this.client || !this.isConnected) return 0;
+    try {
+      return await this.client.hlen(key);
+    } catch (err: any) {
+      this.logger.warn(`Redis HLEN failed for key ${key}: ${err.message}`);
+      return 0;
+    }
+  }
+
   async expire(key: string, ttlSeconds: number): Promise<number> {
     if (!this.client || !this.isConnected) return 0;
     try {

@@ -80,75 +80,27 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Judge0 Code Sandbox Tier ────────────────────────────────────────────────
-  judge0-server:
-    image: judge0/judge0:1.13.1
-    container_name: cdrecruit_judge0_server
-    entrypoint: ["/bin/sh", "-c", "mkdir -p /sys/fs/cgroup/cpuacct /sys/fs/cgroup/memory /sys/fs/cgroup/cpu /sys/fs/cgroup/cpuset /sys/fs/cgroup/pids && exec /api/docker-entrypoint.sh /api/scripts/server"]
+  # ── Piston Code Sandbox Tier ────────────────────────────────────────────────
+  piston:
+    image: ghcr.io/engineer-man/piston@sha256:2f66b7456189c4d713aa986d98eccd0b6ee16d26c7ec5f21b30e942756fd127a
+    container_name: cdrecruit_piston
     privileged: true
-    security_opt:
-      - seccomp:unconfined
     ports:
-      - "2358:2358"
+      - "2000:2000"
     environment:
-      - JUDGE0_KEY=
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=cdrecruit
-      - POSTGRES_PASSWORD=cdrecruit123
-      - POSTGRES_DB=cdrecruit_judge0
-      - CPU_TIME_LIMIT=5.0
-      - MAX_CPU_TIME_LIMIT=10.0
-      - MEMORY_LIMIT=262144
-      - MAX_MEMORY_LIMIT=524288
-      - MAX_PROCESSES_AND_OR_THREADS=64
-      - MAX_OUTPUT_SIZE=1024
-      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
-      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
+      - PISTON_BIND_ADDRESS=0.0.0.0:2000
+      - PISTON_MAX_CONCURRENT_JOBS=4
+      - PISTON_MAX_PROCESS_COUNT=64
+      - PISTON_OUTPUT_MAX_SIZE=65536
+      - PISTON_COMPILE_TIMEOUT=10000
+      - PISTON_RUN_TIMEOUT=5000
+      - PISTON_RUN_MEMORY_LIMIT=268435456
+      - PISTON_COMPILE_MEMORY_LIMIT=536870912
+    volumes:
+      - piston_packages:/piston/packages
     tmpfs:
       - /tmp:exec,mode=777
-      - /sys/fs/cgroup:exec,mode=777
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: always
-
-  judge0-worker:
-    image: judge0/judge0:1.13.1
-    container_name: cdrecruit_judge0_worker
-    entrypoint: ["/bin/sh", "-c", "mkdir -p /sys/fs/cgroup/cpuacct /sys/fs/cgroup/memory /sys/fs/cgroup/cpu /sys/fs/cgroup/cpuset /sys/fs/cgroup/pids && exec /api/docker-entrypoint.sh ./scripts/workers"]
-    privileged: true
-    security_opt:
-      - seccomp:unconfined
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - POSTGRES_USER=cdrecruit
-      - POSTGRES_PASSWORD=cdrecruit123
-      - POSTGRES_DB=cdrecruit_judge0
-      - CPU_TIME_LIMIT=5.0
-      - MAX_CPU_TIME_LIMIT=10.0
-      - MEMORY_LIMIT=262144
-      - MAX_MEMORY_LIMIT=524288
-      - MAX_PROCESSES_AND_OR_THREADS=64
-      - MAX_OUTPUT_SIZE=1024
-      - ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT=true
-      - ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT=true
-    tmpfs:
-      - /tmp:exec,mode=777
-      - /sys/fs/cgroup:exec,mode=777
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: always
+    restart: unless-stopped
 
   # ── Backend NestJS API Monolith ─────────────────────────────────────────────
   api:
@@ -162,7 +114,6 @@ services:
       - NODE_ENV=development
       - API_PORT=3001
       - DATABASE_URL=postgresql://cdrecruit:cdrecruit123@postgres:5432/cdrecruit
-      - SANDBOX_DB_URL=postgresql://cdrecruit:cdrecruit123@postgres:5432/cdrecruit_judge0
       - REDIS_URL=redis://redis:6379
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
@@ -171,8 +122,8 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET_GENERAL=cd-recruit-general
       - MINIO_BUCKET_BIOMETRIC=cd-recruit-biometric
-      - JUDGE0_API_URL=http://judge0-server:2358
-      - JUDGE0_CALLBACK_URL_BASE=http://api:3001
+      - CODE_EXECUTION_ENGINE=piston
+      - PISTON_API_URL=http://piston:2000
       - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5174,http://localhost:5173
       - JWT_SECRET=super-secret-jwt-key-for-staff-dev-2026-min32chars!
       - CANDIDATE_JWT_SECRET=candidate-session-secret-key-32chars-min!
@@ -185,7 +136,7 @@ services:
         condition: service_healthy
       mongodb:
         condition: service_healthy
-      judge0-server:
+      piston:
         condition: service_started
     restart: always
 
@@ -236,4 +187,7 @@ volumes:
     external: true
   mongodb_data:
     name: docker_mongodb_data
+    external: true
+  piston_packages:
+    name: cdrecruit_piston_packages
     external: true
