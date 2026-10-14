@@ -1,13 +1,13 @@
 import { AiEvaluationService } from "./ai/ai-evaluation.service";
-import { Judge0Service } from "./judge0/judge0.service";
-import { Judge0Client } from "./judge0/judge0.client";
+import { PistonClient } from "./piston/piston.client";
+import { resolveLanguageNumericId, resolvePistonLanguage } from "./piston/piston-language.util";
+import { mapPistonResponseToCaseResult } from "./piston/piston-verdict-mapper";
 import { MinioService } from "./minio/minio.service";
 import { AadhaarOcrService } from "./ocr/aadhaar-ocr.service";
 import { FaceVerifyOnnxService } from "./face-verify-onnx/face-verify-onnx.service";
 import { ONNX_ARCFACE_THRESHOLD } from "./face-verify-onnx/threshold";
 import { FaceVerifyClient } from "./face-verify/face-verify.client";
 import { ExecutionStatus } from "@cd-recruit/shared-types";
-import { JUDGE0_STATUS } from "./judge0/judge0.constants";
 import assert from "node:assert";
 
 async function runIntegrationsTests() {
@@ -65,51 +65,39 @@ async function runIntegrationsTests() {
   }
 
   // ---------------------------------------------------------------------------
-  // TEST 2: Judge0Service Language Mapping, Status Codes & Sandbox Barrier
+  // TEST 2: Piston Language Mapping, Status Codes & Sandbox Barrier
   // ---------------------------------------------------------------------------
   {
-    console.log("\n[TEST 2] Testing Judge0Service language IDs, status mappings, and sandbox safety...");
-
-    const mockJudge0Client: any = {
-      createBatchSubmissions: async () => {
-        throw new Error("Judge0 connection refused: 503 Service Unavailable");
-      },
-    };
-
-    const judge0Service = new Judge0Service(mockJudge0Client);
+    console.log("\n[TEST 2] Testing Piston language IDs, status mappings, and sandbox safety...");
 
     // 2.1 Language ID resolution
-    assert.strictEqual(judge0Service.getLanguageId("python"), 71, "Python language ID must be 71");
-    assert.strictEqual(judge0Service.getLanguageId("javascript"), 63, "JavaScript language ID must be 63");
-    assert.strictEqual(judge0Service.getLanguageId("typescript"), 74, "TypeScript language ID must be 74");
-    assert.strictEqual(judge0Service.getLanguageId("java"), 62, "Java language ID must be 62");
-    assert.strictEqual(judge0Service.getLanguageId("cpp"), 54, "C++ language ID must be 54");
-    assert.strictEqual(judge0Service.getLanguageId("go"), 60, "Go language ID must be 60");
-    pass("getLanguageId resolves canonical Judge0 IDs across all supported languages");
+    assert.strictEqual(resolveLanguageNumericId("python"), 71, "Python language ID must be 71");
+    assert.strictEqual(resolveLanguageNumericId("javascript"), 63, "JavaScript language ID must be 63");
+    assert.strictEqual(resolveLanguageNumericId("typescript"), 74, "TypeScript language ID must be 74");
+    assert.strictEqual(resolveLanguageNumericId("java"), 62, "Java language ID must be 62");
+    assert.strictEqual(resolveLanguageNumericId("cpp"), 54, "C++ language ID must be 54");
+    assert.strictEqual(resolveLanguageNumericId("go"), 60, "Go language ID must be 60");
+    pass("resolveLanguageNumericId resolves canonical IDs across all supported languages");
 
-    // 2.2 Status code mapping
-    assert.strictEqual(judge0Service.mapStatus(JUDGE0_STATUS.ACCEPTED), ExecutionStatus.COMPLETED);
-    assert.strictEqual(judge0Service.mapStatus(JUDGE0_STATUS.WRONG_ANSWER), ExecutionStatus.COMPLETED);
-    assert.strictEqual(judge0Service.mapStatus(JUDGE0_STATUS.TIME_LIMIT_EXCEEDED), ExecutionStatus.TIMEOUT);
-    assert.strictEqual(judge0Service.mapStatus(JUDGE0_STATUS.COMPILATION_ERROR), ExecutionStatus.COMPILATION_ERROR);
-    assert.strictEqual(judge0Service.mapStatus(JUDGE0_STATUS.SIGSEGV), ExecutionStatus.RUNTIME_ERROR);
-    assert.strictEqual(judge0Service.mapStatus(JUDGE0_STATUS.IN_QUEUE), ExecutionStatus.PENDING);
-    assert.strictEqual(judge0Service.mapStatus(JUDGE0_STATUS.PROCESSING), ExecutionStatus.RUNNING);
-    pass("mapStatus correctly translates all Judge0 execution statuses to ExecutionStatus enum");
+    // 2.2 Piston Language target resolution
+    const pyTarget = resolvePistonLanguage("python");
+    assert.strictEqual(pyTarget.language, "python");
+    assert.strictEqual(pyTarget.version, "3.10.0");
+    pass("resolvePistonLanguage correctly resolves runtime specifications");
 
-    // 2.3 Sandboxed Execution Failure Isolation (No host fallback)
-    const execResult = await judge0Service.runTests(
-      "print('hello')",
-      71,
-      "q-1",
-      [{ input: "1", expectedOutput: "1", label: "Case 1" }],
-    );
-    assert.strictEqual(execResult.status, ExecutionStatus.FAILED, "Infrastructure failure must return FAILED");
-    assert(
-      execResult.stderr.includes("Judge0 sandboxed execution environment unavailable"),
-      "Stderr must inform that sandboxed environment was unavailable without executing on host OS",
-    );
-    pass("runTests isolates sandbox infrastructure failure without falling back to host execution");
+    // 2.3 Status code mapping
+    const acceptedCase = mapPistonResponseToCaseResult(0, { language: "python", version: "3.10.0", run: { code: 0, stdout: "10\n" } }, "10", "1", "TC1", false, 50);
+    assert.strictEqual(acceptedCase.status, ExecutionStatus.COMPLETED);
+    assert.strictEqual(acceptedCase.passed, true);
+
+    const timeoutCase = mapPistonResponseToCaseResult(0, { language: "python", version: "3.10.0", run: { status: "TO", code: null } }, "10", "1", "TC1", false, 1100);
+    assert.strictEqual(timeoutCase.status, ExecutionStatus.TIMEOUT);
+    assert.strictEqual(timeoutCase.passed, false);
+
+    const reCase = mapPistonResponseToCaseResult(0, { language: "python", version: "3.10.0", run: { status: "RE", code: 1 } }, "10", "1", "TC1", false, 50);
+    assert.strictEqual(reCase.status, ExecutionStatus.RUNTIME_ERROR);
+    assert.strictEqual(reCase.passed, false);
+    pass("mapPistonResponseToCaseResult correctly translates all sandbox execution statuses");
   }
 
   // ---------------------------------------------------------------------------

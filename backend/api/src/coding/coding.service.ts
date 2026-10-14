@@ -2,13 +2,17 @@ import { Injectable, NotFoundException, BadRequestException, Logger, MessageEven
 import { Request } from "express";
 import { Observable } from "rxjs";
 import { PrismaService } from "@app/prisma/prisma.service";
-import { Judge0Service } from "../integrations/judge0/judge0.service";
+import { PistonClient } from "../integrations/piston/piston.client";
+import { resolvePistonLanguage, resolveLanguageNumericId } from "../integrations/piston/piston-language.util";
+import { resolveJavaFileName } from "../common/utils/java-resolver.util";
+import { mapPistonResponseToCaseResult } from "../integrations/piston/piston-verdict-mapper";
 import { QaAutomationSandboxService } from "../execution/qa-automation-sandbox.service";
 import { RunCodingDto, SubmitCodingDto, DraftCodingDto } from "./dto/coding.dto";
 import { CodingQuestionContentJson } from "./coding.types";
 import { SubmissionType, ExecutionStatus, SessionStatus, ModuleType } from "@cd-recruit/shared-types";
 import { AssessmentModuleEngine, ModuleEvaluationResult } from "../assessment/assessment-module-engine.interface";
 import { AssessmentEngineRegistry } from "../assessment/assessment-engine-registry.service";
+import { getQuestionTestCases as parseQuestionTestCases } from "../common/utils/test-case-parser.util";
 
 import { QueueProviderPort } from "../queue/queue-provider.port";
 import { RedisService } from "../common/redis/redis.service";
@@ -21,7 +25,7 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly judge0Service: Judge0Service,
+    private readonly pistonClient: PistonClient,
     private readonly qaAutomationSandboxService: QaAutomationSandboxService,
     @Optional() private readonly queueProvider?: QueueProviderPort,
     @Optional() private readonly redisService?: RedisService,
@@ -60,55 +64,7 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
     content: any,
     type: SubmissionType,
   ): Array<{ input: string; expectedOutput: string; isHidden: boolean; label?: string }> {
-    let list: any[] = [];
-    if (Array.isArray(content.visibleTestCases)) {
-      list = content.visibleTestCases.map((tc: any) => ({
-        input: tc.input || "",
-        expectedOutput: tc.expectedOutput || "",
-        isHidden: false,
-        label: tc.label || "Visible Test Case",
-      }));
-    } else if (Array.isArray(content.testCases)) {
-      list = content.testCases
-        .filter((tc: any) => !tc.isHidden)
-        .map((tc: any) => ({
-          input: tc.input || "",
-          expectedOutput: tc.expectedOutput || "",
-          isHidden: false,
-          label: tc.label || "Visible Test Case",
-        }));
-    }
-
-    if (type === SubmissionType.SUBMIT) {
-      if (Array.isArray(content.hiddenTestCases)) {
-        const hiddenMapped = content.hiddenTestCases.map((tc: any) => ({
-          input: tc.input || "",
-          expectedOutput: tc.expectedOutput || "",
-          isHidden: true,
-          label: tc.label || "Hidden Test Case",
-        }));
-        list = [...list, ...hiddenMapped];
-      } else if (Array.isArray(content.hiddenTests)) {
-        const hiddenMapped = content.hiddenTests.map((tc: any) => ({
-          input: tc.input || "",
-          expectedOutput: tc.expectedOutput || "",
-          isHidden: true,
-          label: tc.label || "Hidden Test Case",
-        }));
-        list = [...list, ...hiddenMapped];
-      } else if (Array.isArray(content.testCases)) {
-        const hiddenMapped = content.testCases
-          .filter((tc: any) => tc.isHidden)
-          .map((tc: any) => ({
-            input: tc.input || "",
-            expectedOutput: tc.expectedOutput || "",
-            isHidden: true,
-            label: tc.label || "Hidden Test Case",
-          }));
-        list = [...list, ...hiddenMapped];
-      }
-    }
-    return list;
+    return parseQuestionTestCases(content, type);
   }
 
   /**
@@ -153,7 +109,7 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
     const visibleTests = this.getQuestionTestCases(content, SubmissionType.RUN);
 
     // 3. Create CodingExecution record as PENDING
-    const languageId = isAutomation ? 99 : this.judge0Service.getLanguageId(dto.language);
+    const languageId = isAutomation ? 99 : resolveLanguageNumericId(dto.language);
     const execution = await this.prisma.codingExecution.create({
       data: {
         sessionId: dto.sessionId,
@@ -209,17 +165,21 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
         });
       });
     } else if (this.queueProvider) {
-      await this.queueProvider.enqueue("execution-inbound", "run", {
-        executionId: execution.id,
-        type: "run",
-      });
+      await this.queueProvider.enqueue(
+        "execution-inbound",
+        "run",
+        {
+          executionId: execution.id,
+          type: "run",
+        },
+        { jobId: execution.id, priority: 1 },
+      );
     } else {
       // Synchronous fallback for test harnesses without Redis/BullMQ queue provider
       try {
-        const results = await this.judge0Service.runTests(
+        const results = await this.runTestsWithPiston(
           code,
-          languageId,
-          dto.questionId,
+          dto.language || "python",
           visibleTests,
         );
         await this.prisma.codingExecution.update({
@@ -317,53 +277,56 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
 
   /**
    * Server-Sent Events (SSE) Unidirectional Webhook Stream for sub-millisecond execution delivery.
-   * Utilizes the Cache-First Handshake + Redis Pub/Sub broadcast.
+   * Utilizes the Inverted Handshake: Subscribes to Redis Pub/Sub FIRST, then checks Redis cache, then DB.
+   * Capped with 45s safety timeout and 10s keepalive heartbeats.
    */
   getExecutionEvents(id: string): Observable<MessageEvent> {
     return new Observable<MessageEvent>((subscriber) => {
       let isClosed = false;
+      const channel = `execution:events:${id}`;
+      let heartbeatInterval: NodeJS.Timeout | null = null;
+      let safetyTimeout: NodeJS.Timeout | null = null;
 
-      // 1. Cache-First Handshake: Check if execution is already COMPLETED in Redis cache
-      this.redisService.get(`execution:${id}`).then((cached) => {
-        if (isClosed) return;
+      const subClient = this.redisService?.createSubscriberClient();
 
-        if (cached) {
-          try {
-            const parsed = JSON.parse(cached);
-            if (
-              parsed.status &&
-              parsed.status !== ExecutionStatus.PENDING &&
-              parsed.status !== ExecutionStatus.RUNNING
-            ) {
-              this.logger.log(`[SSE] Cache-first hit for execution ${id}. Emitting instantly.`);
-              subscriber.next({ data: parsed } as MessageEvent);
-              subscriber.complete();
-              return;
-            }
-          } catch {
-            // Fallback to Pub/Sub if parse fails
-          }
+      const cleanup = () => {
+        isClosed = true;
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        if (safetyTimeout) clearTimeout(safetyTimeout);
+        if (subClient) {
+          subClient.unsubscribe(channel).catch(() => {});
+          subClient.quit().catch(() => {});
         }
+      };
 
-        // 2. Subscribe to Redis Pub/Sub channel for live worker broadcast
-        const subClient = this.redisService.createSubscriberClient();
-        if (!subClient) {
-          this.logger.warn(`[SSE] Redis subscriber unavailable for execution ${id}`);
-          subscriber.error(new Error("Redis subscriber unavailable"));
-          return;
+      // 1. Keepalive Heartbeat (every 10s) to keep proxy/gateway connections alive
+      heartbeatInterval = setInterval(() => {
+        if (!isClosed) {
+          subscriber.next({ data: { type: "heartbeat", timestamp: Date.now() } } as MessageEvent);
         }
+      }, 10000);
 
-        const channel = `execution:events:${id}`;
+      // 2. Safety Ceiling Timeout (45s ceiling as harmonized in v4 spec)
+      safetyTimeout = setTimeout(() => {
+        if (!isClosed) {
+          this.logger.log(`[SSE] Stream safety ceiling (45s) reached for execution ${id}`);
+          cleanup();
+          subscriber.complete();
+        }
+      }, 45000);
+
+      // 3. Step 1 of Handshake: Subscribe to Redis Pub/Sub channel FIRST to eliminate race conditions
+      if (subClient) {
         subClient.subscribe(channel, (err) => {
           if (err) {
             this.logger.warn(`[SSE] Failed to subscribe to channel ${channel}: ${err.message}`);
-            subscriber.error(err);
           }
         });
 
         subClient.on("message", (ch, message) => {
-          if (ch === channel) {
+          if (ch === channel && !isClosed) {
             this.logger.log(`[SSE] Live completion event received for execution ${id}`);
+            cleanup();
             try {
               const data = JSON.parse(message);
               subscriber.next({ data } as MessageEvent);
@@ -373,34 +336,74 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
             subscriber.complete();
           }
         });
+      }
 
-        // 3. Keep-alive heartbeat interval (every 15s) to prevent intermediate proxy drops
-        const heartbeatInterval = setInterval(() => {
-          if (!isClosed) {
-            subscriber.next({ data: { type: "heartbeat", timestamp: Date.now() } } as MessageEvent);
+      // 4. Step 2 of Handshake: Check Redis cache AFTER subscribing
+      const checkCacheAndDb = async () => {
+        if (isClosed) return;
+
+        if (this.redisService) {
+          try {
+            const cached = await this.redisService.get(`execution:${id}`);
+            if (cached && !isClosed) {
+              const parsed = JSON.parse(cached);
+              if (
+                parsed.status &&
+                parsed.status !== ExecutionStatus.PENDING &&
+                parsed.status !== ExecutionStatus.RUNNING
+              ) {
+                this.logger.log(`[SSE] Redis cache hit for execution ${id}. Emitting instantly.`);
+                cleanup();
+                subscriber.next({ data: parsed } as MessageEvent);
+                subscriber.complete();
+                return;
+              }
+            }
+          } catch {
+            // Ignore parse errors, proceed to DB check
           }
-        }, 15000);
+        }
 
-        // 4. Safety timeout (auto-close after 35s)
-        const safetyTimeout = setTimeout(() => {
-          if (!isClosed) {
-            this.logger.log(`[SSE] Stream safety timeout reached for execution ${id}`);
-            subscriber.complete();
+        // 5. Step 3 of Handshake: Fallback to PostgreSQL if execution already finalized before cache/PubSub
+        if (!isClosed) {
+          try {
+            const execution = await this.prisma.codingExecution.findUnique({
+              where: { id },
+            });
+            if (
+              execution &&
+              execution.status !== ExecutionStatus.PENDING &&
+              execution.status !== ExecutionStatus.RUNNING &&
+              !isClosed
+            ) {
+              this.logger.log(`[SSE] DB fallback hit for execution ${id}. Emitting result.`);
+              cleanup();
+              const payload = {
+                executionId: execution.id,
+                status: execution.status,
+                passedTests: execution.passedTests,
+                totalTests: execution.totalTests,
+                executionTime: execution.executionTime,
+                memoryUsage: execution.memoryUsage,
+                stdout: execution.stdout || execution.stderr || execution.compileOutput || "",
+                results: [],
+              };
+              subscriber.next({ data: payload } as MessageEvent);
+              subscriber.complete();
+            }
+          } catch (err: any) {
+            this.logger.error(`[SSE] DB fallback query error for execution ${id}: ${err.message}`);
           }
-        }, 35000);
+        }
+      };
 
-        // 5. Cleanup on stream close / unsubscribe
-        return () => {
-          isClosed = true;
-          clearInterval(heartbeatInterval);
-          clearTimeout(safetyTimeout);
-          subClient.unsubscribe(channel).catch(() => {});
-          subClient.quit().catch(() => {});
-        };
-      }).catch((err) => {
-        this.logger.error(`[SSE] Error during cache lookup for execution ${id}: ${err.message}`);
-        subscriber.error(err);
+      checkCacheAndDb().catch((err) => {
+        this.logger.error(`[SSE] Handshake resolution error for execution ${id}: ${err.message}`);
       });
+
+      return () => {
+        cleanup();
+      };
     });
   }
 
@@ -479,7 +482,7 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
       const code = dto.sourceCode || dto.code || "";
       const isAutomation = content?.category === "AUTOMATION";
       const allTests = this.getQuestionTestCases(content, SubmissionType.SUBMIT);
-      const languageId = isAutomation ? 99 : (dto.language ? this.judge0Service.getLanguageId(dto.language) : 71);
+      const languageId = isAutomation ? 99 : resolveLanguageNumericId(dto.language);
 
       let result: any;
       if (isAutomation) {
@@ -499,10 +502,9 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
           memoryUsage: sandboxRes.memoryUsage,
         };
       } else {
-        result = await this.judge0Service.runTests(
+        result = await this.runTestsWithPiston(
           code,
-          languageId,
-          dto.questionId,
+          dto.language || "python",
           allTests,
         );
       }
@@ -564,13 +566,13 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
    */
   async submit(dto: SubmitCodingDto) {
     const code = dto.sourceCode || dto.code || "";
-    // 1. Fast DB write — save candidate code immediately without Judge0 dependency
+    // 1. Fast DB write — save candidate code immediately without sandbox blocking
     const { question } = await this.saveFinalSubmission(dto);
 
     const content = question.content as any;
     const isAutomation = content?.category === "AUTOMATION";
     const allTests = this.getQuestionTestCases(content, SubmissionType.SUBMIT);
-    const languageId = isAutomation ? 99 : (dto.language ? this.judge0Service.getLanguageId(dto.language) : 71);
+    const languageId = isAutomation ? 99 : resolveLanguageNumericId(dto.language);
 
     // 2. Create CodingExecution record as PENDING
     const execution = await this.prisma.codingExecution.create({
@@ -612,16 +614,20 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
         );
       });
     } else if (this.queueProvider) {
-      await this.queueProvider.enqueue("execution-inbound", "submit", {
-        executionId: execution.id,
-        type: "submit",
-      });
+      await this.queueProvider.enqueue(
+        "execution-inbound",
+        "submit",
+        {
+          executionId: execution.id,
+          type: "submit",
+        },
+        { jobId: execution.id, priority: 5 },
+      );
     } else {
       // Synchronous fallback for test harnesses without Redis/BullMQ queue provider
-      const results = await this.judge0Service.runTests(
+      const results = await this.runTestsWithPiston(
         code,
-        languageId,
-        dto.questionId,
+        dto.language || "python",
         allTests,
       );
       await this.prisma.codingExecution.update({
@@ -774,5 +780,79 @@ export class CodingService implements AssessmentModuleEngine, OnModuleInit {
         );
       }
     }
+  }
+
+  /**
+   * Synchronous test runner using PistonClient (used when BullMQ queue is not available in local test harnesses).
+   */
+  private async runTestsWithPiston(
+    code: string,
+    language: string | number,
+    testCases: Array<{ input: string; expectedOutput: string; isHidden: boolean; label?: string }>,
+  ) {
+    const target = resolvePistonLanguage(language);
+    let fileName = target.defaultFileName;
+    let src = code;
+    if (target.language === "java") {
+      const resolved = resolveJavaFileName(code);
+      fileName = resolved.fileName;
+      src = resolved.sanitizedCode;
+    }
+    const files = [{ name: fileName, content: src }];
+
+    let passedTests = 0;
+    let totalTime = 0;
+    let maxMemory = 0;
+    const results: any[] = [];
+    let overallStatus: ExecutionStatus = ExecutionStatus.COMPLETED;
+    let firstStderr = "";
+    let firstCompileOutput = "";
+
+    for (let i = 0; i < testCases.length; i++) {
+      const tc = testCases[i];
+      const start = Date.now();
+      const raw = await this.pistonClient.execute(target.language, target.version, files, {
+        stdin: tc.input,
+        run_timeout: 5000,
+        compile_timeout: 10000,
+      });
+      const elapsed = Date.now() - start;
+
+      const verdict = mapPistonResponseToCaseResult(
+        i,
+        raw,
+        tc.expectedOutput,
+        tc.input,
+        tc.label || `Test Case ${i + 1}`,
+        tc.isHidden,
+        elapsed,
+      );
+
+      if (verdict.passed) passedTests++;
+      totalTime += verdict.executionTime;
+      maxMemory = Math.max(maxMemory, verdict.memoryUsage);
+      if (verdict.status !== ExecutionStatus.COMPLETED && overallStatus === ExecutionStatus.COMPLETED) {
+        overallStatus = verdict.status;
+      }
+      if (verdict.stderr && !firstStderr) firstStderr = verdict.stderr;
+      if (verdict.compileOutput && !firstCompileOutput) firstCompileOutput = verdict.compileOutput;
+      results.push(verdict);
+    }
+
+    if (passedTests < testCases.length && overallStatus === ExecutionStatus.COMPLETED) {
+      overallStatus = ExecutionStatus.FAILED;
+    }
+
+    return {
+      status: overallStatus,
+      passedTests,
+      totalTests: testCases.length,
+      executionTime: Math.round(totalTime / (testCases.length || 1)),
+      memoryUsage: maxMemory,
+      stdout: results[0]?.stdout || "",
+      stderr: firstStderr,
+      compileOutput: firstCompileOutput,
+      results,
+    };
   }
 }

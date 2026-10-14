@@ -13,7 +13,7 @@ import { NosqlModule } from "../modules/nosql/nosql.module";
 import { InboundExecutionProcessor } from "./execution/execution-inbound.processor";
 import { OutboundExecutionProcessor } from "./execution/execution-outbound.processor";
 import { WatchdogExecutionProcessor } from "./execution/execution-watchdog.processor";
-import { Judge0Module } from "../integrations/judge0/judge0.module";
+import { PistonModule } from "../integrations/piston/piston.module";
 
 import { PrismaModule } from "../prisma/prisma.module";
 import { MinioModule } from "../integrations/minio/minio.module";
@@ -26,7 +26,7 @@ const isFull = infraMode === "full";
   imports: [
     PrismaModule,
     MinioModule,
-    Judge0Module,
+    PistonModule,
     ...(isFull
       ? [
           BullModule.registerQueue(

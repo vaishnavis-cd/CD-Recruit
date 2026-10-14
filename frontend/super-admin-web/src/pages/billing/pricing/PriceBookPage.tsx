@@ -30,7 +30,7 @@ export const PriceBookPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
-              <Tag className="w-6 h-6 text-[#2f68ff]" />
+              
               Regional Commercial Price Books
             </h1>
           </div>

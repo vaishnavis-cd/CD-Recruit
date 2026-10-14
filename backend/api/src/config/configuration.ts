@@ -32,7 +32,9 @@ export const configuration = () => ({
   graceWindowSeconds: parseInt(process.env.GRACE_WINDOW_SECONDS ?? "300", 10),
   maxDisconnectCount: parseInt(process.env.MAX_DISCONNECT_COUNT ?? "3", 10),
 
-  // ── External services ────────────────────────────────────────────────────
+  // ── Code Execution Sandbox (Judge0 / Piston) ───────────────────────────
+  codeExecutionEngine: process.env.CODE_EXECUTION_ENGINE ?? "piston",
+  pistonApiUrl: process.env.PISTON_API_URL ?? "http://127.0.0.1:2000",
   judge0ApiUrl: process.env.JUDGE0_API_URL ?? "",
   judge0ApiKey: process.env.JUDGE0_API_KEY ?? "",
   judge0CallbackUrlBase: process.env.JUDGE0_CALLBACK_URL_BASE ?? "http://host.docker.internal:3001",

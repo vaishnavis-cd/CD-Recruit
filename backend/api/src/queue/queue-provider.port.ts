@@ -3,14 +3,14 @@ export abstract class QueueProviderPort {
     queueName: string,
     jobName: string,
     payload: Record<string, unknown>,
-    opts?: { delayMs?: number; jobId?: string },
+    opts?: { delayMs?: number; jobId?: string; priority?: number },
   ): Promise<void>;
 
   abstract enqueueDelayed(
     queueName: string,
     jobName: string,
     payload: Record<string, unknown>,
-    opts: { delayMs: number; jobId?: string },
+    opts: { delayMs: number; jobId?: string; priority?: number },
   ): Promise<void>;
 
   abstract upsertRepeatable(
@@ -20,4 +20,9 @@ export abstract class QueueProviderPort {
     everyMs: number,
     repeatKey: string,
   ): Promise<void>;
+
+  abstract getJobState(
+    queueName: string,
+    jobId: string,
+  ): Promise<string | null>;
 }

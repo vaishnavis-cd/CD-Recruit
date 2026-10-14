@@ -50,6 +50,7 @@
     "onnxruntime-node": "^1.29.0",
     "onnxruntime-web": "^1.29.0",
     "opossum": "^8.5.0",
+    "p-limit": "^3.1.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.22.0",

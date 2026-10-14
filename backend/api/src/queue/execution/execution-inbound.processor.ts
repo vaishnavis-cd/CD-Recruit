@@ -1,28 +1,32 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Job } from "bullmq";
+import pLimit from "p-limit";
 import { PrismaService } from "@app/prisma/prisma.service";
 import { RedisService } from "../../common/redis/redis.service";
-import { Judge0Client } from "../../integrations/judge0/judge0.client";
-import { Judge0Service } from "../../integrations/judge0/judge0.service";
-import { generateJudge0WebhookSignature } from "../../integrations/judge0/judge0-webhook.guard";
 import { QueueProviderPort } from "../queue-provider.port";
 import { AppConfig } from "../../config/configuration";
 import { SubmissionType, ExecutionStatus } from "@cd-recruit/shared-types";
+import { getQuestionTestCases as parseQuestionTestCases } from "../../common/utils/test-case-parser.util";
+import { resolveJavaFileName } from "../../common/utils/java-resolver.util";
+import { PistonClient } from "../../integrations/piston/piston.client";
+import { mapPistonResponseToCaseResult } from "../../integrations/piston/piston-verdict-mapper";
+import { resolvePistonLanguage } from "../../integrations/piston/piston-language.util";
+import { PISTON_ACCUMULATE_AND_CHECK_LUA } from "../../integrations/piston/piston-accumulate.lua";
+import { PistonRawResponse } from "../../integrations/piston/piston.contracts";
 
-@Processor("execution-inbound", { concurrency: 50 })
+@Processor("execution-inbound", { concurrency: 1 })
 @Injectable()
 export class InboundExecutionProcessor extends WorkerHost {
   private readonly logger = new Logger(InboundExecutionProcessor.name);
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly judge0Client: Judge0Client,
-    private readonly judge0Service: Judge0Service,
-    private readonly configService: ConfigService<AppConfig, true>,
     private readonly queueProvider: QueueProviderPort,
     private readonly redisService: RedisService,
+    private readonly configService: ConfigService<AppConfig, true>,
+    private readonly pistonClient: PistonClient,
   ) {
     super();
   }
@@ -31,55 +35,7 @@ export class InboundExecutionProcessor extends WorkerHost {
     content: any,
     type: "run" | "submit",
   ): Array<{ input: string; expectedOutput: string; isHidden: boolean; label?: string }> {
-    let list: any[] = [];
-    if (Array.isArray(content.visibleTestCases)) {
-      list = content.visibleTestCases.map((tc: any) => ({
-        input: tc.input || "",
-        expectedOutput: tc.expectedOutput || "",
-        isHidden: false,
-        label: tc.label || "Visible Test Case",
-      }));
-    } else if (Array.isArray(content.testCases)) {
-      list = content.testCases
-        .filter((tc: any) => !tc.isHidden)
-        .map((tc: any) => ({
-          input: tc.input || "",
-          expectedOutput: tc.expectedOutput || "",
-          isHidden: false,
-          label: tc.label || "Visible Test Case",
-        }));
-    }
-
-    if (type === "submit") {
-      if (Array.isArray(content.hiddenTestCases)) {
-        const hiddenMapped = content.hiddenTestCases.map((tc: any) => ({
-          input: tc.input || "",
-          expectedOutput: tc.expectedOutput || "",
-          isHidden: true,
-          label: tc.label || "Hidden Test Case",
-        }));
-        list = [...list, ...hiddenMapped];
-      } else if (Array.isArray(content.hiddenTests)) {
-        const hiddenMapped = content.hiddenTests.map((tc: any) => ({
-          input: tc.input || "",
-          expectedOutput: tc.expectedOutput || "",
-          isHidden: true,
-          label: tc.label || "Hidden Test Case",
-        }));
-        list = [...list, ...hiddenMapped];
-      } else if (Array.isArray(content.testCases)) {
-        const hiddenMapped = content.testCases
-          .filter((tc: any) => tc.isHidden)
-          .map((tc: any) => ({
-            input: tc.input || "",
-            expectedOutput: tc.expectedOutput || "",
-            isHidden: true,
-            label: tc.label || "Hidden Test Case",
-          }));
-        list = [...list, ...hiddenMapped];
-      }
-    }
-    return list;
+    return parseQuestionTestCases(content, type);
   }
 
   async process(job: Job<{ executionId: string; type: "run" | "submit" }>): Promise<void> {
@@ -113,66 +69,176 @@ export class InboundExecutionProcessor extends WorkerHost {
       return;
     }
 
-    const secret =
-      this.configService.get<string>("judge0WebhookSecret", { infer: true }) ||
-      "cdrecruit-judge0-secret-key";
-    const callbackBase =
-      this.configService.get<string>("judge0CallbackUrlBase", { infer: true }) ||
-      process.env.JUDGE0_CALLBACK_URL_BASE ||
-      "http://host.docker.internal:3001";
+    await this.processWithPiston(execution, content, testCases, executionId);
+  }
 
-    const signature = generateJudge0WebhookSignature(executionId, testCases.length, secret);
-    const callbackUrl = `${callbackBase.replace(/\/+$/, "")}/api/v1/webhooks/judge0?executionId=${executionId}&totalTests=${testCases.length}&sig=${signature}`;
+  /**
+   * Piston Execution Pipeline with concurrency 1 worker, p-limit(3) per-case concurrency,
+   * HEXISTS deduplication, 3x retry on infra error, and atomic Lua accumulation.
+   */
+  private async processWithPiston(
+    execution: any,
+    content: any,
+    testCases: Array<{ input: string; expectedOutput: string; isHidden: boolean; label?: string }>,
+    executionId: string,
+  ): Promise<void> {
+    const langTarget = resolvePistonLanguage(execution.languageId || content.language);
 
-    const sourceCodeBase64 = this.judge0Service.encodeBase64(execution.sourceCode);
-    const batchItems = testCases.map((tc) => ({
-      sourceCodeBase64,
-      languageId: execution.languageId,
-      stdinBase64: this.judge0Service.encodeBase64(tc.input),
-      expectedOutputBase64: this.judge0Service.encodeBase64(tc.expectedOutput),
-      callbackUrl,
-    }));
+    let fileName = langTarget.defaultFileName;
+    let sourceCode = execution.sourceCode;
+    if (langTarget.language === "java") {
+      const resolved = resolveJavaFileName(execution.sourceCode);
+      fileName = resolved.fileName;
+      sourceCode = resolved.sanitizedCode;
+    }
+    const files = [{ name: fileName, content: sourceCode }];
 
-    try {
-      const submissionTokens = await this.judge0Client.createBatchSubmissions(batchItems);
-      const tokens = submissionTokens.map((s) => s.token);
+    const casesKey = `execution:${executionId}:cases`;
+    const lockKey = `execution:${executionId}:enqueued`;
+    const ttlSeconds = 600;
 
-      await this.prisma.codingExecution.update({
-        where: { id: executionId },
-        data: {
-          judge0Tokens: tokens,
-          totalTests: testCases.length,
-        },
-      });
+    await this.prisma.codingExecution.update({
+      where: { id: executionId },
+      data: { totalTests: testCases.length },
+    });
 
-      await this.redisService.set(`execution:${executionId}:dispatched`, "1", 600);
+    await this.redisService.set(`execution:${executionId}:dispatched`, "1", ttlSeconds);
 
-      // Compute dynamic watchdog timeout based on CPU time limit & total tests
-      const cpuLimit = this.configService.get<number>("judge0CpuTimeLimit", { infer: true }) ?? 5.0;
-      const dynamicDelayMs = Math.max(15000, Math.round(cpuLimit * testCases.length * 1000) + 10000);
+    // Dynamic watchdog timeout cap: 5s per test + 10s buffer, minimum 15s
+    const watchdogDelayMs = Math.max(15000, testCases.length * 5000 + 10000);
+    await this.queueProvider.enqueueDelayed(
+      "execution-watchdog",
+      "check-stuck",
+      { executionId },
+      { delayMs: watchdogDelayMs, jobId: `watchdog-${executionId}` },
+    );
 
-      await this.queueProvider.enqueueDelayed(
-        "execution-watchdog",
-        "check-stuck",
-        { executionId },
-        { delayMs: dynamicDelayMs, jobId: `watchdog-${executionId}` },
-      );
+    const limit = pLimit(3);
+    let infraError: string | null = null;
 
-      this.logger.log(
-        `[InboundExecutionProcessor] Dispatched ${testCases.length} tests for execution ${executionId} to Judge0. Watchdog delay: ${dynamicDelayMs}ms`,
-      );
-    } catch (err: any) {
+    const tasks = testCases.map((tc, caseIndex) =>
+      limit(async () => {
+        if (infraError) return;
+
+        // Skip test cases already recorded in accumulator (handles worker crash / retry)
+        const alreadyDone = await this.redisService.hexists(casesKey, String(caseIndex));
+        if (alreadyDone) {
+          this.logger.log(
+            `[InboundExecutionProcessor] Case ${caseIndex} for ${executionId} already completed. Skipping.`,
+          );
+          return;
+        }
+
+        let rawResponse: PistonRawResponse | null = null;
+        let attempt = 0;
+        const maxRetries = 3;
+        let elapsedMs = 0;
+
+        while (attempt < maxRetries) {
+          attempt++;
+          const start = Date.now();
+          try {
+            rawResponse = await this.pistonClient.execute(
+              langTarget.language,
+              langTarget.version,
+              files,
+              {
+                stdin: tc.input,
+                run_timeout: 5000,
+                compile_timeout: 10000,
+                run_memory_limit: 268435456, // 256MB cap
+                compile_memory_limit: 536870912, // 512MB cap
+              },
+            );
+            elapsedMs = Date.now() - start;
+
+            // Internal engine / sandbox fault (XX): retry up to 3x
+            if (rawResponse.run?.status === "XX") {
+              if (attempt < maxRetries) {
+                this.logger.warn(
+                  `[InboundExecutionProcessor] Piston internal error XX on attempt ${attempt} for case ${caseIndex}. Retrying...`,
+                );
+                await new Promise((r) => setTimeout(r, 100 * attempt));
+                continue;
+              }
+            }
+            break;
+          } catch (err: any) {
+            elapsedMs = Date.now() - start;
+            if (attempt < maxRetries) {
+              this.logger.warn(
+                `[InboundExecutionProcessor] Transient error on attempt ${attempt} for case ${caseIndex} (${err.message}). Retrying...`,
+              );
+              await new Promise((r) => setTimeout(r, 100 * attempt));
+              continue;
+            }
+            infraError = err.message;
+            return;
+          }
+        }
+
+        if (!rawResponse || rawResponse.run?.status === "XX") {
+          infraError = rawResponse?.run?.output || "Internal sandbox fault (XX)";
+          return;
+        }
+
+        // Pure deterministic verdict mapping
+        const label =
+          tc.label ||
+          (tc.isHidden ? `Hidden Test Case ${caseIndex + 1}` : `Visible Test Case ${caseIndex + 1}`);
+
+        const caseResult = mapPistonResponseToCaseResult(
+          caseIndex,
+          rawResponse,
+          tc.expectedOutput,
+          tc.input,
+          label,
+          tc.isHidden,
+          elapsedMs,
+        );
+
+        // Store result atomically via Lua script
+        const luaRes = await this.redisService.eval(
+          PISTON_ACCUMULATE_AND_CHECK_LUA,
+          2,
+          casesKey,
+          lockKey,
+          String(caseIndex),
+          JSON.stringify(caseResult),
+          testCases.length,
+          ttlSeconds,
+        );
+
+        if (Number(luaRes) === 1) {
+          this.logger.log(
+            `[InboundExecutionProcessor] All ${testCases.length} cases accumulated for ${executionId}. Enqueuing execution-outbound.`,
+          );
+          await this.queueProvider.enqueue(
+            "execution-outbound",
+            "process-results",
+            { executionId },
+            { jobId: `outbound-${executionId}`, priority: 1 },
+          );
+        }
+      }),
+    );
+
+    await Promise.all(tasks);
+
+    // If retries exhaust on infra error, mark CodingExecution as FAILED without scoring
+    if (infraError) {
       this.logger.error(
-        `[InboundExecutionProcessor] Failed to dispatch execution ${executionId} to Judge0: ${err.message}`,
+        `[InboundExecutionProcessor] Infra retries exhausted for execution ${executionId}: ${infraError}`,
       );
       await this.prisma.codingExecution.update({
         where: { id: executionId },
         data: {
           status: ExecutionStatus.FAILED,
-          stderr: `Failed to dispatch to Judge0 sandbox: ${err.message}`,
+          stderr: `Infrastructure error: sandbox execution failed after retries (${infraError})`,
           completedAt: new Date(),
         },
       });
+      await this.redisService.del(lockKey);
     }
   }
 }

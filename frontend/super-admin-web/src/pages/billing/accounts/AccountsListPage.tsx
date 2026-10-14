@@ -27,7 +27,7 @@ export const AccountsListPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <CreditCard className="w-6 h-6 text-[#2f68ff]" />
+              
               Commercial Billing Accounts
             </h1>
           </div>

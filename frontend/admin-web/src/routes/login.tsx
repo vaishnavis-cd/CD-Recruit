@@ -29,6 +29,18 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get("token");
+      const urlRefresh = params.get("refreshToken");
+      if (urlToken) {
+        localStorage.setItem("admin_token", urlToken);
+        if (urlRefresh) localStorage.setItem("admin_refresh_token", urlRefresh);
+        navigate({ to: "/dashboard", replace: true });
+        return;
+      }
+    }
+
     const token = typeof localStorage !== "undefined" ? localStorage.getItem("admin_token") : null;
     if (token) {
       try {

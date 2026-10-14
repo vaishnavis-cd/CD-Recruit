@@ -291,19 +291,30 @@ export function CodingWorkspace({
     }
   };
 
-  const pollExecution = async (executionId: string, maxAttempts = 60): Promise<CodingExecutionResponse> => {
-    let attempt = 0;
-    while (attempt < maxAttempts && activePollRef.current) {
-      attempt++;
+  const pollExecutionWithBackoff = async (
+    executionId: string,
+    maxWaitMs = 45000,
+  ): Promise<CodingExecutionResponse> => {
+    let delayMs = 300;
+    const maxDelayMs = 2000;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitMs && activePollRef.current) {
       try {
         const result = await getCodingExecution(executionId);
-        if (result.status && result.status !== "PENDING" && result.status !== "RUNNING" && result.status !== "SUBMITTED") {
+        if (
+          result.status &&
+          result.status !== "PENDING" &&
+          result.status !== "RUNNING" &&
+          result.status !== "SUBMITTED"
+        ) {
           return result;
         }
       } catch (err) {
-        console.error("Polling error:", err);
+        console.error("Polling fallback error:", err);
       }
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, delayMs));
+      delayMs = Math.min(delayMs * 2, maxDelayMs);
     }
     throw new Error("Execution timed out.");
   };
@@ -312,29 +323,88 @@ export function CodingWorkspace({
     actionFn: () => Promise<CodingExecutionResponse>,
   ): Promise<CodingExecutionResponse> => {
     const response = await actionFn();
-    if (response.status === "PENDING" || response.status === "RUNNING" || response.status === "SUBMITTED") {
-      // Race SSE and fast 300ms Redis polling so the absolute fastest path always wins
-      return await Promise.race([
-        pollExecution(response.executionId),
-        new Promise<CodingExecutionResponse>((resolve) => {
-          try {
-            const sseUrl = `/api/v1/coding/execution/${response.executionId}/events`;
-            const eventSource = new EventSource(sseUrl);
-            eventSource.onmessage = (event) => {
-              try {
-                const payload = JSON.parse(event.data);
-                if (payload.status && payload.status !== "PENDING" && payload.status !== "RUNNING" && payload.status !== "SUBMITTED") {
-                  eventSource.close();
+    if (
+      response.status === "PENDING" ||
+      response.status === "RUNNING" ||
+      response.status === "SUBMITTED"
+    ) {
+      // Primary: Server-Sent Events stream (<1ms delivery, 0 polling load)
+      // Fallback: Exponential backoff polling (300ms -> 2000ms) only if SSE drops
+      return new Promise<CodingExecutionResponse>((resolve, reject) => {
+        let isResolved = false;
+        let eventSource: EventSource | null = null;
+        let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const cleanup = () => {
+          if (eventSource) {
+            eventSource.close();
+            eventSource = null;
+          }
+          if (fallbackTimer) {
+            clearTimeout(fallbackTimer);
+            fallbackTimer = null;
+          }
+        };
+
+        const triggerPollingFallback = () => {
+          if (isResolved) return;
+          cleanup();
+          pollExecutionWithBackoff(response.executionId)
+            .then((res) => {
+              if (!isResolved) {
+                isResolved = true;
+                resolve(res);
+              }
+            })
+            .catch((err) => {
+              if (!isResolved) {
+                isResolved = true;
+                reject(err);
+              }
+            });
+        };
+
+        try {
+          const sseUrl = `/api/v1/coding/execution/${response.executionId}/events`;
+          eventSource = new EventSource(sseUrl);
+
+          eventSource.onmessage = (event) => {
+            try {
+              const payload = JSON.parse(event.data);
+              // Ignore keepalive heartbeat messages
+              if (payload?.type === "heartbeat") return;
+
+              if (
+                payload.status &&
+                payload.status !== "PENDING" &&
+                payload.status !== "RUNNING" &&
+                payload.status !== "SUBMITTED"
+              ) {
+                if (!isResolved) {
+                  isResolved = true;
+                  cleanup();
                   resolve(payload);
                 }
-              } catch {}
-            };
-            eventSource.onerror = () => {
-              eventSource.close();
-            };
-          } catch {}
-        }),
-      ]);
+              }
+            } catch {
+              // Ignore JSON parse errors on malformed/heartbeat frames
+            }
+          };
+
+          eventSource.onerror = () => {
+            // On SSE connection error or drop, cleanly transition to backoff polling
+            triggerPollingFallback();
+          };
+
+          // Safety timeout ceiling: 45s
+          fallbackTimer = setTimeout(() => {
+            triggerPollingFallback();
+          }, 45000);
+        } catch {
+          // If EventSource construction fails, fallback immediately to backoff polling
+          triggerPollingFallback();
+        }
+      });
     }
     return response;
   };

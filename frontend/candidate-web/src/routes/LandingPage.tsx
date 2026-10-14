@@ -20,6 +20,8 @@ import iconCode from '../assets/IconCode.svg'
 import iconBrain from '../assets/IconBrain.svg'
 import iconCpu from '../assets/IconCpu.svg'
 import { CountUp } from '../components/common/CountUp'
+import { PricingSection } from '../components/pricing/PricingSection'
+import { ClientOnboardingModal } from '../components/pricing/ClientOnboardingModal'
 
 // ─── Token Extraction Helper ──────────────────────────────────────────────────
 function extractInviteId(raw: string): string | null {
@@ -107,7 +109,7 @@ function FloatingRibbonRight() {
 
 
 // ─── 1. Header / Navbar (Figma Spec Node 7:435) ────────────────────────────────
-function Header() {
+function Header({ onOpenSignup }: { onOpenSignup: () => void }) {
   const [scrolled, setScrolled] = useState(false)
 
   useEffect(() => {
@@ -137,6 +139,7 @@ function Header() {
             {[
               ['Platform', '#platform'],
               ['The Say-Do Score', '#say-do'],
+              ['Pricing', '#pricing'],
               ['Security', '#security'],
               ['Have an invite?', '#start'],
             ].map(([label, href]) => (
@@ -150,12 +153,20 @@ function Header() {
             ))}
           </nav>
 
-          <a
-            href="mailto:hello@proctora.com?subject=Demo%20request"
-            className="landing-demo-btn inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 text-[13px] sm:text-[14px] font-semibold text-white rounded-full no-underline transition-all hover:bg-[#2349B8] hover:shadow-md active:scale-98 whitespace-nowrap"
-          >
-            Book Demo <ArrowRight size={14} />
-          </a>
+          <div className="flex items-center gap-3">
+            <a
+              href="http://localhost:5174/login"
+              className="hidden sm:inline-block text-[13px] sm:text-[14px] font-semibold text-slate-700 hover:text-[#2E5DE0] transition-colors no-underline whitespace-nowrap"
+            >
+              Sign In
+            </a>
+            <button
+              onClick={onOpenSignup}
+              className="landing-demo-btn inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-2.5 text-[13px] sm:text-[14px] font-semibold text-white rounded-full no-underline transition-all hover:bg-[#2349B8] hover:shadow-md active:scale-98 whitespace-nowrap cursor-pointer"
+            >
+              Start Free Trial <ArrowRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
     </header>
@@ -684,7 +695,7 @@ function SayDoSection() {
 }
 
 // ─── 7. Wide Call-To-Action Banner (Coded Responsive UI) ─────────────────────
-function CtaBanner() {
+function CtaBanner({ onOpenSignup }: { onOpenSignup: () => void }) {
   return (
     <section className="py-16 sm:py-24 bg-[#FFFFFF]">
       <div className="max-w-[1470px] mx-auto px-4 sm:px-6">
@@ -704,15 +715,15 @@ function CtaBanner() {
                   See what your current process is missing.
                 </h2>
                 <p className="text-[15px] sm:text-[17px] text-white/90 leading-relaxed font-normal mt-4 sm:mt-5 mb-8 sm:mb-9 max-w-[480px]">
-                  Walk through a real session and see the Say-Do Score applied to an actual candidate response.
+                  Walk through a real session and see the Say-Do Score applied to an actual candidate response with 25 free evaluation credits.
                 </p>
-                <a
-                  href="mailto:hello@proctora.com?subject=Demo%20request"
-                  aria-label="Request a demo"
-                  className="inline-flex items-center justify-center px-8 py-3.5 bg-white text-[#0F0F1A] font-bold text-[15px] rounded-full shadow-lg hover:bg-[#F4F7FF] hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 no-underline"
+                <button
+                  onClick={onOpenSignup}
+                  aria-label="Start free trial"
+                  className="inline-flex items-center justify-center px-8 py-3.5 bg-white text-[#0F0F1A] font-bold text-[15px] rounded-full shadow-lg hover:bg-[#F4F7FF] hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer"
                 >
-                  Request a demo
-                </a>
+                  Start Free Trial (25 Credits) <ArrowRight size={16} className="ml-2" />
+                </button>
               </div>
 
               {/* Right Column: Visual Artwork of Layered Perspective Cards */}
@@ -757,7 +768,8 @@ function Footer() {
             <ul className="space-y-3 p-0 m-0 list-none">
               {[
                 ['Platform', '#platform'],
-                ['Say-Do Score', '#say-do'],
+                ['The Say-Do Score', '#say-do'],
+                ['Pricing', '#pricing'],
                 ['Security', '#security'],
               ].map(([item, href]) => (
                 <li key={item}>
@@ -821,9 +833,17 @@ function Footer() {
 
 // ─── Main Landing Page Component ─────────────────────────────────────────────
 export function LandingPage() {
+  const [showSignupModal, setShowSignupModal] = useState(false)
+  const [selectedTier, setSelectedTier] = useState<string | undefined>()
+
+  const handleOpenSignup = (tierId?: string) => {
+    setSelectedTier(tierId)
+    setShowSignupModal(true)
+  }
+
   return (
     <div className="min-h-screen bg-[#FBFBFC] text-[#111827] font-sans antialiased overflow-x-hidden selection:bg-[#2563EB] selection:text-white scroll-smooth">
-      <Header />
+      <Header onOpenSignup={() => handleOpenSignup()} />
 
       {/* ═══ HERO SECTION (with 3D Swirl Ribbons & Figma Light Gradient) ═══ */}
       <section
@@ -881,11 +901,21 @@ export function LandingPage() {
       {/* ═══ SAY-DO AGREEMENT SECTION ═══ */}
       <SayDoSection />
 
+      {/* ═══ PRICING & CREDIT MODEL SECTION ═══ */}
+      <PricingSection onOpenSignup={handleOpenSignup} />
+
       {/* ═══ CALL TO ACTION BANNER ═══ */}
-      <CtaBanner />
+      <CtaBanner onOpenSignup={() => handleOpenSignup()} />
 
       {/* ═══ FOOTER ═══ */}
       <Footer />
+
+      {/* ═══ CLIENT ONBOARDING MODAL ═══ */}
+      <ClientOnboardingModal
+        isOpen={showSignupModal}
+        onClose={() => setShowSignupModal(false)}
+        selectedTierId={selectedTier}
+      />
     </div>
   )
 }

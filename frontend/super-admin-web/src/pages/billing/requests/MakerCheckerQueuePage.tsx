@@ -37,7 +37,7 @@ export const MakerCheckerQueuePage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
-              <ShieldCheck className="w-6 h-6 text-[#2f68ff]" />
+              
               Maker-Checker Authorization Queue
             </h1>
           </div>
